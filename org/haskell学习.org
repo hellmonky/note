@@ -1,0 +1,52 @@
+#+TITTLE:haskell学习笔记
+
+* haskell基础
+
+** 一 基本概念
+
+*** （1）基本运算符
+
+**** 1.基本运算符
+基本的算术表达式类似于像C或是Python这样的语言：用中缀表达式，即操作符在操作数之间。
+#+BEGIN_SRC haskell
+ ghci> 2 + 2
+ 4
+ ghci> 31337 * 101
+ 3165037
+ ghci> 7.0 / 2.0
+ 3.5
+#+END_SRC
+可以用前缀表达式，即操作符在操作数之前。在这种情况下，我们需要用括号将操作符括起来。
+#+BEGIN_SRC haskell
+ ghci> (+) 2 2
+ 4
+#+END_SRC
+对于负数haskell中使用括号来将负数包裹
+#+BEGIN_SRC haskell
+ ghci> -3
+ -3
+#+END_SRC
+布尔类型在haskell中只有True和Fales这两个，并且不和其他类型通用，C语言中非0就是true的规则不再适用。
+这样做的好处在于明确了类型，不会出现混淆带来的问题。对于布尔类型来说，操作符有：
+#+BEGIN_SRC haskell
+&&  逻辑与
+||  逻辑或
+not 逻辑非
+需要注意：not是一个函数，&&和||则是运算符
+/=  不等于操作符
+#+END_SRC
+浮点数比较特别（在其他语言中也是很特别的），需要注意
+
+运算符的优先级可以用ghci的info命令来查看，并且会指出是infixl还是infixr的结合属性：
+#+BEGIN_SRC haskell
+ghci> :info (+)
+class (Eq a, Show a) => Num a where
+  (+) :: a -> a -> a
+  ...
+    -- Defined in GHC.Num
+infixl 6 +
+#+END_SRC
+infixl表示该运算符是左结合的。
+*但是解决运算符优先级的最好方法还是使用括号来明确结合顺序，不依赖于优先等级的给定。*
+使用括号可以很方便的避免因为不了解运算符优先级造成的问题，适用于任何语言。
+
