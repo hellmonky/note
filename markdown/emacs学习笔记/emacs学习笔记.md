@@ -127,10 +127,9 @@ C-s-Backspace
 
 
 ### 1.2 其他命令 ###
-上述中的命令是自己在学习中使用的，还有一些常用命令用于备忘，可以逐渐学习。
+上述中的命令是自己在学习中使用的，还有一些常用命令用于备忘，可以逐渐学习。以下内容来源自网上整理总结。
 
-光标的移动
-在编辑文本时对光标的控制。
+光标的移动：在编辑文本时对光标的控制。
 
 ```shell
 上：C-p(previous).
@@ -163,11 +162,9 @@ C-s-Backspace
 
 将当前行置于屏幕中间：C-l.  2次 C-l 置于屏幕首，3次 C-l 置于屏幕末。
 ```
- 
 
-文件的编辑
 
-对文本的删除，复制，粘贴等。
+文件的编辑：对文本的删除，复制，粘贴等。
 
 ```shell
 删除光标前字符：backspace（回车键上面那个）.
@@ -198,20 +195,18 @@ C-s-Backspace
 ```
 
 
-文本的搜索
-Emacs可以向前，向后搜索字符串，搜索命令是渐进的（incremental）的，就是搜索与输入同步，没输入一个字符，Emacs就已经开始搜索了。
+文本的搜索：Emacs可以向前，向后搜索字符串，搜索命令是渐进的（incremental）的，就是搜索与输入同步，没输入一个字符，Emacs就已经开始搜索了。
 
 ```shell
 向前搜索：C-r.
 
 向后搜索：C-s.
 ```
+>注意：在搜索时候，可以按C-s/r 查看下/上一处，C-g取消搜索，回到初始搜索光标处；<Enter>结束搜索，光标留在搜索结果上。
 
-注意：在搜索时候，可以按C-s/r 查看下/上一处，C-g取消搜索，回到初始搜索光标处；<Enter>结束搜索，光标留在搜索结果上。
 
 
-多窗口
-Emacs迷人之处很多，能在一个屏幕上同时显示多个文件就是其中之一。
+多窗口：Emacs迷人之处很多，能在一个屏幕上同时显示多个文件就是其中之一。
 
 ```shell
 
@@ -227,6 +222,7 @@ Emacs迷人之处很多，能在一个屏幕上同时显示多个文件就是其
 
 在新窗口中打开文件：C-x 4 C-f.
 ```
+
 
 ## 2 Emacs文件管理
 
@@ -390,6 +386,7 @@ Emacs的源代码中src文件夹下就是c语言实现的核心解释器，更�
 下面就是一些自己在使用中遇到的需求，并且给出网上的解决方案和自己的设计思路。
 
 **写代码的核心首先是思路清晰，知道该做什么和该怎么做，最后才是重构和优化**
+**一切问题先查询官方文档，如果解决不了的再去找google**
 
 所以下面的所有的内容基本都要包含有：
 
@@ -436,4 +433,183 @@ generate-new-buffer
 关闭一个缓冲区可以用 kill-buffer。
 当关闭缓冲区时，如果要用户确认是否要关闭缓冲区，可以加到 kill-buffer-query-functions 里。如果要做一些善后处理，可以用 kill-buffer-hook。
 
+##### <2> 然后使用正则表达式对当前缓冲区中的内容进行匹配操作 #####
+emacs中的正则表达式支持和常用的perl的正则表达式语法上存在差异，所以在Linux下常常使用grep来进行正则查询，具体的差异[这儿](http://my.oschina.net/u/563463/blog/161649)的文章给出了一个简答的介绍。
+因为在日常工作中常常需要使用perl-style的正则表达式，那么该如何解决这个问题？通过网上搜索发现已经有人遇到了问题：
+
+>(perl-style regular expressions in emacs)[http://stackoverflow.com/questions/15856154/perl-style-regular-expressions-in-emacs]
+>(Is it possible to change emacs' regexp syntax?)[http://stackoverflow.com/questions/879011/is-it-possible-to-change-emacs-regexp-syntax?lq=1]
+>(Elisp mechanism for converting PCRE regexps to emacs regexps)[http://stackoverflow.com/questions/9118183/elisp-mechanism-for-converting-pcre-regexps-to-emacs-regexps?rq=1]
+
+最后的解决方法通常是通过一个中间转换函数，就可以将perl-style regular expressions转换为emacs-style regular expressions，这样就可以方便自己的使用了。
+网上查找到了两个方法：
+（1）使用github上维护的转换库[pcre2el](https://github.com/joddie/pcre2el)来实现转换过程；
+（2）自己根据两者之间的语法差异编写转换函数。[这儿](http://bbs.chinaunix.net/forum.php?mod=viewthread&tid=4101352)有一个参考，具体代码如下：
+
+>
+```elisp
+;; transfer perl style regexp string to emacs style
+;; emacs style have too many "\\"
+;; (regexp-format "%A ^a.? a+ (%w|[%x!:]+) {1,5} $")
+;; => "\\'^a.?a+\\(\\w\\|[\\x!:]+\\)\\{1,5\\}$"
+
+(defun init-state (regexp)
+  (list :class-mode nil
+        :quantify-mode nil
+        :posix-mode nil
+        :class-pos 0
+        :group-depth 0
+        :regexp regexp
+        :regexp-pos 0
+        :last-char -1
+        :token-list nil))
+
+;; switch state mode with boolean value
+(defun switch-state-mode (state mode)
+  (if (plist-get state mode)
+      (plist-put state mode nil)
+    (plist-put state mode t)))
+
+;; increase the mode value
+(defun inc-state-mode (state mode)
+  (plist-put state mode (1+ (plist-get state mode))))
+
+;; decrease the mode value
+(defun dec-state-mode (state mode)
+  (plist-put state mode (1- (plist-get state mode))))
+
+(defun get-state-char (state)
+  ;; (message "call get-state-char")
+  (elt (plist-get state :regexp) (plist-get state :regexp-pos)))
+
+(defun set-state-char (state char)
+  (when (integer char)
+      (setq char (char-to-string char)))
+  (plist-put state :token-list
+     (cons char (plist-get state :token-list))))
+
+;; common code may be occur in class-mode or group-mode
+;; escape \\w %w and [:ascii:] POSIX Regular Expression
+(defun update-common-mode (state char)
+  (cond ((and (= char ?\[)
+              (= (plist-get state :last-char) -1))
+         (set-state-char state char)
+         (plist-put state :last-char ?\[))
+        ((and (= char ?:)
+              (= (plist-get state :last-char) ?\[))
+         (set-state-char state char)
+         (set-state-char state ?:)
+         (plist-put state :last-char -1)
+         (update-posix-mode state char))
+        ((and (not (= char ?:))
+              (= (plist-get state :last-char) ?\[))
+         (set-state-char state char)
+         (plist-put state :last-char -1)
+         (update-class-mode state char))
+        ((or (= char ?%)
+             (= char ?\\))
+         (set-state-char state ?\\)
+         (inc-state-mode state :regexp-pos)
+         (setq char (get-state-char state))
+         (set-state-char state char))
+        (t
+         (set-state-char state char))))
+
+(defun update-quantify-mode (state char)
+  (switch-state-mode state :quantify-mode)
+  (while (plist-get state :quantify-mode)
+    (setq char (get-state-char state))
+    (inc-state-mode state :regexp-pos)
+    (cond ((= char ?})
+           (set-state-char state "\\}"))
+          (switch-state-mode state :quantify-mode)
+          ((= char ",")
+           (set-state-char state char))
+          ((and (>= (string-to-char char) ?0)
+                (<= (string-to-char char) ?9))
+           (set-state-char state char))
+          (t
+           (switch-state-mode state :quantify-mode)
+           (update-common-mode state char)))))
+
+(defun update-posix-mode (state char)
+  (switch-state-mode state :posix-mode)
+  (while (plist-get state :posix-mode)
+    (setq char (get-state-char state))
+    (inc-state-mode state :regexp-pos)
+    (cond ((and (= char ?:)
+                (= (plist-get state :last-char) -1))
+           (set-state-char state char)
+           (plist-put state :last-char ?:))
+          ((and (= char ?\])
+                (= (plist-get state :last-char) ?:))
+           (plist-put state :last-char -1)
+           (set-state-char state char)
+           (switch-state-mode state :posix-mode))
+          ((or (>= (string-to-char char) ?a)
+               (<= (string-to-char char) ?z))
+           (plist-put state :last-char -1)
+           (set-state-char state char))
+          (t
+           (plist-put state :last-char -1)
+           (switch-state-mode state :posix-mode)
+           (update-common-mode state char)))))
+
+(defun update-class-mode (state char)
+  (switch-state-mode state :class-mode)
+  (while (plist-get state :class-mode)
+    (setq char (get-state-char state))
+    (inc-state-mode state :regexp-pos)
+    (inc-state-mode state :class-pos)
+    ;; end class-mode
+    (cond ((and (= char ?\])
+                (> (plist-get state :class-pos) 1))
+           (set-state-char state ?\])
+           (plist-put state :class-pos 0)
+           (switch-state-mode state :class-mode))
+          ((and (= char ?\])
+                (= (plist-get state :class-pos) 1))
+           (set-state-char state char))
+          ((and (= char ?^)
+                (= (plist-get state :class-pos) 1))
+           (dec-state-mode state :class-pos)
+           (set-state-char state char))
+          (t
+           (update-common-mode state char)))))
+
+(defun update-group-mode (state char)
+  (while (integerp char)
+    (setq char (get-state-char state))
+    (inc-state-mode state :regexp-pos)
+    (cond ((= char ?\()
+           (set-state-char state "\\(")
+           (inc-state-mode state :group-depth))
+          ((and (= char ?\))
+                (> (plist-get state :group-depth) 0))
+           (set-state-char state "\\)")
+           (dec-state-mode state :group-depth))
+          ((= char ?|)
+           (set-state-char state "\\|"))
+          ((= char ?{)
+           (set-state-char state "\\{")
+           (update-quantify-mode state char))
+          (t
+           (update-common-mode state char)))))
+
+;; check state is ok
+(defun check-state (state)
+  (cond ((plist-get state :class-mode)
+         (error "class syntax error"))
+        ((plist-get state :quantify-mode)
+         (error "quantify syntax error"))))
+
+(defun regexp-format (string)
+  "format perl+lua style regexp string to elisp style"
+  ;; meta char: . * ? + [ ^ $ | ( { %
+  (let* ((state (init-state string))
+         (char (get-state-char state)))
+    (update-group-mode state char)
+    (check-state state)
+    (concat (reverse (plist-get state :token-list)))))
+```
 
