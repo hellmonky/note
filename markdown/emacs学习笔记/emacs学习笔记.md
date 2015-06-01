@@ -2,7 +2,7 @@
 
 *一边学习一边联系，在实战中学习*
 
-++by hellmonky++
+**by hellmonky**
 
 使用Emacs编辑可以方便的根据文档的层级进行处理，这个是在其他编辑器中支持很差的，并且让用户关注于文本本身，而不是各种点击操作。
 
@@ -93,15 +93,18 @@ Emacs默认标记文本区域起始位置的按键命令是C-Space，在中文�
 
 ##### <2>基本的复制，粘贴和剪切 #####
 以为使用windows下的编辑功能较多，Emacs默认使用的复制粘贴按键需要多次，不方便使用，现在把C-c C-c设为复制到系统剪贴板，C-c C-v设为从系统剪贴板粘贴。
+
 （1）首先开启Emacs和系统其它部分的复制粘贴交互：
 ```shell
 (setq x-select-enable-clipboard t)
 ```
+
 （2）然后添加复制粘贴支持：
 ```shell
 (global-set-key "\C-z\C-c" 'clipboard-kill-ring-save)
 (global-set-key "\C-z\C-v" 'clipboard-yank)
 ```
+
 （3）剪切还是使用Emacs中默认的快捷键处理，将标记选定的文本剪切：
 ```shell
 C-w
@@ -349,16 +352,18 @@ emacs中的正则表达式支持和常用的perl的正则表达式语法上存�
 因为在日常工作中常常需要使用perl-style的正则表达式，那么该如何解决这个问题？通过网上搜索发现已经有人遇到了问题：
 
 >[perl-style regular expressions in emacs](http://stackoverflow.com/questions/15856154/perl-style-regular-expressions-in-emacs)
+
 >[Is it possible to change emacs' regexp syntax?](http://stackoverflow.com/questions/879011/is-it-possible-to-change-emacs-regexp-syntax?lq=1)
+
 >[Elisp mechanism for converting PCRE regexps to emacs regexps](http://stackoverflow.com/questions/9118183/elisp-mechanism-for-converting-pcre-regexps-to-emacs-regexps?rq=1)
 
 最后的解决方法通常是通过一个中间转换函数，就可以将perl-style regular expressions转换为emacs-style regular expressions，这样就可以方便自己的使用了。
 网上查找到了两个方法：
-（1）使用github上维护的转换库[pcre2el](https://github.com/joddie/pcre2el)来实现转换过程；
-（2）自己根据两者之间的语法差异编写转换函数。[这儿](http://bbs.chinaunix.net/forum.php?mod=viewthread&tid=4101352)有一个参考，具体代码如下：
 
->
-```elisp
+（1）使用github上维护的转换库[pcre2el](https://github.com/joddie/pcre2el)来实现转换过程；
+
+（2）自己根据两者之间的语法差异编写转换函数。[这儿](http://bbs.chinaunix.net/forum.php?mod=viewthread&tid=4101352)有一个参考，具体代码如下：
+>```elisp
 ;; transfer perl style regexp string to emacs style
 ;; emacs style have too many "\\"
 ;; (regexp-format "%A ^a.? a+ (%w|[%x!:]+) {1,5} $")
