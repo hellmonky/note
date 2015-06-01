@@ -268,113 +268,65 @@ C-c C-t 层级数
 输入上述快捷键之后，接着输入层级就可以快速插入对应的层级了，然后输入标题继续编辑。
 
 
+
 ## 4 org-mode使用 ##
 org mode是Emacs中的核心模式，被广泛的使用来进行知识管理。从Emacs23版本之后被内置，可以称得上为神器中的神器，因为学习上比较类似于markdown，所以这一部分是最为核心的模式，一定要学习和掌握。
 网上有非常多的教程，但是最好的方式还是参考[官方](http://orgmode.org/manual/)给出的教程来进行学习。
 
-### 4.1 org自动换行 ###
+### 4.1 org自动换行设置 ###
 org模式下默认没有自动换行的功能，我们在.emacs文件里面添加如下代码，实现自动换行：
 ```shell
 (add-hook 'org-mode-hook (lambda () (setq truncate-lines nil)))
 ```
 添加完毕之后再org模式下编辑就可以自动换行了。
 
-### 4.2 org文件导出###
-使用org模式编辑文本之后，转换为其他格式的文件方便阅读和分享，最常见的是导出为html静态网页：
+### 4.2 org模式下的编辑功能 ###
+
+#### （1）使用easy-template插入代码 ####
+Emacs24之后内置的org模式支持easy-template，只需要：
 
 ```shell
-```shell
-上：C-p(previous).
-
-下：C-n(next).
-
-左：C-b(back).
-
-右：C-f(forward).
-
-移动到文件的开始处：M-<.
-
-移动到文件的结尾处：M->.
-
-移动到行首：C-a.
-
-移动到行末：C-e(end).
-
-向前移动一个词：M-f.
-
-向后移动一个词：M-b.
-
-向前移动一个句子：M-a.
-
-向后移动一个句子：M-e.
-
-向下滚动一屏：C-v(view).
-
-向上滚动一屏：M-v.
-
-将当前行置于屏幕中间：C-l.  2次 C-l 置于屏幕首，3次 C-l 置于屏幕末。
-```
- 
-
-文件的编辑
-
-对文本的删除，复制，粘贴等。
-```shell
-删除光标前字符：backspace（回车键上面那个）.
-
-删除当前字符：C-d(delete).
-
-删除光标前的一个词：M-backspace.
-
-删除光标后的一个词：M-d.
-
-删除光标处到行末的字符：C-k(kill).
-
-删除光标处到句末的字符：M-k.
-
-撤销：C-x u(undo). 或者 C-/ 再或者 C-_ .推荐使用第一种,方便。
-
-移除标记mark set:C-@，即标记从光标处开始的字符。
-
-移除：C-w,移除mark set处到现光标处的字符。
-
-召回上一次移除文字：C-y(yank).
-
-召唤以前移除的文字：M-y.注意，在C-y使用之后使用。
-
-复制:M-w,从上一次mark set处，到现在光标处的字符。使用C-y粘贴。
-
-全选：C-x h.
+1. 文本中输入 <s
+2. 按一下 Tab 键
 ```
 
-
-文本的搜索
-Emacs可以向前，向后搜索字符串，搜索命令是渐进的（incremental）的，就是搜索与输入同步，没输入一个字符，Emacs就已经开始搜索了。
-```shell
-向前搜索：C-r.
-
-向后搜索：C-s.
-```
-注意：在搜索时候，可以按C-s/r 查看下/上一处，C-g取消搜索，回到初始搜索光标处；<Enter>结束搜索，光标留在搜索结果上。
-
-
-多窗口
-Emacs迷人之处很多，能在一个屏幕上同时显示多个文件就是其中之一。
+就会出现如下内容：
 
 ```shell
+ #+begin_src | <---光标处,可方便书写语言种类
 
-添加窗口：C-x 2.新添加的窗口为当前文件。
-
-关闭当前窗口外窗口：C-x 1.
-
-滚动下方窗口（向下）：C-M-v
-
-滚动下方窗口（向上）：C-M-Shift-v.
-
-遍历窗口：C-x o.
-
-在新窗口中打开文件：C-x 4 C-f.
+ #+end_src
 ```
+官方还给出了[其他模板](http://orgmode.org/manual/Easy-Templates.html)的插入功能。
+
+
+### 4.3 org文件导出###
+使用org模式编辑文本之后，转换为其他格式的文件方便阅读和分享，那么就需要导出为不同的格式，基本命令为：
+```shell
+C-c C-e
+```
+将会调出export的界面，然后用按键点击来进行选择导出的格式。
+
+#### （1）导出为html静态网页格式 ####
+Emacs的org模式内置了对html格式的导出功能，使用：
+```shell
+C-c C-e h h
+```
+就会在当前文件夹下导出为带有样式的静态html格式文件。
+
+
+#### （2）导出为md格式 ####
+markdown作为另一种轻量级格式，org内置了导出功能，但是默认是不打开的，根据[stackoverflow的资料](http://stackoverflow.com/questions/22988092/emacs-org-mode-export-markdown)所以需要在.emacs中添加：
+```shell
+(eval-after-load "org" '(require 'ox-md nil t))
+```
+来打开markdown格式导出组件，然后根据[官网手册](http://orgmode.org/manual/Markdown-export.html#Markdown-export)使用：
+```shell
+C-c C-e m m
+```
+导出为同名的md文件。
+
+
 
 
 ## 5 使用elisp编写自己的插件 ##
@@ -437,9 +389,9 @@ generate-new-buffer
 emacs中的正则表达式支持和常用的perl的正则表达式语法上存在差异，所以在Linux下常常使用grep来进行正则查询，具体的差异[这儿](http://my.oschina.net/u/563463/blog/161649)的文章给出了一个简答的介绍。
 因为在日常工作中常常需要使用perl-style的正则表达式，那么该如何解决这个问题？通过网上搜索发现已经有人遇到了问题：
 
->(perl-style regular expressions in emacs)[http://stackoverflow.com/questions/15856154/perl-style-regular-expressions-in-emacs]
->(Is it possible to change emacs' regexp syntax?)[http://stackoverflow.com/questions/879011/is-it-possible-to-change-emacs-regexp-syntax?lq=1]
->(Elisp mechanism for converting PCRE regexps to emacs regexps)[http://stackoverflow.com/questions/9118183/elisp-mechanism-for-converting-pcre-regexps-to-emacs-regexps?rq=1]
+>[perl-style regular expressions in emacs](http://stackoverflow.com/questions/15856154/perl-style-regular-expressions-in-emacs)
+>[Is it possible to change emacs' regexp syntax?](http://stackoverflow.com/questions/879011/is-it-possible-to-change-emacs-regexp-syntax?lq=1)
+>[Elisp mechanism for converting PCRE regexps to emacs regexps](http://stackoverflow.com/questions/9118183/elisp-mechanism-for-converting-pcre-regexps-to-emacs-regexps?rq=1)
 
 最后的解决方法通常是通过一个中间转换函数，就可以将perl-style regular expressions转换为emacs-style regular expressions，这样就可以方便自己的使用了。
 网上查找到了两个方法：
@@ -452,7 +404,6 @@ emacs中的正则表达式支持和常用的perl的正则表达式语法上存�
 ;; emacs style have too many "\\"
 ;; (regexp-format "%A ^a.? a+ (%w|[%x!:]+) {1,5} $")
 ;; => "\\'^a.?a+\\(\\w\\|[\\x!:]+\\)\\{1,5\\}$"
-
 (defun init-state (regexp)
   (list :class-mode nil
         :quantify-mode nil
