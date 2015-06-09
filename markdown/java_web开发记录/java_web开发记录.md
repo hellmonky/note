@@ -409,20 +409,14 @@ maven作为包java的管理器是非常好的，但是自己在实际工程中�
 
 ### （2）java web框架 ###
 
->java的web开发需要一些基本概念，这是自己现在没有的，需要进行学习和了解，本节内容就针对当前使用的java web开发基础知识进行学习。
+>java web开发需要一些基本概念，这是自己现在没有的，需要进行学习和了解，本节内容就针对当前使用的java web开发基础知识进行学习。
 
-web开发是目前java的热点应用，这种现象的存是和java语言本身也有密切的关系的：
-（1）Java是一种动态加载和运行的语言。也就是说当应用程序持有一个类的地址（CLASSPATH）和名称（包名和类名）的情况下，可以在程序运行期间任何时候加载这个类，并创建和使用该类的对象。
-（2）Java Servlet要求必须运行在Web服务器当中，与Web服务器之间属于分工和互补关系。确切的说，在实际运行的时候Java Servlet与Web服务器会融为一体，如同一个程序一样运行在同一个Java虚拟机（JVM）当中。
-（3）Servlet对每个请求都是单独启动一个线程，而不是进程。这种处理方式大幅度地降低了系统里的进程数量，提高了系统的并发处理能力。另外因为Java Servlet是运行在虚拟机之上的，也就解决了跨平台问题。
-（4）当Web容器接收到来自客户端的请求信息之后，会根据URL中的Web元件地址信息到Servlet队列中查找对应的Servlet对象，如果找到则直接使用，如果没有找到则加载对应的类，并创建对象。也就是说，Servlet对象是在第一次被使用的时候才创建的，并且一旦创建就会被反复使用，不再创建新的对象。所有创建出的Servlet对象会在Web服务器停止运行的时候统一进行垃圾回收。
-（5）为了解决客户端请求地址与Java Servlet之间对应关系问题，Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。如果一个Web应用程序中存在很多个Servlet，那么web.xml会变得非常庞大。在Servlet 3.0规范推出之后，允许在Servlet代码中使用声明式语法来代替web.xml中的描述信息，这才让web.xml瘦身下来。下图是这个过程的一个示意图。
-
-#### <1> java web基本概念 ####
+#### <1> java工程的基本概念 ####
 java工程和java web工程有什么区别？为什么要分为javaee和javase这两种？而且很多工程也根据是否是javase和javaee来建立不同的工程。
 其实这两种工程都是Java语言的应用，只是应用场合不同罢了，他们的本质区别在于：编译后路径。
 虚拟机执行的是class文件而不是java文件，那么我们不管是何种项目都是写的java文件，怎么就不一样了呢？分成java和web两种了呢？
 
+##### (a).classpath文件的作用 #####
 以eclipse的工程文件为例，从.classpath文件入手来看，这个文件在每个项目目录下都是存在的。这是一个XML文件，使用文本编辑器打开即可，示例如下：
 
 ```xml
@@ -447,17 +441,57 @@ java工程和java web工程有什么区别？为什么要分为javaee和javase�
 ```
 这个XML文档包含一个根元素classpath，它由子元素classpathentry的kind参数来设置不同的属性和类型信息：
 >src：源码相对于当前工程文件的具体路径
+
 >con：JRE容器的信息，表示当前工程需要的基本java执行环境
+
 >lib：项目依赖的第三方类库的相对路径
+
 >output：src设置的所有源代码编译后的输出位置，按照源代码的结构进行组织
 
 总体上说.classpath文件就是eclipse配置整个工程的运行环境。
 是否是web工程的要点就在于最后output的位置不同，按照javaee规范放置在web目录下的就是web工程，没有的就是一般的java工程。
 
+##### (b).project文件的作用 #####
+当前工程文件的根目录下还有一个.project文件，他也是一个xml格式的文件，打开可以看见如下结果：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>sys</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	
+	<buildSpec>
+		<buildCommand>
+			<name>org.eclipse.jdt.core.javabuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+	</buildSpec>
+	
+	<natures>
+		<nature>org.eclipse.jdt.core.javanature</nature>
+	</natures>
+</projectDescription>
+```
+可以看出到这些配置主要是描述工程的基本信息：
+
+```xml
+<name></name>           工程名
+<comment></comment>     工程注释描述
+<buildSpec></buildSpec> 具体加载方式信息
+<natures></natures>     运行时需要的额外Eclipse插件
+```
+也就是说.project是项目文件，项目的结构都在其中定义
+
+##### (c)其他配置文件相关 #####
+
 **通过不同的配置文件设置class文件的输出位置就可以完成java不同项目的设置**
 
 以Eclipse IDE for Java Developers这个基础IDE为例说明不同的java项目只在于组织结构不同：
-这个eclipse是最基本的用语开发java程序的IDE，对于开发web项目而言缺少一些自动生成工具来简化开发，所以如果要开发和管理web项目 需要手动安装WTP组件（Web Tools Platform）来进行管理。
+
+>这个eclipse是最基本的用语开发java程序的IDE，对于开发web项目而言缺少一些自动生成工具来简化开发，所以如果要开发和管理web项目 需要手动安装WTP组件（Web Tools Platform）来进行管理。
 
 在当前eclipse中按照如下网址安装WTP组件：
 ```url
@@ -466,11 +500,50 @@ http://download.eclipse.org/webtools/updates
 安装完毕之后就会在工程属性设置中找到“Deployment assembly”选项，然后在其中选择要部署的源代码位置，然后设置部署的路径保存。
 这个选项将会在当前工程文件夹的根路径下生成”.setting“文件夹，并且在其中生成”org.eclipse.wst.common.component“配置文件。这个文件是xml格式的配置文件，用语描述当前工程在部署的时候class文件的部署路径，用于生成war包或者tomcat调试的时候在临时文件夹下生成web工程目录结构。
 
->所以从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
+```xml
+<?xml version="1.0" encoding="UTF-8"?><project-modules id="moduleCoreId" project-version="1.5.0">
+    <wb-module deploy-name="sys">
+        <wb-resource deploy-path="/" source-path="/WebContent" tag="defaultRootSource"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/src"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/web"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/database"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/plugin"/>
+        <wb-resource deploy-path="/WEB-INF/classes" source-path="/filter"/>
+        <property name="context-root" value="sys"/>
+        <property name="java-output-path" value="/sys/build/classes"/>
+    </wb-module>
+</project-modules>
+```
+其中的：
+ deploy-path：表示部署路径
+ source-path：表示源代码路径
+
+这个内容和在IDE中设置的内容一一对应，所以插件帮助我么维护并且自动处理我们设置好的内容，简化我们开发。
+
+综合起来.setting文件夹下存放的是eclipse的各种插件的配置文件，用于自动化处理。
+
+##### 综上所述 #####
+
+>从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
 
 在学习java的时候一定要明白这个道理，才能掌握各种框架和工具的实现原理，把握住java开发中的设计思想和不同协议对项目架构带来的影响，才能抛开技术本身而关注与业务的逻辑和实现。
 
 >**只有把握了技术的本质才能不受技术对思路的限制，否则拿着锤子看什么都是钉子。**
+
+在目前工程开发的javaee项目的时候常用的还是已经配置了各种自动化工具的Eclipse IDE for Java EE Developers，只需要根据IDE提供的可视化插件来管理项目配置然后自动生成需要的文件就可以了，不用自己手动去组织代码的结构形式，方便和简化自己的开发。**但是一定不能因为有了自动化工具就忽视基本的组织原理，问题总是会出现，依赖工具并不能避免一切问题，一定要掌握原理。**
+
+#### <2>java web相关的概念 ####
+web开发是目前java的热点应用，这种现象的存是和java语言本身也有密切的关系的：
+
+（1）Java是一种动态加载和运行的语言。也就是说当应用程序持有一个类的地址（CLASSPATH）和名称（包名和类名）的情况下，可以在程序运行期间任何时候加载这个类，并创建和使用该类的对象。
+
+ （2）Java Servlet要求必须运行在Web服务器当中，与Web服务器之间属于分工和互补关系。确切的说，在实际运行的时候Java Servlet与Web服务器会融为一体，如同一个程序一样运行在同一个Java虚拟机（JVM）当中。
+ 
+ （3）Servlet对每个请求都是单独启动一个线程，而不是进程。这种处理方式大幅度地降低了系统里的进程数量，提高了系统的并发处理能力。另外因为Java Servlet是运行在虚拟机之上的，也就解决了跨平台问题。
+ 
+ （4）当Web容器接收到来自客户端的请求信息之后，会根据URL中的Web元件地址信息到Servlet队列中查找对应的Servlet对象，如果找到则直接使用，如果没有找到则加载对应的类，并创建对象。也就是说，Servlet对象是在第一次被使用的时候才创建的，并且一旦创建就会被反复使用，不再创建新的对象。所有创建出的Servlet对象会在Web服务器停止运行的时候统一进行垃圾回收。
+ 
+ （5）为了解决客户端请求地址与Java Servlet之间对应关系问题，Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。如果一个Web应用程序中存在很多个Servlet，那么web.xml会变得非常庞大。在Servlet 3.0规范推出之后，允许在Servlet代码中使用声明式语法来代替web.xml中的描述信息，这才让web.xml瘦身下来。下图是这个过程的一个示意图。
 
 ##### (a)web服务器 #####
 Web服务器是可以向发出请求的浏览器提供文档的程序。web服务器作为互联网应用的基础平台，它实质上是一个网关，即介于多种协议之间的程序。
