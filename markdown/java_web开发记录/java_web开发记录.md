@@ -12,19 +12,28 @@
 
 >对于已经使用过的软件和框架没有给出具体下载地址
 
-（1）JDK：1.7以上版本，基本开发环境；
-（2）tomcat：web服务容器
-（3）[Spring Framework](http://repo.spring.io/libs-release-local/org/springframework/spring/)：综合框架，负责业务模型的建立；
-（4）[MyBatis](http://mybatis.github.io/)：ORM框架，轻量级数据库持久化框架（本项目中没有使用hibernate框架）；
-（5）MySQL：数据库支持，使用开源的数据库完成基本数据存储；
-（6）[STS](http://spring.io/tools/sts)：eclipse的Spring框架封装，方便快速开发；
-（7）svn：当前的开发环境中使用svn管理不同版本的代码，所以需要安装svn管理工具。
-（8）IDEA（可选）：另一个java IDE和eclipse的使用习惯不同，但是开发中的补全支持是很突出的。
+ *（1）JDK：1.7以上版本，基本开发环境；
+
+ *（2）tomcat：web服务容器；
+
+ *（3）[Spring Framework](http://repo.spring.io/libs-release-local/org/springframework/spring/)：综合框架，负责业务模型的建立；
+
+ *（4）[MyBatis](http://mybatis.github.io/)：ORM框架，轻量级数据库持久化框架（本项目中没有使用hibernate框架）；
+
+ *（5）MySQL：数据库支持，使用开源的数据库完成基本数据存储；
+
+ *（6）[STS](http://spring.io/tools/sts)：eclipse的Spring框架封装，方便快速开发；
+
+ *（7）svn：当前的开发环境中使用svn管理不同版本的代码，所以需要安装svn管理工具。
+
+ *（8）IDEA（可选）：另一个java IDE和eclipse的使用习惯不同，但是开发中的补全支持是很突出的。
+
 
 当前使用上述的软件并且安装就可以搭建好几本的开发环境了。但是在开发中还需要一些其他第三方库的支持，会在后续的开发中逐步记录。
 
 ### （2） 基本环境设置 ###
 上述环境安装的时候需要注意事项：
+
 （1）tomcat的运行需要在环境变量中查找JAVA_HOME是否存在，该环境变量存储当前jdk的根目录，一般为：
 
 ```shell
@@ -335,20 +344,26 @@ generatorConfiguration节点没有任何属性，直接写节点即可，如下�
 ####### 3.3 context元素 #######
 在MBG的配置中，至少需要有一个<context>元素。<context>元素用于指定生成一组对象的环境。例如指定要连接的数据库，要生成对象的类型和要处理的数据库中的表。运行MBG的时候还可以指定要运行的<context>。
 该元素只有一个**必选属性**id，用来唯一确定一个<context>元素，该id属性可以在运行MBG的使用。
-在这个元素下面还有一些非常必要的子元素来进行配置：
-这些子元素（有严格的配置顺序）包括：
-
+在这个元素下面还有一些非常必要的子元素来进行配置，这些子元素（有严格的配置顺序）包括：
 ><property> (0个或多个)
+
 ><plugin> (0个或多个)
+
 ><commentGenerator> (0个或1个)
+
 ><jdbcConnection> (1个)
+
 ><javaTypeResolver> (0个或1个)
+
 ><javaModelGenerator> (1个)
+
 ><sqlMapGenerator> (0个或1个)
+
 ><javaClientGenerator> (0个或1个)
+
 ><table> (1个或多个)
 
-
+这些子元素在自动生成中是非常关键的，下面就针对工程中常用的元素进行说明。
 
 ##### (b) mybatis generator的自动生成 #####
 完成上述基本配置之后，mybatis需要根据这个配置文件生成相应的代码，mybatis generator有三种方式可以完成自动生成：命令行，eclipse插件和maven插件。
