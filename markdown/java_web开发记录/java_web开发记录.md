@@ -522,6 +522,32 @@ http://download.eclipse.org/webtools/updates
 
 综合起来.setting文件夹下存放的是eclipse的各种插件的配置文件，用于自动化处理。
 
+##### (d)java web项目的基本结构 #####
+javaee web项目的结构目录遵守javeee规范，要求必须的结构有：
+
+```shell
+
+```
+在实际工程中除了这些必须的目录结构，还需要一些其他辅助的目录结构来帮助组织工程代码，举例如下：
+```shell
+web_project
+------src (必须)
+------src_resource(自建)
+------WebRoot (必须)
+-----------js (自建)
+-----------css (自建)
+-----------WEB-INF
+----------------classes(必须)
+----------------jsp(自建)
+----------------lib(自建)
+----------------web.xml(必须)
+-----------META-INF
+----------------MANIFEST.MF
+-----------index.jsp
+```
+
+一般来说java的web开发工程都是按照这种目录结构组织的，然后通过war包等方式进行代码组织，最后部署到服务器容器中从而可以被访问。所以现在的代码结构也是按照这个形式进行处理的。
+
 ##### 综上所述 #####
 
 >从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
@@ -559,10 +585,7 @@ web服务器由两个部分组成：
 >严格意义上Web服务器只负责处理HTTP协议，只能发送静态页面的内容。而JSP，ASP，PHP等动态内容需要通过CGI、FastCGI、ISAPI等接口交给其他程序去处理。这个其他程序就是应用服务器。
 >比如Web服务器包括Nginx，Apache，IIS等。而应用服务器包括WebLogic，JBoss等。应用服务器一般也支持HTTP协议，因此界限没这么清晰。但是应用服务器的HTTP协议部分仅仅是支持，一般不会做特别优化，所以很少有见Tomcat直接暴露给外面，而是和Nginx、Apache等配合，只让Tomcat处理JSP和Servlet部分。
 
-##### (b) #####
-
-
-##### (a)servlet是什么 #####
+##### (b)servlet #####
 servlet是web容器最基本的组成单元，http请求是向web服务器请求一种信息资源，而servlet就充当了这种资源的最小单位，servlet可以无限扩展，使用java所有的类库资源，为用户返回文本、图片、音频的各类信息资源。 从程序员的角度看，servlet是一个java类，需要实现javax.servlet.Servlet接口的所有方法，提供一个公开的无参数的构造方法。由web容器来控制它的创建、初始化、提供服务、销毁等。它的各种行为方式通过web.xml文件中来配置。
 
 Servlet接口有3个重要的方法，分别是init()，destroy()和service()，由于Servlet是一个java接口，所以需要加载。
@@ -573,30 +596,7 @@ Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
 
 Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
-#### <1> java web项目的基本结构 ####
-javaee对于web项目的结构目录有一些基本要求，
-
-常用的目录结构一般为如下所示：
-```shell
-web_project
-------src (必须)
-------src_resource(自建)
-------WebRoot (必须)
------------js (自建)
------------css (自建)
------------WEB-INF
-----------------classes(必须)
-----------------jsp(自建)
-----------------lib(自建)
-----------------web.xml(必须)
------------META-INF
-----------------MANIFEST.MF
------------index.jsp
-```
-
-一般来说java的web开发工程都是按照这种目录结构组织的，然后通过war包等方式进行代码组织，最后部署到服务器容器中从而可以被访问。所以现在的代码结构也是按照这个形式进行处理的。
-
-#### <2>web容器配置 ####
+##### (c)web容器配置 #####
 Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。
 
 
