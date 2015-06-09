@@ -12,21 +12,21 @@
 
 >对于已经使用过的软件和框架没有给出具体下载地址
 
- *（1）JDK：1.7以上版本，基本开发环境；
+ （1）JDK：1.7以上版本，基本开发环境；
 
- *（2）tomcat：web服务容器；
+ （2）tomcat：web服务容器；
 
- *（3）[Spring Framework](http://repo.spring.io/libs-release-local/org/springframework/spring/)：综合框架，负责业务模型的建立；
+ （3）[Spring Framework](http://repo.spring.io/libs-release-local/org/springframework/spring/)：综合框架，负责业务模型的建立；
 
- *（4）[MyBatis](http://mybatis.github.io/)：ORM框架，轻量级数据库持久化框架（本项目中没有使用hibernate框架）；
+ （4）[MyBatis](http://mybatis.github.io/)：ORM框架，轻量级数据库持久化框架（本项目中没有使用hibernate框架）；
 
- *（5）MySQL：数据库支持，使用开源的数据库完成基本数据存储；
+ （5）MySQL：数据库支持，使用开源的数据库完成基本数据存储；
 
- *（6）[STS](http://spring.io/tools/sts)：eclipse的Spring框架封装，方便快速开发；
+ （6）[STS](http://spring.io/tools/sts)：eclipse的Spring框架封装，方便快速开发；
 
- *（7）svn：当前的开发环境中使用svn管理不同版本的代码，所以需要安装svn管理工具。
+ （7）svn：当前的开发环境中使用svn管理不同版本的代码，所以需要安装svn管理工具。
 
- *（8）IDEA（可选）：另一个java IDE和eclipse的使用习惯不同，但是开发中的补全支持是很突出的。
+ （8）IDEA（可选）：另一个java IDE和eclipse的使用习惯不同，但是开发中的补全支持是很突出的。
 
 
 当前使用上述的软件并且安装就可以搭建好几本的开发环境了。但是在开发中还需要一些其他第三方库的支持，会在后续的开发中逐步记录。
@@ -90,7 +90,7 @@ mysqldump -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys --sk
 整体框架搭建还是建立在MVC的基础上的，并且对后台部分按照层次来定义调用接口，这样完成协作和同步开发，并且将测试与实现隔离，方便代码检查。现在就当前已经有的代码架构做一个简单的分析。
 
 总体上整个框架的构成为：
->分层设计->定义业务接口->分module进行设计和实现->细化实现
+>**分层设计->定义业务接口->分module进行设计和实现->细化实现**
 
 通过约定接口调用来约束不同层级之间的分离关系。从而分散整体工作，并行开发。
 通过规定整个框架的基本代码组织关系：
@@ -110,9 +110,12 @@ mysqldump -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys --sk
 #### <1> mybatis基本配置 ####
 将下载到的库中的mybatis-x.x.x.jar 文件置于 classpath 中即可进行基本配置了。
 
+>这个classpath指的是当前项目工程文件中.classpath文件中已经加入管理的，也就是在项目java build path中添加的库
+
 ##### (a) 配置基本generatorConfig.xml #####
 generatorConfig.xml文件是mybatis的核心配置文件，包含获取数据库连接实例的数据源（DataSource）和决定事务范围和控制方式的事务管理器（TransactionManager）。
-mybatis通过这个文件完成项目中的自动生成工作。这个文件的内容如下：
+
+mybatis通过这个文件完成项目中的自动生成工作。这个文件的一个示例内容如下：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8" ?>
@@ -237,7 +240,7 @@ public class MyBatisTest {
 
 ##### (a)mybatis 自动生成的配置 #####
 
-MBG需要一个xml格式的配置文件来描述，这个配置文件非常详细的给定了自动生成所需要的一切，在网上有一篇非常好的博文：[MyBatis Generator 详解](http://blog.csdn.net/isea533/article/details/42102297)可以参看。
+MBG需要一个xml格式的配置文件来描述，这个配置文件非常详细的给定了自动生成所需要的一切，在网上有一篇非常好的博文：[MyBatis Generator 详解](http://blog.csdn.net/isea533/article/details/42102297) 可以参看。
 这是一个简单的配置示例：
 
 ```xml
@@ -319,16 +322,18 @@ generatorConfiguration节点没有任何属性，直接写节点即可，如下�
 
 ###### 3 根节点下的配置元素 ######
 从这段开始，就是配置的主要内容，这些配置都是generatorConfiguration元素的子元素。包含以下子元素（有严格的顺序）：
+
+```xml
 <properties> (0个或1个)
 <classPathEntry> (0个或多个)
 <context> (1个或多个)
+```
 
 ####### 3.1 properties元素 #######
 这个元素用来指定外部的属性元素，不是必须的元素。
 这个元素用于指定一个需要在配置中解析使用的外部属性文件，引入属性文件后，可以在配置中使用 ${property}这种形式的引用，通过这种方式引用属性文件中的属性值。对于后面需要配置的**jdbc**信息和targetProject属性会很有用。
 这个属性可以通过resource或者url来指定属性文件的位置，这两个属性只能使用其中一个来指定，同时出现会报错。
 >resource：指定**classpath**下的属性文件，使用类似com/myproject/generatorConfig.properties这样的属性值。
-
 >url：可以指定文件系统上的特定位置，例如file:///C:/myfolder/generatorConfig.properties
 
 ####### 3.2 classPathEntry元素 #######
@@ -338,22 +343,25 @@ generatorConfiguration节点没有任何属性，直接写节点即可，如下�
 <classPathEntry location="E:\mysql\mysql-connector-java-5.1.29.jar"/>
 ```
 如果需要用到其他的jar包，也可以这么配置，例如如果你开发了一个MBG的插件，你就可以通过这种方式加入到**classpath**
->这里注意上面重点强调的**没有**，一般在项目中使用的时候，**classpath**下面都有JDBC驱动，因此从项目中启动的时候不需要配置该项。
+>这里注意上面重点强调的**没有**，一般在项目中使用的时候，如果在项目中添加了驱动库，**classpath**下面都有JDBC驱动，因此从项目中启动的时候不需要配置该项。
 >>建议:由于该参数使用了绝对路径，因此不利用在不同电脑上通用，因此建议最好把需要的jar包放到项目的**classpath**下，避免每个人都得单独配置路径。
 
 ####### 3.3 context元素 #######
 在MBG的配置中，至少需要有一个<context>元素。<context>元素用于指定生成一组对象的环境。例如指定要连接的数据库，要生成对象的类型和要处理的数据库中的表。运行MBG的时候还可以指定要运行的<context>。
 该元素只有一个**必选属性**id，用来唯一确定一个<context>元素，该id属性可以在运行MBG的使用。
 在这个元素下面还有一些非常必要的子元素来进行配置，这些子元素（有严格的配置顺序）包括：
- *<property> (0个或多个)
- *<plugin> (0个或多个)
- *<commentGenerator> (0个或1个)
- *<jdbcConnection> (1个)
- *<javaTypeResolver> (0个或1个)
- *<javaModelGenerator> (1个)
- *<sqlMapGenerator> (0个或1个)
- *<javaClientGenerator> (0个或1个)
- *<table> (1个或多个)
+
+```xml
+<property> (0个或多个)
+<plugin> (0个或多个)
+<commentGenerator> (0个或1个)
+<jdbcConnection> (1个)
+<javaTypeResolver> (0个或1个)
+<javaModelGenerator> (1个)
+<sqlMapGenerator> (0个或1个)
+<javaClientGenerator> (0个或1个)
+<table> (1个或多个)
+```
 
 这些子元素在自动生成中是非常关键的，下面就针对工程中常用的元素进行说明。
 
@@ -394,7 +402,9 @@ maven作为包java的管理器是非常好的，但是自己在实际工程中�
 
 ##### (c)使用mybatis自动生成的代码 #####
 完成自动生成之后，最核心的问题就是如何使用mybatis生成的这些代码组织自己的工程了。
-**工具只是手段，问题的解决才是核心**
+
+>**工具只是手段，问题的解决才是核心**
+
 
 
 ### （2）java web框架 ###
@@ -409,7 +419,58 @@ web开发是目前java的热点应用，这种现象的存是和java语言本身
 （5）为了解决客户端请求地址与Java Servlet之间对应关系问题，Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。如果一个Web应用程序中存在很多个Servlet，那么web.xml会变得非常庞大。在Servlet 3.0规范推出之后，允许在Servlet代码中使用声明式语法来代替web.xml中的描述信息，这才让web.xml瘦身下来。下图是这个过程的一个示意图。
 
 #### <1> java web基本概念 ####
-java工程和java web工程有什么区别？为什么要分为javaee
+java工程和java web工程有什么区别？为什么要分为javaee和javase这两种？而且很多工程也根据是否是javase和javaee来建立不同的工程。
+其实这两种工程都是Java语言的应用，只是应用场合不同罢了，他们的本质区别在于：编译后路径。
+虚拟机执行的是class文件而不是java文件，那么我们不管是何种项目都是写的java文件，怎么就不一样了呢？分成java和web两种了呢？
+
+以eclipse的工程文件为例，从.classpath文件入手来看，这个文件在每个项目目录下都是存在的。这是一个XML文件，使用文本编辑器打开即可，示例如下：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry excluding="com/sys/filter/" kind="src" path="src"/>
+	<classpathentry kind="src" path="web"/>
+	<classpathentry kind="src" path="database"/>
+	<classpathentry kind="src" path="plugin"/>
+	<classpathentry kind="src" path="filter"/>
+	<classpathentry kind="con" path="org.eclipse.jst.server.core.container/org.eclipse.jst.server.tomcat.runtimeTarget/Apache Tomcat v7.0">
+		<attributes>
+			<attribute name="owner.project.facets" value="jst.web"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.web.container"/>
+	<classpathentry kind="con" path="org.eclipse.jst.j2ee.internal.module.container"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/aopalliance-1.0.jar"/>
+	<classpathentry kind="lib" path="WebContent/WEB-INF/lib/chardet.jar"/>
+	<classpathentry kind="output" path="build/classes"/>
+</classpath>
+```
+这个XML文档包含一个根元素classpath，它由子元素classpathentry的kind参数来设置不同的属性和类型信息：
+>src：源码相对于当前工程文件的具体路径
+>con：JRE容器的信息，表示当前工程需要的基本java执行环境
+>lib：项目依赖的第三方类库的相对路径
+>output：src设置的所有源代码编译后的输出位置，按照源代码的结构进行组织
+
+总体上说.classpath文件就是eclipse配置整个工程的运行环境。
+是否是web工程的要点就在于最后output的位置不同，按照javaee规范放置在web目录下的就是web工程，没有的就是一般的java工程。
+
+**通过不同的配置文件设置class文件的输出位置就可以完成java不同项目的设置**
+
+以Eclipse IDE for Java Developers这个基础IDE为例说明不同的java项目只在于组织结构不同：
+这个eclipse是最基本的用语开发java程序的IDE，对于开发web项目而言缺少一些自动生成工具来简化开发，所以如果要开发和管理web项目 需要手动安装WTP组件（Web Tools Platform）来进行管理。
+
+在当前eclipse中按照如下网址安装WTP组件：
+```url
+http://download.eclipse.org/webtools/updates
+```
+安装完毕之后就会在工程属性设置中找到“Deployment assembly”选项，然后在其中选择要部署的源代码位置，然后设置部署的路径保存。
+这个选项将会在当前工程文件夹的根路径下生成”.setting“文件夹，并且在其中生成”org.eclipse.wst.common.component“配置文件。这个文件是xml格式的配置文件，用语描述当前工程在部署的时候class文件的部署路径，用于生成war包或者tomcat调试的时候在临时文件夹下生成web工程目录结构。
+
+>所以从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
+
+在学习java的时候一定要明白这个道理，才能掌握各种框架和工具的实现原理，把握住java开发中的设计思想和不同协议对项目架构带来的影响，才能抛开技术本身而关注与业务的逻辑和实现。
+
+>**只有把握了技术的本质才能不受技术对思路的限制，否则拿着锤子看什么都是钉子。**
 
 ##### (a)web服务器 #####
 Web服务器是可以向发出请求的浏览器提供文档的程序。web服务器作为互联网应用的基础平台，它实质上是一个网关，即介于多种协议之间的程序。
@@ -440,30 +501,23 @@ Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
 Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
 #### <1> java web项目的基本结构 ####
-java web开发中对项目的结构有一个基本要求，具体内容如下：
+javaee对于web项目的结构目录有一些基本要求，
 
+常用的目录结构一般为如下所示：
 ```shell
-WEB项目结构
-
 web_project
-
 ------src (必须)
 ------src_resource(自建)
-
 ------WebRoot (必须)
-
 -----------js (自建)
 -----------css (自建)
-
 -----------WEB-INF
 ----------------classes(必须)
 ----------------jsp(自建)
 ----------------lib(自建)
 ----------------web.xml(必须)
-
 -----------META-INF
 ----------------MANIFEST.MF
-
 -----------index.jsp
 ```
 
