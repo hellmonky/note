@@ -345,23 +345,15 @@ generatorConfiguration节点没有任何属性，直接写节点即可，如下�
 在MBG的配置中，至少需要有一个<context>元素。<context>元素用于指定生成一组对象的环境。例如指定要连接的数据库，要生成对象的类型和要处理的数据库中的表。运行MBG的时候还可以指定要运行的<context>。
 该元素只有一个**必选属性**id，用来唯一确定一个<context>元素，该id属性可以在运行MBG的使用。
 在这个元素下面还有一些非常必要的子元素来进行配置，这些子元素（有严格的配置顺序）包括：
-><property> (0个或多个)
-
-><plugin> (0个或多个)
-
-><commentGenerator> (0个或1个)
-
-><jdbcConnection> (1个)
-
-><javaTypeResolver> (0个或1个)
-
-><javaModelGenerator> (1个)
-
-><sqlMapGenerator> (0个或1个)
-
-><javaClientGenerator> (0个或1个)
-
-><table> (1个或多个)
+ *<property> (0个或多个)
+ *<plugin> (0个或多个)
+ *<commentGenerator> (0个或1个)
+ *<jdbcConnection> (1个)
+ *<javaTypeResolver> (0个或1个)
+ *<javaModelGenerator> (1个)
+ *<sqlMapGenerator> (0个或1个)
+ *<javaClientGenerator> (0个或1个)
+ *<table> (1个或多个)
 
 这些子元素在自动生成中是非常关键的，下面就针对工程中常用的元素进行说明。
 
