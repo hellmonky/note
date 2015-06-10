@@ -497,8 +497,9 @@ java工程和java web工程有什么区别？为什么要分为javaee和javase�
 ```url
 http://download.eclipse.org/webtools/updates
 ```
-安装完毕之后就会在工程属性设置中找到“Deployment assembly”选项，然后在其中选择要部署的源代码位置，然后设置部署的路径保存。
-这个选项将会在当前工程文件夹的根路径下生成”.setting“文件夹，并且在其中生成”org.eclipse.wst.common.component“配置文件。这个文件是xml格式的配置文件，用语描述当前工程在部署的时候class文件的部署路径，用于生成war包或者tomcat调试的时候在临时文件夹下生成web工程目录结构。
+安装完毕之后重启，然后新建一个web dynamic project就会在工程属性设置中找到“Deployment assembly”选项，然后在其中选择要部署的源代码位置，然后设置部署的路径保存。
+这个选项将会在当前工程文件夹的根路径下生成”.setting“文件夹，并且在其中生成”org.eclipse.wst.common.component“配置文件。
+这个文件是xml格式的配置文件，用语描述当前工程在部署的时候class文件的部署路径，用于生成war包或者tomcat调试的时候在临时文件夹下生成web工程目录结构。
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?><project-modules id="moduleCoreId" project-version="1.5.0">
@@ -607,22 +608,30 @@ Web容器需要一个用来描述这种对应关系的文件，一般是web.xml�
 并且使用Spring的组件对基本web.xml中的Filter、Listener、Servlet等进行设置。下面就针对使用Spring框架的时候应该如何设置web.xml进行说明和分析。
 
 ##### (a) 前端servlet配置 #####
-SpringMVC是一个基于DispatcherServlet的MVC框架，每一个请求最先访问的都是DispatcherServlet，DispatcherServlet负责转发每一个Request请求给相应的Handler，Handler处理以后再返回相应的视图(View)和模型(Model)，返回的视图和模型都可以不指定，即可以只返回Model或只返回View或都不返回。
+SpringMVC是一个基于DispatcherServlet的MVC框架，如果使用DispatcherServlet来替代传统的servlet，那么每一个前段请求最先访问的都是DispatcherServlet，DispatcherServlet负责转发每一个Request请求给相应的Handler，Handler处理以后再返回相应的视图(View)和模型(Model)，返回的视图和模型都可以不指定，即可以只返回Model或只返回View或都不返回。
+
+###### 声明DispatcherServlet ######
 也就是说DispatcherServlet是Spring MVC的入口，所有进入Spring Web的Request都经过DispatcherServlet，所以首先需要在 web.xml 中注册 DispatcherServlet并且进行配置。
 >这儿和不使用SpringMVC而只使用最基本servlet的原理都是一样的，但是因为使用了Spring框架，所以这儿使用DispatcherServlet作为中间层对servlet进行管理。
 
-具体代码如下：
+在web.xml中的设置具体代码如下：
 
 ```xml
 <servlet>
  <servlet-name>dispatherContext</servlet-name>
  <servlet-class>
   org.springframework.web.servlet.DispatcherServlet
- </servlet-class>
+  </servlet-class>
+ <!-- 启动顺序 -->
  <load-on-startup>1</load-on-startup>
 </servlet>
 ```
-加载 DispatcherServlet 时 Spring 会尝试读取初始配置文件，默认的初始配置文件位于 web.xml 相同的路径下文件名与注册的Servlet名有关 Servlet注册名跟上 -servlet.xml。当然这种读入方式不适合多种框架结合使用的情况，所以可以通过指定参数的方式来对配置文件路径进行设置，具体配置如下：
+>注意：对于tomcat容器来说，在其自带的web.xml文件中最先初始化的是default，值是1；所以我们在实际工程中设置启动顺序的值为2，不过影响不大。
+
+这样通过对web.xml中servlet内容的设置，引入了SpringMVC的servlet。
+
+###### 设置DispatcherServlet初始化配置文件路径 ######
+加载 DispatcherServlet 时 Spring 会尝试读取初始配置文件，默认的初始配置文件位于 web.xml 相同的路径下文件名与注册的Servlet名有关 Servlet注册名跟上 -servlet.xml。当然这种读入方式不灵活，所以可以通过指定参数的方式来对配置文件路径进行设置，具体配置如下：
 
 ```xml
 <init-param>
@@ -640,19 +649,177 @@ SpringMVC是一个基于DispatcherServlet的MVC框架，每一个请求最先访
 	<param-value>/WEB-INF/spring/servlet/servlet-context.xml</param-value>
 </init-param>
 ```
-这样当前DispatcherServlet的注册就完成了。
 
-##### (b) servlet map配置 #####
-注册 DispatcherServlet 后 还应指定有 Spring 处理的 url 模板。具体配置如下：
+###### DispatcherServlet初始化配置文件分析 ######
+接着我们根据这儿对DispatcherServlet的初始化参数配置文件进行分析，看看DispatcherServlet是怎么被设置的，打开上述设置的servlet-context.xml文件为：
+
+```xml
+<!-- xml文件头 -->
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- 基本配置头 -->
+<beans:beans xmlns="http://www.springframework.org/schema/mvc" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:beans="http://www.springframework.org/schema/beans" xmlns:context="http://www.springframework.org/schema/context"
+  xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+
+	<!-- Configurer that replaces ${...} placeholders with values from a properties file -->
+	<context:property-placeholder location="/WEB-INF/config/configure.properties" />
+	
+	<!-- 设置使用注解的类所在的包,会自动扫描 -->
+	<context:component-scan base-package="com.sys.mvc" />
+	
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving up static resources in the ${webappRoot}/resources 
+    directory -->
+	<resources mapping="/resources/**" location="/resources/" />
+	
+	<!-- 添加注解驱动 -->
+	<!-- 
+	真正作用是注册下面两个bean，完成注解映射 ：
+    <bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping">   这个bean是在使用注解@ResultMapping进行请求映射spring必须使用的解析类 
+    <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">  
+	-->	
+	<annotation-driven />
+
+	<!-- DispatcherServlet Context: defines this servlet's request-processing infrastructure -->
+	<beans:import resource="servlet-service.xml" />
+
+	<!-- Using a MultipartResolver with Commons FileUpload to support file upload -->
+	<beans:bean id="multipartResolver" class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+	
+	<!-- one of the properties available; the maximum file size in bytes -->
+    <beans:property name="maxUploadSize" value="1000000" />
+	</beans:bean>
+
+	<!-- 对转向页面的路径解析。prefix：前缀， suffix：后缀 -->
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources in the /WEB-INF/views directory -->
+	<beans:bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+	</beans:bean>
+	
+	<beans:bean id="dataSechStuIfSechController"
+		class="com.sys.mvc.controller.datasech.DataSechStuIfSechController">
+		<beans:property name="resultPath" value="${path.for.generate.result}" />
+	</beans:bean>
+
+	<!-- Interceptor for internationalization -->
+	
+	<beans:bean id="localeChangeInterceptor" class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor">
+	</beans:bean>
+	
+	<beans:bean class="org.springframework.web.servlet.mvc.annotation.DefaultAnnotationHandlerMapping">
+		<beans:property name="interceptors">
+			<beans:list>
+				<beans:ref bean="localeChangeInterceptor" />
+			</beans:list>
+		</beans:property>
+	</beans:bean>
+
+	<beans:bean id="stringHttpMessageConverter"
+		class="org.springframework.http.converter.StringHttpMessageConverter" />
+
+	<beans:bean id="castorMarshaller" class="org.springframework.oxm.castor.CastorMarshaller" />
+
+	<beans:bean id="mappingJacksonHttpMessageConverter"
+		class="org.springframework.http.converter.json.MappingJacksonHttpMessageConverter" />
+	
+	<!-- internationalization base on session -->
+  
+	<beans:bean id="localeResolver" class="org.springframework.web.servlet.i18n.SessionLocaleResolver">
+		<beans:property name="defaultLocale" value="en" />
+	</beans:bean>
+	
+	<!-- 完成请求和注解POJO的映射 -->
+	<beans:bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+		<beans:property name="messageConverters">
+			<beans:list>
+				<beans:ref bean="stringHttpMessageConverter" />
+				<beans:ref bean="mappingJacksonHttpMessageConverter" />
+			</beans:list>
+		</beans:property>
+	</beans:bean>
+
+	<beans:bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+		<beans:property name="messageConverters">
+			<beans:list>
+				<beans:ref bean="stringHttpMessageConverter" />
+				<beans:ref bean="mappingJacksonHttpMessageConverter" />
+			</beans:list>
+		</beans:property>
+	</beans:bean>
+
+	<!-- Internationalization end -->
+
+</beans:beans>
+```
+这个配置文件中对于DispatcherServlet的行为进行了描述。
+具体的内容还在分析。。。
+
+###### 指定DispatcherServlet需要处理的URL ######
+通过声明和初始化DispatcherServlet，就完成了对DispatcherServlet的注册，接着就必须指定哪些URL需要由DispatcherServlet来处理。
+为DispatcherServlet指定需要处理的URL，需要在web.xml中添加如下配置代码：
 ```xml
 <servlet-mapping>
  <servlet-name>dispatherContextServlet</servlet-name>
  <url-pattern>*.do</url-pattern>
 </servlet-mapping>
 ```
-这样对当前网址的所有请求.do的处理就交给Spring了。在本项目中，Spring处理所有调用请求，将“.do”替换为“/”。
+其中url-pattern表示拦截地址，表示检测到设置的地址时候需要用为DispatcherServlet来进行处理。有以下几种处理方式：
 
-##### (c) 配置DispatcherServlet上下文配置文件加载路径 #####
+```xml
+<url-pattern>/</url-pattern>		：这种方式拦截了类似/user/login的地址；会导致静态资源无法访问。
+<url-pattern>/*</url-pattern>		：错误的拦截方式，可以走到Action中，但转发到jsp时再次被拦截，不能访问到jsp。
+<url-pattern>/path/*</url-pattern>	：拦截包含/path/路径的请求。
+<url-pattern>*.do</url-pattern>		：简单，实用的拦截方式，不存在静态资源访问的问题。
+```
+
+所以上述的设置中表示SpringMVC将处理的对当前网址的所有.do请求。
+在本项目中，Spring处理所有调用请求，将“.do”替换为“/”，表示Spring将处理所有的前端请求（至于为什么这么选没有想到原因）。
+
+######  分解应用上下文 ######
+DispatcherServlet 可以从以<servlet-name>命名的xml文件中载入应用上下文。但建议将应用上下文分散到应用系统的各个层中。例如：
+```shell
+web 层		test-servlet.xml（用于控制的bean，Spring MVC组件）
+业务层		test-service.xml
+持久层		test-data.xml
+```
+将不同的bean按照业务进行分组分类，从而将之前的单个xml按照分组和分类拆分为多个xml，但是这样之后DispatcherServlet就要管理多个配置文件了，为了保证所有配置文件都会被载入，你需要在web.xml中配置一个上下文载入器。
+有两种上下文载入器：
+>ContextLoaderListener
+>ContextLoaderServlet
+
+可以在web.xml中这样配置ContextLoaderListener:
+```xml
+<listener>
+    <listener-class>org.springframework.web.context.ContextLoaderLisetener
+    </listener-class>
+</listener>
+```
+完成监听之后，还需指定配置文件的位置。如没有指定上下文，那么载入器将在/WEB-INF/application-Context.xml处寻找Spring配置文件。我们使用参数来明确上下文配置文件的路径：
+```xml
+<context-param>
+	<param-name>contextConfigLocation</param-name>
+	<param-value>/WEB-INF/spring/appContext.xml</param-value>
+</context-param>
+```
+这样DispatcherServlet就可以自动的跟踪appContext.xml配置文件的变化来进行动态设置。
+
+###### 总结 ######
+通过上述步骤就将DispatcherServlet建立了起来，接下来就需要建立web层了。
+
+##### (b) servlet map配置 #####
+
+```xml
+<servlet-mapping>
+	<servlet-name>appServlet</servlet-name>
+	<url-pattern>/</url-pattern>
+</servlet-mapping>
+```
+
+##### (c) 上下文配置文件加载路径 #####
 配置文件读取器注册成功后还需要设定配置文件列表，通过设置全局参数contextConfigLocation来对配置文件列表进行说明：
 >多个配置文件列表以逗号分隔，注意路径
 
@@ -666,29 +833,6 @@ SpringMVC是一个基于DispatcherServlet的MVC框架，每一个请求最先访
 	</param-value>
 </context-param>
 ```
-也可以将多个配置文件列表方在另外的配置文件中，然后设置路径进行读入：
-```xml
-<context-param>
-	<param-name>contextConfigLocation</param-name>
-	<param-value>/WEB-INF/spring/appContext.xml</param-value>
-</context-param>
-```
-在本工程中，文件列表为所有的Spring Bean的配置文件所在目录。也就是说appContext.xml中包含了所有Spring要管理的bean文件路径。
->实际工程中还包含了数据库的配置文件
-
-##### (d) 监听器的配置 #####
-当程序越来越大，配置文件中的 <bean> 越来越多，而且变得关系错综复杂难于维护，此时应该考虑将配置文件拆分成多个。为了让 Spring 能够读到这些配置文件并察觉到他们的变化，需要注册配置文件读取器。
-对于Servlet 2.3以上标准且web容器支持监听器就可以在 web.xml 中注册监听。具体配置如下：
-
-```xml
-<listener>
-	<listener-class>
-		org.springframework.web.context.ContextLoaderListener
-	</listener-class>
-</listener>
-```
-
->综上所述，通过四个基本配置，Spirng MVC框架的web容器配置就基本建立起来了。
 
 
 
