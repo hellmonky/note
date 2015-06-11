@@ -241,7 +241,7 @@ public class MyBatisTest {
 #### <3> mybatis的自动生成 ####
 根据上面的流程，对于数据库表的java对象表示而言，每一个表都要手动写xml描述和dao的xml描述，这个是非常麻烦的事情，所以mybatis提供了自动生成工具：[MyBatis Generator](http://mybatis.github.io/generator/)，简称为MBG。通过建立起这个工具需要的配置文件，我们就能自动根据数据库中的表来生成bean结构以及mapper配置文件。
 
-##### (a)mybatis 自动生成的配置 #####
+##### (a) mybatis 自动生成的配置 #####
 
 MBG需要一个xml格式的配置文件来描述，这个配置文件非常详细的给定了自动生成所需要的一切，在网上有一篇非常好的博文：[MyBatis Generator 详解](http://blog.csdn.net/isea533/article/details/42102297) 可以参看。
 这是一个简单的配置示例：
@@ -403,7 +403,7 @@ maven作为包java的管理器是非常好的，但是自己在实际工程中�
 
 
 
-##### (c)java直接使用mybatis自动生成的代码 #####
+##### (c) java直接使用mybatis自动生成的代码 #####
 完成自动生成之后，最核心的问题就是如何使用mybatis生成的这些代码组织自己的工程了。
 
 >**工具只是手段，问题的解决才是核心**
@@ -439,16 +439,16 @@ maven作为包java的管理器是非常好的，但是自己在实际工程中�
 具体内容参考###（4）###章内容。
 
 
-### （2）java web框架 ###
+### （2）java web工程 ###
 
 >java web开发需要一些基本概念，这是自己现在没有的，需要进行学习和了解，本节内容就针对当前使用的java web开发基础知识进行学习。
 
-#### <1> java工程的基本概念 ####
+#### <1> java本工程的基本概念 ####
 java工程和java web工程有什么区别？为什么要分为javaee和javase这两种？而且很多工程也根据是否是javase和javaee来建立不同的工程。
 其实这两种工程都是Java语言的应用，只是应用场合不同罢了，他们的本质区别在于：编译后路径。
 虚拟机执行的是class文件而不是java文件，那么我们不管是何种项目都是写的java文件，怎么就不一样了呢？分成java和web两种了呢？
 
-##### (a).classpath文件的作用 #####
+##### (a) .classpath文件的作用 #####
 以eclipse的工程文件为例，从.classpath文件入手来看，这个文件在每个项目目录下都是存在的。这是一个XML文件，使用文本编辑器打开即可，示例如下：
 
 ```xml
@@ -483,7 +483,7 @@ java工程和java web工程有什么区别？为什么要分为javaee和javase�
 总体上说.classpath文件就是eclipse配置整个工程的运行环境。
 是否是web工程的要点就在于最后output的位置不同，按照javaee规范放置在web目录下的就是web工程，没有的就是一般的java工程。
 
-##### (b).project文件的作用 #####
+##### (b) .project文件的作用 #####
 当前工程文件的根目录下还有一个.project文件，他也是一个xml格式的文件，打开可以看见如下结果：
 
 ```xml
@@ -517,7 +517,7 @@ java工程和java web工程有什么区别？为什么要分为javaee和javase�
 ```
 也就是说.project是项目文件，项目的结构都在其中定义
 
-##### (c)其他配置文件相关 #####
+##### (c) 其他配置文件相关 #####
 
 **通过不同的配置文件设置class文件的输出位置就可以完成java不同项目的设置**
 
@@ -555,7 +555,7 @@ http://download.eclipse.org/webtools/updates
 
 综合起来.setting文件夹下存放的是eclipse的各种插件的配置文件，用于自动化处理。
 
-##### (d)java web项目的基本结构 #####
+##### (d) java web项目的基本结构 #####
 javaee web项目的结构目录遵守javeee规范，要求必须的结构有：
 
 ```shell
@@ -595,7 +595,7 @@ The .classpath file is maintained by Eclipse's JDT feature (feature = set of plu
 Blindly copying such files from one machine to another may be risky. For example, if arbitrary JAR files are placed on the classpath (that is, JAR files that are located outside the workspace and are referred-to by absolute path naming), the .classpath file is rendered non-portable and must be modified in order to be portable. There are certain best practices that can be followed to guarantee .classpath file portability.
 ```
 
->从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
+**从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。**
 
 在学习java的时候一定要明白这个道理，才能掌握各种框架和工具的实现原理，把握住java开发中的设计思想和不同协议对项目架构带来的影响，才能抛开技术本身而关注与业务的逻辑和实现。
 
@@ -616,13 +616,12 @@ web开发是目前java的热点应用，这种现象的存是和java语言本身
  
  （5）为了解决客户端请求地址与Java Servlet之间对应关系问题，Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。如果一个Web应用程序中存在很多个Servlet，那么web.xml会变得非常庞大。在Servlet 3.0规范推出之后，允许在Servlet代码中使用声明式语法来代替web.xml中的描述信息，这才让web.xml瘦身下来。下图是这个过程的一个示意图。
 
-##### (a)web服务器 #####
+##### (a) web服务器 #####
 Web服务器是可以向发出请求的浏览器提供文档的程序。web服务器作为互联网应用的基础平台，它实质上是一个网关，即介于多种协议之间的程序。
 web服务器由两个部分组成：
 
->HTTP守候程序（HTTPd），完成web服务器的基本功能，包括：和客户建立连接；接受客户提交的HTTP请求消息，将HTTP响应消息返回给客户，关闭连接等。狭义的web服务器就是指这个部分；
-
->各种服务器端应用程序组成：这些应用程序作为HTTPd和其它外部系统之间的中介，完成服务器的扩展功能，平时所说的网关应用程序就是指这个部分。
+>（1）HTTP守候程序（HTTPd），完成web服务器的基本功能，包括：和客户建立连接；接受客户提交的HTTP请求消息，将HTTP响应消息返回给客户，关闭连接等。狭义的web服务器就是指这个部分；
+>（2）各种服务器端应用程序组成：这些应用程序作为HTTPd和其它外部系统之间的中介，完成服务器的扩展功能，平时所说的网关应用程序就是指这个部分。
 
 也就是说：web服务器是一个只处理http协议，只给浏览器发送静态页面的应用程序；然后通过其他程序完成动态内容的处理，这些其他程序就是应用服务器。
 
@@ -630,7 +629,19 @@ web服务器由两个部分组成：
 >严格意义上Web服务器只负责处理HTTP协议，只能发送静态页面的内容。而JSP，ASP，PHP等动态内容需要通过CGI、FastCGI、ISAPI等接口交给其他程序去处理。这个其他程序就是应用服务器。
 >比如Web服务器包括Nginx，Apache，IIS等。而应用服务器包括WebLogic，JBoss等。应用服务器一般也支持HTTP协议，因此界限没这么清晰。但是应用服务器的HTTP协议部分仅仅是支持，一般不会做特别优化，所以很少有见Tomcat直接暴露给外面，而是和Nginx、Apache等配合，只让Tomcat处理JSP和Servlet部分。
 
-##### (b)servlet #####
+**注意：下文中所有的web应用服务器包含了基本web服务和应用服务，不再细分。**
+
+##### (b) web容器 #####
+web容器是web应用服务器中位于组件和平台之间的接口集合。
+容器一般位于应用服务器之内，由应用服务器负责加载和维护。一个容器只能存在于一个应用服务器之内，一个应用服务器可以建立和维护多个容器。
+
+>web容器为满足某种服务调用规范的框架，介于web应用服务器和web应用之间，他不一定是应用程序，也可以为一个进程。web容器为web应用提供了统一的访问接口，为web应用服务器提供了统一的管理接口，从而将web应用服务器和web程序解耦。web应用服务器通过创建不同的进程来实例化不同的web容器，一个web容器载入一个web应用，同一个web容器中使用线程来响应当前web程序的不同请求。
+
+web应用服务器管理当前计算机中被指定的端口，所有按照一定协议访问这些端口的请求都会被web应用服务器接受处理，并且分发给不同的web应用，然后由不同的web应用程序返回请求结果，然后再有web应用服务器转换为对应的协议返回给访问者（一般而言是浏览器，当然也可以是应用程序，例如wget等）。
+
+常用的java web应用服务器为tomcat，他就是建立在JVM和操作系统基础上的应用程序，
+
+##### (c) servlet #####
 servlet是web容器最基本的组成单元，http请求是向web服务器请求一种信息资源，而servlet就充当了这种资源的最小单位，servlet可以无限扩展，使用java所有的类库资源，为用户返回文本、图片、音频的各类信息资源。 从程序员的角度看，servlet是一个java类，需要实现javax.servlet.Servlet接口的所有方法，提供一个公开的无参数的构造方法。由web容器来控制它的创建、初始化、提供服务、销毁等。它的各种行为方式通过web.xml文件中来配置。
 
 Servlet接口有3个重要的方法，分别是init()，destroy()和service()，由于Servlet是一个java接口，所以需要加载。
@@ -641,10 +652,7 @@ Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
 
 Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
-##### (c) web容器 #####
-
-
-##### (d)web容器配置 #####
+##### (d) web容器配置 #####
 在Servlet规范中定义了web.xml文件，它是Web应用的配置文件，Web.xml文件是和Web容器无关的。通过Web.xml文件可以配置Servlet类和url的映射、欢迎列表、过滤器以及安全约束条件等。
 >xml文件的其他特点：对大小写敏感。
 
@@ -853,6 +861,7 @@ filter元素用于指定Web容器中的过滤器。在请求和响应对象被se
     </filter-class>
 </filter>
 ```
+**在请求和响应对象被servlet处理之前或之后，可以使用过滤器对这两个对象进行操作。**
 
 3. <filter-mapping>关联元素：
 filter-mapping元素用来声明Web应用中的过滤器映射。过滤器可被映射到一个servlet或一个URL模式。将过滤器映射到一个servlet中会造成过滤器作用于servlet上。将过滤器映射到一个URL模式中则可以将过滤器应用于任何资源，只要该资源的URL与URL模式匹配。过滤是按照部署描述符的filter-mapping元素出现的顺序执行的。
@@ -884,14 +893,64 @@ listener元素用来注册一个监听器类，可以在Web应用中包含该类
 ```
 
 5. <servlet>元素：
+<servlet></servlet> 用来声明一个servlet的数据，主要有以下子元素：
 
+```xml
+<servlet-name></servlet-name>		指定servlet的名称
+<servlet-class></servlet-class>		指定servlet的类名称
+<init-param></init-param>			用来定义servlet的初始化参数，可有多个init-param。在servlet类中通过getInitParamenter(String name)方法访问初始化参数
+<jsp-file></jsp-file>				指定web站台中的某个JSP网页的完整路径
+<load-on-startup></load-on-startup>	指定当Web应用启动时，装载Servlet的次序。当值为正数或零时：Servlet容器先加载数值小的servlet，再依次加载其他数值大的servlet。当值为负或未定义：Servlet容器将在Web客户首次访问这个servlet时加载它。
+<servlet-mapping></servlet-mapping>	用来定义servlet所对应的URL，包含两个子元素
+<url-pattern></url-pattern>			指定servlet所对应的URL
+```
+servlet元素必须含有servlet-name元素和servlet-class元素，或者servlet-name元素和jsp-file元素。描述如下：
+ ● servlet-name元素用来定义servlet的名称，该名称在整个应用中必须是惟 一的。
+ ● servlet-class元素用来指定servlet的完全限定的名称。
+ ● jsp-file元素用来指定应用中JSP文件的完整路径。这个完整路径必须由a/ 开始。
 
+当启动Web容器时，用load-on-startup元素自动将servlet加入内存。加载servlet就意味着实例化这个servlet， 并调用 它的init方法。可以使用这个元素来避免第一个servlet请求的响应因为servlet载入内存所导致的任何延迟。如果load-on- startup元素存在，而且也指定了jsp-file元素，则JSP文件会被重新编译成servlet，同时产生的servlet也被载入内存。  load-on-startup元素的内容可以为空，或者是一个整数。这个值表示由Web容器载入内存的顺序。举个例子，如果有两个servlet元素都 含有load-on-startup子元素，则load-on-startup子元素值较小的servlet将先被加载。如果load-on- startup子元素值为空或负值，则由Web容器决定什么时候加载servlet(在该servlet被选择时才加载)。如果两个servlet的load-on-startup子元素值相同，则由Web容器决定先加载哪一个servlet。
+
+servlet-mapping元素将URL模式映射到某个servlet。根据规范，**servlet元素必须出现在所有servlet-mapping元素之前。**
+
+6. <session-config>会话超时配置：
+单位为分钟。项目中的配置如下：
+```xml
+<session-config>
+    <session-timeout>300</session-timeout>
+</session-config>
+```
+
+7. <error-page>错误页面
+主要用于处理请求发生错误的时候跳转页面的设置，示例如下：
+```xml
+<!-- 1、通过错误码来配置error-page。当系统发生×××错误时，跳转到错误处理页面。 -->
+<error-page>
+    <error-code>404</error-code>
+    <location>/NotFound.jsp</location>
+</error-page>
+<!-- 2、通过异常的类型配置error-page。当系统发生java.lang.NullException（即空指针异常）时，跳转到错误处理页面。 -->
+<error-page>
+    <exception-type>java.lang.NullException</exception-type>
+    <location>/error.jsp</location>
+</error-page>
+```
+
+上述就是web-app的常用元素，更多详细内容参看[官方文档](http://docs.oracle.com/cd/E13222_01/wls/docs81/webapp/web_xml.html)。
+>参考文档：
+[web.xml文件中的web-app元素](http://blog.sina.com.cn/s/blog_490cc6450100h54p.html)
+[web.xml文件详解](http://www.cnblogs.com/hellojava/archive/2012/12/28/2835730.html)
+[tomcat web.xml配置](http://www.blogjava.net/baoyaer/articles/107428.html)
+[web.xml详解——元素含义及加载顺序](http://wenku.baidu.com/view/4d155464f5335a8102d22039.html)
+[web.xml Reference Guide for Tomcat](http://wiki.metawerx.net/wiki/Web.xml)
 
 ###### 2 web容器加载web.xml的顺序 ######
 tomcat等web容器在初始化web应用的时候首先会加载web.xml文件进行这个web应用的初始化配置，那么就需要根据web.xml中的配置进行加载，具体的加重顺序为：
 ** context-param -> listener -> filter -> servlet **
 
-也就是说上述元素在web.xml中的定义顺序和加载顺序是无关的，
+也就是说上述元素在web.xml中的定义顺序和加载顺序是无关的。但是**凡是涉及到mapping的都会顺序相关**，例如listener，filter和servlet的加载顺序就是按照定义顺序执行的。
+
+
 
 
 
