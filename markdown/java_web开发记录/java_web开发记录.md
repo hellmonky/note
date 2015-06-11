@@ -650,16 +650,16 @@ web容器负责管理Servlet的生命周期、把URL映射到特定的Servlet、
 明白了java开发中的web容器就等同于servlet容器，那么就需要理解java web开发中的核心概念java servlet。
 
 Java Servlet就是你能够编写的根据请求动态生成内容的服务端组件。其主要功能在于交互式地浏览和修改数据，生成动态 Web 内容。
-Java Servlet是一套规范，官方文档： [Java Servlet Technology](http://www.oracle.com/technetwork/java/index-jsp-135475.html) 给出了各个版本的规范要求。（最新版本为3.0）
+Java Servlet是一套规范，官方文档： [Java Servlet Technology](http://www.oracle.com/technetwork/java/index-jsp-135475.html) 给出了各个版本的规范要求（最新版本为3.0）。
 
 狭义的 Servlet 是指Java语言根据servlet规范在javax.servlet包里定义的接口；
 广义的 Servlet 是指任何根据servlet规范定义的接口的类；
 
 
 java原生实现Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet：
-FacesServlet类一般用于JSF的Servlet，很少使用。
-GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。
-HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
+ *FacesServlet类一般用于JSF的Servlet，很少使用。
+ *GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。
+ *HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
 一般情况下，人们将 Servlet 理解为后者。比如Spring就使用了自己的DispatcherServlet来替换java原生的servlet从而完成更为复杂的管理。
 
