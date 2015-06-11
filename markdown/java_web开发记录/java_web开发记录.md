@@ -641,9 +641,19 @@ Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
 
 Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
-##### (c)web容器配置 #####
-Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件（但是这个web.xml文件并不是必须的）。工程中的实际配置如下：
+##### (c) web容器 #####
 
+
+##### (d)web容器配置 #####
+在Servlet规范中定义了web.xml文件，它是Web应用的配置文件，Web.xml文件是和Web容器无关的。通过Web.xml文件可以配置Servlet类和url的映射、欢迎列表、过滤器以及安全约束条件等。
+
+然后根据文档[web.xml Reference Guide for Tomcat](http://wiki.metawerx.net/wiki/Web.xml)说明：
+```text
+The web.xml Deployment Descriptor file describes how to deploy a web application in a servlet container such as Tomcat.
+```
+可以知道Web容器通过web.xml文件来配置web应用（但是这个web.xml文件并不是必须的）。web.xml这个文件是sun公司规范化格式的，用xml承载的web容器描述文件。
+
+以工程中的实际配置为例，展示如下：
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
@@ -725,23 +735,81 @@ Web容器需要一个用来描述这种对应关系的文件，一般是web.xml�
 
 </web-app>
 ```
-首先我们先理解这个web.xml文档描述了那些内容，然后分析web容器怎么根据这个
+首先我们先理解这个web.xml文档描述了那些内容，然后分析web容器怎么根据这个配置文件对整个web进行部署。
 
 ###### 1 web.xml文档内容分析 ######
-
-（1）web.xml是一个标准的xml文档，所以包含了xml文件头：
-
+（1）xml文件头：
+因为web.xml也是xml标准格式，所以需要一个xml头来说明当前的xml承载格式的信息：
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 ```
 指定了xml的版本号和所使用的编码。
 
-（2）DOCTYPE声明：
+（2）文件类型定义DTD：
+DTD（Document Type Definition），即文档类型定义,是一种XML约束模式语言，是XML文件的验证机制，属于XML文件组成的一部分。
+是一种保证XML文档格式正确的有效方法，可以通过比较XML文档和DTD文件来看文档是否符合规范，元素和标签使用是否正确。
+
+一个典型的DTD文档包含：元素的定义规则，元素间关系的定义规则，元素可使用的属性，可使用的实体或符号规则。从而把要创作的XML文档的元素结构、属性类型、实体引用等预先进行规定。
+用户既可以直接在XML文档中定义DTD，也可以通过URL引用外部的DTD。DTD为XML文档的编写者和处理者提供了共同遵循的原则，使得与文档相关的各种工作有了统一的标准。一般内容如下：
+```xml
+<!DOCTYPE
+	web-app 
+	PUBLIC
+	"-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+	http://java.sun.com/dtd/web-app_2_3.dtd >
+```
+其中包含四个元素，各自的含义如下：
+
+>web-app定义该文档(部署描述符，不是DTD文件)的根元素
+
+>PUBLIC意味着DTD文件可以被公开使用
+
+>"-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"意味着DTD 由Sun Microsystems, Inc.维护。 该信息也表示它描述的文档类型是DTD Web Application 2.3，而且DTD是用英文书写的。
+
+>URL"http://java.sun.com/dtd/web-app_2_3.dtd" 表示D文件的位置。
+
+（3）文档类型定义XSD：
+根据文档[web.xml - DTD and XSD](http://wiki.metawerx.net/wiki/Web.xmlDTDAndXSD)所述：
+```text
+There are two ways to specify the schema for a the web.xml file (Deployment Descriptor).
+DTD - Document Type Definition
+XSD - XML Schema Definition
+```
+自JSP 2.0 / Servlets 2.4规范之后，使用XSD（XML Schema Definition）的方式对当前xml文档进行规范描述，而不再使用DTD。
+
+根据文档：[Why Use XML Schemas?](http://www.w3schools.com/schema/schema_why.asp)可知XSD也是为了描述了XML文档的结构。
+XSD可以用一个指定的XML Schema来验证某个XML文档，以检查该XML文档是否符合其要求。文档设计者可以通过XML Schema指定一个XML文档所允许的结构和内容，并可据此检查一个XML文档是否是有效的。XML Schema本身是一个XML文档，它符合XML语法结构。可以用通用的XML解析器解析它。 
+
+XSD是DTD替代者的原因：
+**一是据将来的条件可扩展，二是比DTD丰富和有用，三是用XML书写，四是支持数据类型，五是支持命名空间。**
+
+现在总结对比两者如下：
+```text
+DTD的缺点：
+ 1) DTD 是使用非 XML 语法编写的
+ 2) DTD 不可扩展,不支持命名空间,只提供非常有限的数据类型
+相对于DTD，XSD的优点: 
+ 1) XML Schema基于XML,没有专门的语法 
+ 2) XML Schema可以象其他XML文件一样解析和处理 
+ 3) XML Schema比DTD提供了更丰富的数据类型
+ 4) XML Schema提供可扩充的数据模型
+ 5) XML Schema支持综合命名空间
+ 6) XML Schema支持属性组
+```
+
+根据上述内容介绍可知XSD可以通过读入不同的XSD配置来进行格式规范，那么本工程中通过引入web-app的XSD规范来检查web.xml是否满足规范，所以具体的内容如下：
+
+```xml
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+```
+同时XSD不再单独的放在web-app元素之前，而是作为web-app的一个配置属性存在了。
+
+（4）web-app元素
 
 
-
-
-
+###### 2 web容器加载web.xml的顺序 ######
 tomcat等web容器在初始化web应用的时候首先会加载web.xml文件进行这个web应用的初始化配置，那么就需要根据web.xml中的配置进行加载，具体的加重顺序为：
 >** context-param -> listener -> filter -> servlet **
 
