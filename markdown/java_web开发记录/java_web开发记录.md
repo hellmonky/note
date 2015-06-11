@@ -646,6 +646,7 @@ Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。Fa
 
 ##### (d)web容器配置 #####
 在Servlet规范中定义了web.xml文件，它是Web应用的配置文件，Web.xml文件是和Web容器无关的。通过Web.xml文件可以配置Servlet类和url的映射、欢迎列表、过滤器以及安全约束条件等。
+>xml文件的其他特点：对大小写敏感。
 
 然后根据文档[web.xml Reference Guide for Tomcat](http://wiki.metawerx.net/wiki/Web.xml)说明：
 ```text
@@ -797,27 +798,105 @@ DTD的缺点：
  6) XML Schema支持属性组
 ```
 
-根据上述内容介绍可知XSD可以通过读入不同的XSD配置来进行格式规范，那么本工程中通过引入web-app的XSD规范来检查web.xml是否满足规范，所以具体的内容如下：
+根据上述内容介绍可知XSD可以通过读入不同的XSD配置来进行格式规范，给出一个 JSP 2.2 / Servlets 3.0 (Tomcat 7.0)规范的示例：
+
+```xml
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd"
+      version="3.0">
+```
+
+本工程中通过引入web-app2.5的XSD规范来检查web.xml，所以具体的内容如下：
 
 ```xml
 <web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
 ```
-同时XSD不再单独的放在web-app元素之前，而是作为web-app的一个配置属性存在了。
+>web-app_2_5.xsd这个规范，还是比较早的了（属于Java EE 5 Schema Resources）。
+每个web.xml文件的根元素<web-app>中，都必须标明这个 web.xml使用的是哪个模式文件。所以XSD不再单独的放在web-app元素之前，而是作为web-app的一个配置属性存在了。
 
-（4）web-app元素
+>参考文档：
+[XML Schema 与 XML DTD的技术比较与分析](http://www.ibm.com/developerworks/cn/xml/x-sd/)
+[XML中DTD,XSD的区别与应用](http://kim-miao.iteye.com/blog/1310963)
+[Java EE: XML Schemas for Java EE Deployment Descriptors](http://www.oracle.com/webfolder/technetwork/jsc/xml/ns/javaee/index.html)
+[web.xml - DTD and XSD](http://wiki.metawerx.net/wiki/Web.xmlDTDAndXSD)
+
+（4）web-app元素：
+部署描述符的根元素是web-app，其它的元素都放在<web-app></web-app>之中。所有和部署相关的配置都是作为web-app的子元素标签在web.xml中被描述。web-app作为他的子元素的统一声明存在。
+
+（4）web-app的配置子元素：
+现在将最常用的几个子元素进行分析。
+
+1. <context-param>上下文参数：
+context-param元素声明应用范围内的初始化参数。它用于向 ServletContext提供键值对，即应用程序上下文信息。
+我们的listener,filter等在初始化时会用到这些上下文中的信息。在servlet里面可以通过getServletContext().getInitParameter("context/param")得到。
+context-param元素含有一对参数名和参数值，用作应用的servlet上下文初始化参数。参数名在整个Web应用中必须是惟一的。
+param-name子元素包含有参数名，而param-value子元素包含的是参数值。作为选择，可用description子元素来描述参数。
+```xml
+<context-param>
+	<param-name>contextConfigLocation</param-name>
+	<param-value>/WEB-INF/spring/appContext.xml</param-value>
+</context-param>
+```
+
+2. <filter>过滤器：
+filter元素用于指定Web容器中的过滤器。在请求和响应对象被servlet处理之前或之后，可以使用过滤器对这两个对象进行操作。
+利用filter-mapping元素，过滤器被映射到一个servlet或一个URL模式。这个过滤器的filter元素和filter-mapping元素必须具有相同的名称。
+
+```xml
+<filter>
+    <filter-name>sysAccessFilter</filter-name>
+    <filter-class>
+       org.springframework.web.filter.DelegatingFilterProxy
+    </filter-class>
+</filter>
+```
+
+3. <filter-mapping>关联元素：
+filter-mapping元素用来声明Web应用中的过滤器映射。过滤器可被映射到一个servlet或一个URL模式。将过滤器映射到一个servlet中会造成过滤器作用于servlet上。将过滤器映射到一个URL模式中则可以将过滤器应用于任何资源，只要该资源的URL与URL模式匹配。过滤是按照部署描述符的filter-mapping元素出现的顺序执行的。
+
+```xml
+<filter-mapping>
+    <filter-name>sysAccessFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+</filter-mapping>
+```
+其中filter-name值必须对应filter元素中声明的其中一个过滤器名称。
+
+4. <listener>监听器：
+listener元素用来注册一个监听器类，可以在Web应用中包含该类。使用listener元素，可以收到事件什么时候发生以及用什么作为响应的通知。
+也就是说，listener元素和servlet元素类似，用于在Web 应用启动时，启动某些后台程序，这些后台程序负责为系统运行提供支持。
+
+使用Listener 只需要两个步骤:
+ (1)创建Listener 实现类：
+ 创建Listener 类必须实现ServletContextListener 接口，该接口包含两个方法。
+  • contextInitialized(ServletContextEvent sce): 启动Web 应用时，系统调用该Filter的方法。
+  • contextDestroyed(ServletContextEvent sce): 关闭Web 应用时候，系统调用Filter的方法。
+ (2)在web.xml 文件中配置Listener：
+ **Listener 用于启动Web 应用的后台服务程序，但不负责处理及响应用户请求，因此无须配置URL。**
+ 若将Listener 配置在Web 容器中(如果Web 容器支持Listener)，则Listener 将随 Web 应用的启动而启动。配置Listener 时使用<listener/>元素，下面是配置Listener 的片段:
+```xml
+<listener>
+    <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+</listener>
+```
+
+5. <servlet>元素：
+
 
 
 ###### 2 web容器加载web.xml的顺序 ######
 tomcat等web容器在初始化web应用的时候首先会加载web.xml文件进行这个web应用的初始化配置，那么就需要根据web.xml中的配置进行加载，具体的加重顺序为：
->** context-param -> listener -> filter -> servlet **
+** context-param -> listener -> filter -> servlet **
 
 也就是说上述元素在web.xml中的定义顺序和加载顺序是无关的，
 
 
 
 ### （3）Spring框架的使用 ###
+根据（2）中的web一般配置，Spring也需要满足这些配置要求，但是Spring做了更多的工作来接管其中的各个组件，现在就针对Spring来看一下java web工程中的配置情况。
 
 #### <1> Spring框架的web.xml配置 ####
 工程中使用了Spring MVC框架进行前后台交互的封装，就需要在上述java web工程的web.xml文件中进行配置。
