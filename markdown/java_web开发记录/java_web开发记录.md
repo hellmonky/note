@@ -400,11 +400,40 @@ maven作为包java的管理器是非常好的，但是自己在实际工程中�
 
 
 
-##### (c)使用mybatis自动生成的代码 #####
+##### (c)java直接使用mybatis自动生成的代码 #####
 完成自动生成之后，最核心的问题就是如何使用mybatis生成的这些代码组织自己的工程了。
 
 >**工具只是手段，问题的解决才是核心**
 
+要利用这些生成的代码，首先我们需要一个关于所有映射的配置文件。需要我们手写如下配置文件：
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+    PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC" />
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.jdbc.Driver" />
+                <property name="url" value="jdbc:mysql://localhost/test" />
+                <property name="username" value="qgd" />
+                <property name="password" value="123456" />
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <mapper resource="test/dao/PetMapper.xml" />
+    </mappers>
+</configuration>
+```
+在这个配置文件中
+
+##### (d) Spring使用mybatis自动生成代码 #####
+这部分属于Spring和mybatis的集成，使用Spring来管理session从而完成对mybatis原生的SqlSessionFactory的替换和管理。
+具体内容参考###（4）###章内容。
 
 
 ### （2）java web框架 ###
@@ -550,6 +579,18 @@ web_project
 一般来说java的web开发工程都是按照这种目录结构组织的，然后通过war包等方式进行代码组织，最后部署到服务器容器中从而可以被访问。所以现在的代码结构也是按照这个形式进行处理的。
 
 ##### 综上所述 #####
+
+eclipse工程通过.classpath和.project这两个文件进行基本描述，stackoverflow上有一个详细的说明[What's in an Eclipse .classpath/.project file?](http://stackoverflow.com/questions/7186676/whats-in-an-eclipse-classpath-project-file)：
+
+```text
+Eclipse is a runtime environment for plugins. Virtually everything you see in Eclipse is the result of plugins installed on Eclipse, rather than Eclipse itself.
+
+The .project file is maintained by the core Eclipse platform, and its goal is to describe the project from a generic, plugin-independent Eclipse view. What's the project's name? what other projects in the workspace does it refer to? What are the builders that are used in order to build the project? (remember, the concept of "build" doesn't pertain specifically to Java projects, but also to other types of projects)
+
+The .classpath file is maintained by Eclipse's JDT feature (feature = set of plugins). JDT holds multiple such "meta" files in the project (see the .settings directory inside the project); the .classpath file is just one of them. Specifically, the .classpath file contains information that the JDT feature needs in order to properly compile the project: the project's source folders (that is, what to compile); the output folders (where to compile to); and classpath entries (such as other projects in the workspace, arbitrary JAR files on the file system, and so forth).
+
+Blindly copying such files from one machine to another may be risky. For example, if arbitrary JAR files are placed on the classpath (that is, JAR files that are located outside the workspace and are referred-to by absolute path naming), the .classpath file is rendered non-portable and must be modified in order to be portable. There are certain best practices that can be followed to guarantee .classpath file portability.
+```
 
 >从.java源代码到.class编译的VM执行程序这个过程不同的java工程没有任何区别，但是根据不同的协议来组织.class的结构形式产生了不同java项目。
 
