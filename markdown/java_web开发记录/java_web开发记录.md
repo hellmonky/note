@@ -63,18 +63,21 @@ mysqldump -h[hosname] -u[user_name] -p[password] --default-character-set=n[char_
 ```
 使用如下的链接信息进行测试：
 >IPAD:172.16.1.242
+
 >PORT:3306
+
 >USER:root
+
 >PASS:P@55w0rd
+
 >TABL:sys
 
 实际测试代码为：
 
 ```shell
-D:\dev\mysql-5.6.21-winx64\bin>mysqldump.exe -P 3306 -h 172.16.1.242 -u root -p
-sys > d:\sys.sql
+mysqldump.exe -P 3306 -h 172.16.1.242 -u root -p sys > d:\sys.sql
 
-mysqldump -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys --skip-lock-tables> d:\sys.sql
+mysqldump.exe -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys --skip-lock-tables> d:\sys.sql
 ```
 
 而且MySQL从本地导入到远程数据库的命令和上面的唯一区别就在于>符号变为了<符号，表示不同的数据流方向。
@@ -639,7 +642,103 @@ Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
 Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
 ##### (c)web容器配置 #####
-Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件。
+Web容器需要一个用来描述这种对应关系的文件，一般是web.xml文件（但是这个web.xml文件并不是必须的）。工程中的实际配置如下：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+
+
+    <!-- 上下文参数 -->
+    <!-- the details for log4j in Spring can be found in Spring's API doc for Log4jConfigListener -->
+    <context-param>
+        <param-name>log4jConfigLocation</param-name>
+        <param-value>/WEB-INF/config/log4j.properties</param-value>
+    </context-param>
+    <!-- if we set the log4jRefreshInterval, the system will re-read the log4j configuration regularly-->
+    <context-param>
+        <param-name>log4jRefreshInterval</param-name>
+        <param-value>60000</param-value>
+    </context-param>
+    <!-- the manegementtool.root can be used in log4j configuration to point to this application. -->
+    <context-param>
+        <param-name>webAppRootKey</param-name>  
+        <param-value>SpringWeb.root</param-value>  
+    </context-param>
+    <!-- The definition of the Root Spring Container shared by all Servlets and Filters -->
+	<context-param>
+		<param-name>contextConfigLocation</param-name>
+		<param-value>/WEB-INF/spring/appContext.xml</param-value>
+	</context-param>
+    
+	<!-- 设置监听器 -->
+	<listener>
+        <listener-class>org.springframework.web.util.Log4jConfigListener</listener-class>
+    </listener>
+ 	<!-- Creates the Spring Container shared by all Servlets and Filters -->
+	<listener>
+		<listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
+	
+	<!-- 设置过滤器 -->
+	<filter>
+		<filter-name>sysAccessFilter</filter-name>
+        <filter-class>
+            org.springframework.web.filter.DelegatingFilterProxy
+        </filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>sysAccessFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+	
+	 <!-- Spring servlet相关设置 -->
+    <servlet>
+		<servlet-name>appServlet</servlet-name>
+		<servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+		<init-param>
+			<param-name>contextConfigLocation</param-name>
+			<param-value>/WEB-INF/spring/servlet/servlet-context.xml</param-value>
+		</init-param>
+		<load-on-startup>2</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>appServlet</servlet-name>
+		<url-pattern>/</url-pattern>
+	</servlet-mapping>
+    
+
+	<!-- Processes application requests -->
+    <session-config>
+        <session-timeout>300</session-timeout>
+    </session-config>
+    <error-page>
+        <exception-type>java.lang.Exception</exception-type>
+        <location>/WEB-INF/views/error.jsp</location>
+    </error-page>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/WEB-INF/views/error.jsp</location>
+    </error-page>
+
+</web-app>
+```
+我们针对上述内容进行分析：
+（1）web.xml是一个标准的xml文档，所以包含了xml文件头：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+```
+指定了xml的版本号和所使用的编码。
+ （2）
+
+tomcat等web容器在初始化web应用的时候首先会加载web.xml文件进行这个web应用的初始化配置，那么就需要根据web.xml中的配置进行加载，具体的加重顺序为：
+>** context-param -> listener -> filter -> servlet **
+
+也就是说上述元素在web.xml中的定义顺序和加载顺序是无关的，
+
 
 
 ### （3）Spring框架的使用 ###
