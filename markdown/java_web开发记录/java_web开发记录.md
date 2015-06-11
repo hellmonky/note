@@ -725,14 +725,22 @@ Web容器需要一个用来描述这种对应关系的文件，一般是web.xml�
 
 </web-app>
 ```
-我们针对上述内容进行分析：
+首先我们先理解这个web.xml文档描述了那些内容，然后分析web容器怎么根据这个
+
+###### 1 web.xml文档内容分析 ######
+
 （1）web.xml是一个标准的xml文档，所以包含了xml文件头：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 ```
 指定了xml的版本号和所使用的编码。
- （2）
+
+（2）DOCTYPE声明：
+
+
+
+
 
 tomcat等web容器在初始化web应用的时候首先会加载web.xml文件进行这个web应用的初始化配置，那么就需要根据web.xml中的配置进行加载，具体的加重顺序为：
 >** context-param -> listener -> filter -> servlet **
