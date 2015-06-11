@@ -629,6 +629,8 @@ web服务器由两个部分组成：
 >严格意义上Web服务器只负责处理HTTP协议，只能发送静态页面的内容。而JSP，ASP，PHP等动态内容需要通过CGI、FastCGI、ISAPI等接口交给其他程序去处理。这个其他程序就是应用服务器。
 >比如Web服务器包括Nginx，Apache，IIS等。而应用服务器包括WebLogic，JBoss等。应用服务器一般也支持HTTP协议，因此界限没这么清晰。但是应用服务器的HTTP协议部分仅仅是支持，一般不会做特别优化，所以很少有见Tomcat直接暴露给外面，而是和Nginx、Apache等配合，只让Tomcat处理JSP和Servlet部分。
 
+随着web技术的发展，web服务器和应用服务器之间的界限越来越小，这篇文章： [Web服务器的工作原理](http://www.importnew.com/15020.html) 就给出了很清晰的发展过程。
+
 **注意：下文中所有的web应用服务器包含了基本web服务和应用服务，不再细分。**
 
 ##### (b) web容器 #####
@@ -639,20 +641,51 @@ web容器是web应用服务器中位于组件和平台之间的接口集合。
 
 web应用服务器管理当前计算机中被指定的端口，所有按照一定协议访问这些端口的请求都会被web应用服务器接受处理，并且分发给不同的web应用，然后由不同的web应用程序返回请求结果，然后再有web应用服务器转换为对应的协议返回给访问者（一般而言是浏览器，当然也可以是应用程序，例如wget等）。
 
-常用的java web应用服务器为tomcat，他就是建立在JVM和操作系统基础上的应用程序，
+##### (c) java web容器 #####
+在Java方面，web容器一般是指Servlet容器。Servlet容器是与Java Servlet交互的web容器的组件。
+web容器负责管理Servlet的生命周期、把URL映射到特定的Servlet、确保URL请求拥有正确的访问权限和更多类似的服务。综合来看，Servlet容器就是用来运行你的Servlet和维护它的生命周期的运行环境。
 
-##### (c) servlet #####
-servlet是web容器最基本的组成单元，http请求是向web服务器请求一种信息资源，而servlet就充当了这种资源的最小单位，servlet可以无限扩展，使用java所有的类库资源，为用户返回文本、图片、音频的各类信息资源。 从程序员的角度看，servlet是一个java类，需要实现javax.servlet.Servlet接口的所有方法，提供一个公开的无参数的构造方法。由web容器来控制它的创建、初始化、提供服务、销毁等。它的各种行为方式通过web.xml文件中来配置。
 
-Servlet接口有3个重要的方法，分别是init()，destroy()和service()，由于Servlet是一个java接口，所以需要加载。
+##### (d) java servlet #####
+明白了java开发中的web容器就等同于servlet容器，那么就需要理解java web开发中的核心概念java servlet。
 
-Servlet生命周期分4个阶段：加载，初始化，提供服务和销毁。
+Java Servlet就是你能够编写的根据请求动态生成内容的服务端组件。其主要功能在于交互式地浏览和修改数据，生成动态 Web 内容。
+Java Servlet是一套规范，官方文档： [Java Servlet Technology](http://www.oracle.com/technetwork/java/index-jsp-135475.html) 给出了各个版本的规范要求。（最新版本为3.0）
 
-加载阶段是将请求的servlet类加载到java虚拟机中，这里需要通过公开的无参的构造方法来实例化，无没有则加载失败，也可以通过<load-on-startup>设置servlet在web容器启动时加载。 这些过程都由web容器来控制，开发者关注最多的是初始化和提供服务两个阶段，在init()方法中，开发者可以获取配置在web.xml中的初始化参数，service()方法会在Servlet请求时调用，处理业务逻辑。
+狭义的 Servlet 是指Java语言根据servlet规范在javax.servlet包里定义的接口；
+广义的 Servlet 是指任何根据servlet规范定义的接口的类；
 
-Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet。FacesServlet类一般用于JSF的Servlet，很少使用。GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
 
-##### (d) web容器配置 #####
+java原生实现Servlet接口有3个实现类，FacesServlet、GenericServlet、HttpServlet：
+FacesServlet类一般用于JSF的Servlet，很少使用。
+GenericServlet是一个抽象类，有除了service()方法外的所有抽象方法的默认实现。
+HttpServlet最常用，包含在javax.servlet.http.HttpServlet类中。
+
+一般情况下，人们将 Servlet 理解为后者。比如Spring就使用了自己的DispatcherServlet来替换java原生的servlet从而完成更为复杂的管理。
+
+java Servlet 运行于支持 Java 的应用服务器中，也就是说只要有JVM环境，java Servlet 就可以被支持。从实现上讲，Servlet 可以响应任何类型的请求，但绝大多数情况下 Servlet 只用来扩展基于 HTTP 协议的 Web 服务器。
+
+java Servlet 是web容器最基本的组成单元，http请求是向web服务器请求一种信息资源，而servlet就充当了这种资源的最小单位，servlet可以无限扩展，使用java所有的类库资源，为用户返回文本、图片、音频的各类信息资源。
+
+Java Servlet接口为Servlet的生命周期声明了三个基本方法——init()、service()和destroy()。
+每个Servlet都要实现这些方法，并在它们的生命周期的特定时间由web容器来控制它的创建、初始化、提供服务、销毁等。它的各种行为方式通过web.xml文件中来配置。
+
+由于Servlet是一个java接口，所以需要加载。这个加载动作有servlet容器完成，下面就结合上述的servlet容器和servlet来描述一下java web应用的整体行为。
+
+##### (e) servlet容器的总体行为 #####
+根据上述介绍可知，sevlet受控于另一个java应用程序，它就是web容器；sevlet没有main方法，说明它要被别的类web容器调用；servlet到web容器需要用xml文件注册，而xml的解析由web容器封装的方法完成。
+
+整个java web应用启动过程为：
+>**当Servlet容器启动时，它会部署并加载所有的web应用。当web应用被加载时，Servlet容器会一次性为每个应用创建Servlet上下文（ServletContext）并把它保存在内存里。Servlet容器会处理web应用的web.xml文件，并且一次性创建在web.xml里定义的Servlet、Filter和Listener，同样也会把它们保存在内存里。当Servlet容器关闭时，它会卸载所有的web应用和ServletContext，所有的Servlet、Filter和Listner实例都会被销毁。**
+
+所以servlet容器管理整个Servlet的生命周期。整体上生命周期有4个阶段：加载、初始化、提供服务和销毁。
+
+加载阶段是将请求的servlet类加载到java虚拟机中，这里需要通过公开的无参的构造方法来实例化，无没有则加载失败，也可以通过<load-on-startup>设置servlet在web容器启动时加载。当前web应用关闭的时候web容器会自动销毁当前所有的servlet。 上述这些过程都由web容器来控制，开发者关注最多的是初始化和提供服务两个阶段：
+ *init()方法中，开发者可以获取配置在web.xml中的初始化参数；
+ *service()方法会在Servlet请求时调用，处理业务逻辑。
+通过这两个方法就完成了web应用的用户交互。
+
+##### (f) java servlet容器配置 #####
 在Servlet规范中定义了web.xml文件，它是Web应用的配置文件，Web.xml文件是和Web容器无关的。通过Web.xml文件可以配置Servlet类和url的映射、欢迎列表、过滤器以及安全约束条件等。
 >xml文件的其他特点：对大小写敏感。
 
