@@ -1236,3 +1236,185 @@ web 层		test-servlet.xml（用于控制的bean，Spring MVC组件）
 ```
 
 这儿使用了
+
+
+### （5） javaScript前端开发 ###
+本项目中使用html5、css3和jQuery来作为前端开发主要语言。其中：
+> html和css主要用于静态网页展示；
+> 然后通过后台java servlet的返回值使用js动态生成html的属性来完成页面的动态加载和生成。html和css主要用于静态网页展示。
+
+前台页面的动态交互主要通过两种方式完成：
+> （1）html网页的分解和动态加载；
+> （2）html网页的动态生成；
+
+当前工程中这两种方式都用到了，但是第二种主要为属性的动态生成，而不是html内容的动态生成。
+
+#### <1> HTML基本概念 ####
+
+#### <2> CSS基本概念 ####
+
+#### <3> JavaScript基本概念 ####
+JavaScript是和java没有任何关系的脚本语言，主要用在浏览器中对HTML的DOM元素进行操作的一门动态语言，
+需要注意的是：函数内部声明变量的时候，一定要使用var命令。如果不用的话，你实际上声明了一个全局变量！例如：
+
+```JavaScript
+//可以在函数中直接使用全局变量
+var n=999;
+function f1(){
+　alert(n);
+}
+alert(f1()); // 999
+//不能在函数外使用内部变量
+function f1(){
+  var n=999;
+}
+alert(n); // error
+//内部定义变量没有用var显示说明，默认为全局变量
+function f1(){
+  n=999;
+}
+f1();
+alert(n); // 999
+```
+
+#### <4> 前端开发流程 ####
+
+#### <5> 本工程中使用的js编写思路和方法 ####
+
+##### (a) 动态加载js文件的调试方法 #####
+
+在本框架中使用了将js文件路径动态的添加到header下的方式来加载js，这种方式会导致浏览器调试时候无法再当前domain下管理动态加载进来的js文件，那么如何调试这些代码？
+根据网上帖子 [如何调试异步加载的js文件](http://blog.csdn.net/bruce128/article/details/40615233) 的说明：
+> 在需要调试的js文件顶部加一行代码：
+> //@ sourceURL=XXX.js
+其中XXX表示当前js的文件名，这样就可以在浏览器调试中的"no domain"下面看到当前异步加载的js文件了，并且可以调试。
+
+其中不管是用异步加载还是通过对header动态后缀js文件路径，都是对js的一种动态加载方式，根据 [Google Chrome调试js代码](http://www.open-open.com/lib/view/open1384785324165.html) ：
+> 有时候一些非常 动态的代码是以字符串的形式通过 eval() 函数在当前 Javascript context 中创建出来，而不是作为一个独立的 js 文件加载的。这样你在左边的内容区就找不到这个文件，因此很难调试。其实我们只要在 eval 创建的代码末尾添加一行 “ //@ sourceURL=name“  就可以给这段代码命名（浏览器会特殊对待这种特殊形式的注释），这样它就会出现在左侧的内容区了，就好像你加载了一个指定名字的 js 文件一样，可以设置断点和调试了。
+
+可以明白为什么js文件中加入了sourceURL才能够调试的原因，因为各种动态加载的js代码都是片段，需要一个虚拟的文件名来进行指定，这样才能方便调试。
+
+##### (b) javaScript常用函数说明 #####
+因为前台中目前都使用js开发，而且js自带了很多的原生函数来简化开发，但是自己不常使用，所以将遇到的不了解的js原生函数解释说明如下：
+
+###### 1 join函数 ######
+代码示例：
+
+```JavaScript
+setCookie("currentpage",names.join(".-/"),365);
+```
+用来将用户名构造为一个字符串，然后获取cookie。
+####### 定义和用法 #######
+join() 方法用于把数组中的所有元素放入一个字符串。
+元素是通过指定的分隔符进行分隔的。
+####### 语法 #######
+arrayObject.join(separator)
+参数 	    描述
+separator	可选。指定要使用的分隔符。如果省略该参数，则使用逗号作为分隔符。
+####### 返回值 #######
+返回一个字符串。该字符串是通过把 arrayObject 的每个元素转换为字符串，然后把这些字符串连接起来，在两个元素之间插入 separator 字符串而生成的。
+####### 实例 #######
+```JavaScript
+<script type="text/javascript">
+
+var arr = new Array(3)
+arr[0] = "George"
+arr[1] = "John"
+arr[2] = "Thomas"
+
+document.write(arr.join())
+
+</script>
+```
+返回值为：
+```JavaScript
+George,John,Thomas
+```
+
+
+
+##### (c) jQuery的选择符 #####
+jQuery使用了CSS风格的选择符对DOM元素进行选择，这种方式是jQuery的核心，在使用了jQuery开发的前台代码中是非常重要的。现在就将常用的选择符说明总结。
+###### 1 元素选择符 ######
+jQuery 使用 CSS 选择器来选取 HTML 元素。
+```text
+$("p")        选取 <p> 元素。
+$("p.intro")  选取所有 class="intro" 的 <p> 元素。
+$("p#demo")   选取所有 id="demo" 的 <p> 元素。
+```
+###### 2 属性选择器 ######
+jQuery 使用 XPath 表达式来选择带有给定属性的元素。
+```text
+$("[href]")          选取所有带有 href 属性的元素。
+$("[href='#']")      选取所有带有 href 值等于 "#" 的元素。
+$("[href!='#']")     选取所有带有 href 值不等于 "#" 的元素。
+$("[href$='.jpg']")  选取所有 href 值以 ".jpg" 结尾的元素。
+```
+
+###### 3 CSS选择器 ######
+jQuery CSS 选择器可用于改变 HTML 元素的 CSS 属性。
+下面的例子把所有 p 元素的背景颜色更改为红色：
+```JavaScript
+$("p").css("background-color","red");
+```
+
+##### (d) 对jQuery的扩展使用 #####
+
+jQuery插件的开发包括两种：
+一种是类级别的插件开发，即给jQuery添加新的全局函数，相当于给jQuery类本身添加方法。jQuery的全局函数就是属于jQuery命名空间的函数，另一种是对象级别的插件开发，即给jQuery对象添加方法。
+> 参考： [jQuery插件开发全解析](http://www.iteye.com/topic/545971)
+
+举例说明，在分析menu调用点击事件的过程中，通过浏览器单步调试，发现了一个基本调用链：
+> 
+
+在这个调用链中发现了对jQuery方法的扩展：
+
+```JavaScript
+$.fn.loadPageToContent = function(names) {
+	FileLoadTools.loadRqrFiles(names, $(this));
+};
+```
+通过jQuery源代码可以知道：
+
+```JavaScript
+jQuery.fn = jQuery.prototype = ...
+```
+所以$.fn就是jQuery.fn，表示jQuery的原型，也是指jquery的命名空间。因此加在fn上的方法及属性，将会对jquery实例每一个有效，也就是说这个方法添加到了jQuery的整个命名空间中，成为了成员函数。 
+例如：扩展$.fn.abc()，即$.fn.abc()是对jquery扩展了一个abc方法，那么后面你的每一个jquery实例都可以引用这个方法了。
+> 参考：[What does jQuery.fn mean?](http://stackoverflow.com/questions/4083351/what-does-jquery-fn-mean)
+
+但是这种扩展jQuery的方法为整个jQuery命名空间添加了一个静态函数或者对象，这样做容易造成命名污染，所以这种方式更适合开发一个完整的插件，而不是单个函数，从：
+> [How to Create a Basic Plugin](http://learn.jquery.com/plugins/basic-plugin-creation/)
+> [Advanced Plugin Concepts](http://learn.jquery.com/plugins/advanced-plugin-concepts/)
+可以看到更多的细节。典型的例子就是$.AJAX()这个函数。
+
+针对于单个函数的扩展，比较好的方法为使用jQuery提供的扩展函数来进行封装：
+> jQuery.fn.extend();
+> jQuery.extend();
+
+（1）jQuery.extend(object)为jQuery类添加类方法，可以理解为添加静态方法。如：
+```JavaScript
+jQuery.extend({
+min: function(a, b) { return a < b ? a : b; },
+max: function(a, b) { return a > b ? a : b; }
+});
+jQuery.min(2,3); //  2 
+jQuery.max(4,5); //  5
+```
+（2）jQuery.fn.extend(object)：对jQuery.prototype进得扩展，就是为jQuery类添加“成员函数”。jQuery类的实例可以使用这个“成员函数”。
+比如我们要开发一个插件，做一个特殊的编辑框，当它被点击时，便alert 当前编辑框里的内容。可以这么做：
+
+```JavaScript
+$.fn.extend({
+    alertWhileClick:function() {
+          $(this).click(function(){
+                 alert($(this).val());
+           });
+     }
+});
+$("#input1").alertWhileClick();
+```
+其中，$("#input1")　为一个jQuery实例，当它调用成员方法 alertWhileClick后，便实现了扩展，每次被点击时它会先弹出目前编辑里的内容。
+
+对比这两种方法：
+> jQuery.extend() 的调用并不会把方法扩展到对象的实例上，引用它的方法也需要通过jQuery类来实现，如jQuery.init()，而 jQuery.fn.extend()的调用把方法扩展到了对象的prototype上，所以实例化一个jQuery对象的时候，它就具有了这些方法，这 是很重要的，在jQuery.JS中到处体现这一点。
