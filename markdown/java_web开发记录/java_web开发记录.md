@@ -87,12 +87,13 @@ mysqldump.exe -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys 
 
 ### （3） 基本框架了解 ###
 因为当前是属于接手开发，所以现在的架构都是已经定型了的，需要做的就是快速的熟悉整体架构，并且理解当前架构处于什么样的业务模型的情况下来选择的，这样做的优势和劣势是什么，多一点整体形势的思考和分析。
+总体上来说就是使用javaEE进行java web开发，更具体一点就是开发一个在线的业务系统。当前的开发中，整体开发框架已经完成，通过不同的业务来填充代码从而成为不同的业务系统，所以对当前这个框架的理解是非常重要的。下面就进行更为详细的分析。
 
-## 2 整体架构分析 ##
+## 2 整体架构细节分析 ##
 
-整体框架搭建还是建立在MVC的基础上的，并且对后台部分按照层次来定义调用接口，这样完成协作和同步开发，并且将测试与实现隔离，方便代码检查。现在就当前已经有的代码架构做一个简单的分析。
+整体框架搭建还是建立在MVC的基础上的，并且对后台部分按照层次来定义调用接口，这样完成协作和同步开发，并且将测试与实现隔离，方便代码检查。因为是从已经存在的系统分析其架构，所以更像是反向思维的演练（盲人摸象），通过各种细节的构成分析，最终拼接为一个整体框架，来理解当前框架的特点和搭建过程。
 
-总体上整个框架的构成为：
+根据介绍，总体上整个框架的构成为：
 >**分层设计->定义业务接口->分module进行设计和实现->细化实现**
 
 通过约定接口调用来约束不同层级之间的分离关系。从而分散整体工作，并行开发。
@@ -110,49 +111,31 @@ mysqldump.exe -h172.16.1.242 -uroot -pP@55w0rd --default-character-set=utf8 sys 
 
 主要使用方式是通过配置xml文件来将数据库中的表映射为JOBO(Plain Old Java Objects)来完成去耦，对上层提供统一的操作方法。
 
-#### <1> mybatis基本配置 ####
+做为一个ORM框架，基本上他和其他框架相同，都有共同的特点：
+1. 从配置文件(通常是XML配置文件中)得到 sessionfactory.
+2. 由sessionfactory  产生 session
+3. 在session 中完成对数据的增删改查和事务提交等.
+4. 在用完之后关闭session 。
+5. 在java 对象和 数据库之间有做mapping 的配置文件，也通常是xml 文件。
+
+#### <1> mybatis手动生成过程 ####
+
 将下载到的库中的mybatis-x.x.x.jar 文件置于 classpath 中即可进行基本配置了。
 
 >这个classpath指的是当前项目工程文件中.classpath文件中已经加入管理的，也就是在项目java build path中添加的库
 
-##### (a) 配置基本generatorConfig.xml #####
-generatorConfig.xml文件是mybatis的核心配置文件，包含获取数据库连接实例的数据源（DataSource）和决定事务范围和控制方式的事务管理器（TransactionManager）。
+##### (a) 根据数据库表生成相关的文件 #####
+mybatis通过管理数据库表的java对象和在这些对象上的数据库操作来解耦对数据库的直接操作，所以需要根据数据库中的表来手动编写这些java文件和数据库表操作的配置xml文件。
+需要的生产步骤如下：
 
-mybatis通过这个文件完成项目中的自动生成工作。这个文件的一个示例内容如下：
+> （1）创建数据库表对应的java bean结构，包含了数据库表中的字段和属性说明；
+> （2）创建上述java bean对应的数据库基本操作mapper，包含对这个数据库表的增删查改等功能接口；
 
-```xml
-<?xml version="1.0" encoding="UTF-8" ?>
+通过上述步骤就完成了数据库表到java对象之间的映射关系。
 
-<!DOCTYPE configuration
-  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-  "http://mybatis.org/dtd/mybatis-3-config.dtd">
-
-<configuration>
-  <environments default="development">
-    <environment id="development">
-      <transactionManager type="JDBC"/>
-      <dataSource type="POOLED">
-        <property name="driver" value="${driver}"/>
-        <property name="url" value="${url}"/>
-        <property name="username" value="${username}"/>
-        <property name="password" value="${password}"/>
-      </dataSource>
-    </environment>
-  </environments>
-  
-  <mappers>
-    <mapper resource="org/mybatis/example/BlogMapper.xml"/>
-  </mappers>
-</configuration>
-```
-整体上分为两个个部分：xml文件头（用来验证xml文件的正确性）和整体配置信息（用来说明具体的配置细节）。
-其中整体配置信息为configuration体，又包含多个具体的配置信息，包括：
-> environment 元素体中包含了事务管理和连接池的配置。
-> mappers 元素则是包含一组 mapper 映射器（这些 mapper 的 XML 文件包含了 SQL 代码和映射定义信息）。
->>更为详细的说明参看[官方文档配置说明部分](http://mybatis.github.io/mybatis-3/zh/configuration.html)。
-
-##### (b) 配置mapper映射关系 #####
-mapper映射关系描述了结果集ResultMap和SQL映射关系等内容，其中SQL映射关系包含有以下顶级元素：
+##### (b) 编写SQL映射mapper同名xml文件 #####
+上述步骤中java bean表示了数据库表的抽象，mapper对象则是抽象了在这个表上的基本操作接口，现在还需要有一个mapper对象同名xml文件来实现mapper中定义的基本操作。
+这个xml文件表示一种映射关系，描述了结果集ResultMap和SQL映射关系等内容，其中SQL映射关系包含有以下顶级元素：
 
 ```xml
 cache –     给定命名空间的缓存配置。
@@ -168,21 +151,417 @@ select –    映射查询语句
 通过这些顶级标签元素就可以在xml中对标准SQL进行描写，从而完成后续动态SQL生成等高级功能，使得查询的调整在接口调用规定的基础上不再影响上层业务实现，从而去除耦合关联。
 >更多的映射细节查看[官方文档](http://mybatis.github.io/mybatis-3/zh/sqlmap-xml.html#)
 
-##### (c) 总体配置流程 #####
+#### <2> mybatis的自动生成 ####
+根据上面的流程，对于数据库表的java对象表示而言，每一个表都要手动写数据库表的java bean描述和对应数据库操作的mapper描述（包含mapper类和对应xml文件），这个是非常麻烦的事情，所以mybatis提供了自动生成工具：[MyBatis Generator](http://mybatis.github.io/generator/)，简称为MBG。通过建立起这个工具需要的配置文件，我们就能自动根据数据库中的表来生成bean结构以及mapper配置文件。
 
-在上面的总体配置中，最为关键的就是mappers元素中说明的bean结构映射关系，这个文件中说明了基本的SQL语句的映射关系，将传统SQL转换为函数调用。
-具体需要按照如下步骤来完成配置和关联：
+##### (a) mybatis 自动生成的配置 #####
+MBG需要一个xml格式的配置文件来描述，这个配置文件包含获取数据库连接实例的数据源（DataSource）和决定事务范围和控制方式的事务管理器（TransactionManager），通过他就可以自动根据数据库中的表来生成对应的bean和mapper文件。
+在网上有一篇非常好的博文：[MyBatis Generator 详解](http://blog.csdn.net/isea533/article/details/42102297) 可以参看。
+在本工程中，这个xml文件为generatorConfig.xml，配置示例如下：
 
-> （1）创建数据库表：根据业务需要完成数据库设计之后，在数据库中create table，完成这一步骤；
-> （2）创建java实体类：在工程中根据基本的table结构完成java bean的编写（类似C语言中的结构体，但是java中的一切都是对象，也就是class，所以这儿就是java bean了），并且添加基本的set和get函数；
-> （3）创建dao接口：在完成java实体类之后，因为这个类表示了数据库表的抽象，所以还需要添加基本的增删查改操作，也就是一般意义的dao层，也就是mybatis中所谓的Mapper，表示了对抽象数据库表的基本操作；
-> （4）创建dao的实现：和hibernate不同，mybatis使用一个xml文件来描述所谓的[映射语句](http://mybatis.github.io/mybatis-3/zh/sqlmap-xml.html)，通过这个xml文件中不同标签的设置，实现对数据库表的基本操作；
-> （5）装载映射文件：完成上述步骤之后，需要在mybatis的总体配置文件的mapper标签下添加（4）中实现的所有xml文件，只有这样才能将（1）和（2）分别代表的数据库表项实体和java程序中的基本对象这两个内容链接在一起，完成ORM框架中的去耦作用。
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+  PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+  "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
 
-通过上述5个步骤，mybatis就完成了从数据库表实体到java对象的关联配置。可以在java程序中使用（2）中定义的实体类来根据在（4）中定义的同名xml中实现的基本操作来对据库表进行处理了。
+<generatorConfiguration>
+    <classPathEntry location="mysql-connector-java-5.1.6-bin.jar" />
 
-#### <2> mybatis的java调用 ####
-mybatis通过上述配置就可以完成java对象和数据库表的管理，接下来就需要通过java调用来穿件session完成数据库操作了。
+    <context id="DB2Tables" targetRuntime="MyBatis3">
+
+        <commentGenerator>
+            <property name="suppressDate" value="true" />
+        </commentGenerator>
+
+        <jdbcConnection driverClass="com.mysql.jdbc.Driver"
+            connectionURL="jdbc:mysql://localhost/test" userId="qgd" password="123456">
+        </jdbcConnection>
+
+        <javaTypeResolver>
+            <property name="forceBigDecimals" value="false" />
+        </javaTypeResolver>
+
+        <javaModelGenerator targetPackage="test.model"
+            targetProject="../src/main/java">
+            <property name="enableSubPackages" value="true" />
+            <property name="trimStrings" value="true" />
+        </javaModelGenerator>
+
+        <sqlMapGenerator targetPackage="test.dao"
+            targetProject="../src/main/java">
+            <property name="enableSubPackages" value="true" />
+        </sqlMapGenerator>
+
+        <javaClientGenerator type="XMLMAPPER"
+            targetPackage="test.dao" targetProject="../src/main/java">
+            <property name="enableSubPackages" value="true" />
+        </javaClientGenerator>
+
+        <table tableName="pet" domainObjectName="Pet">
+        </table>
+
+    </context>
+</generatorConfiguration>
+```
+这个文件整体上分为两个个部分：xml文件头（用来验证xml文件的正确性）和整体配置信息（用来说明具体的配置细节）。
+其中整体配置信息为configuration体，又包含多个具体的配置信息，包括：
+> environment 元素体中包含了事务管理和连接池的配置。
+> mappers 元素则是包含一组 mapper 映射器（这些 mapper 的 XML 文件包含了 SQL 代码和映射定义信息）。
+>>更为详细的说明参看[官方文档配置说明部分](http://mybatis.github.io/mybatis-3/zh/configuration.html)。
+
+这个配置文件提供了mybatis-generator所需要的参数信息：
+  * 其中classPathEntry 是引用的jdbc的类路径，这里将jdbc jar和generator的jar包放在一起了；
+  * commentGenerator 是用来除去时间信息的，这在配合类似subversion的代码管理工具时使用很有效，因为可以减少没有必要的注释迁入；
+  * jdbcConnection是指定的jdbc的连接信息；
+  * javaTypeResolver式类型转换的信息，这里并没有用到；
+  * javaModelGenerator是模型的生成信息，这里将指定这些Java model类的生成路径；
+  * sqlMapGenerator是mybatis 的sqlMapper XML文件的生成信息，包括生成路径等；
+  * javaClientGenerator是应用接口的生成信息；
+  * table是用户指定的被生成相关信息的表，它必须在指定的jdbc连接中已经被建立。
+
+
+下面结合上面的例子和工程中实际用到的内容进行分析：
+
+###### 1 配置头文件 ######
+就是xml文件头，描述xml的格式情况。具体内容如下：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+```
+
+###### 2 generatorConfiguration根节点 ######
+generatorConfiguration节点没有任何属性，直接写节点即可，如下：
+
+```xml
+<generatorConfiguration>
+    <!-- 具体配置内容 -->
+</generatorConfiguration>
+```
+mybatis自动生成的配置选项都作为这个元素的子元素存在。
+
+###### 3 根节点下的配置元素 ######
+从这段开始，就是配置的主要内容，这些配置都是generatorConfiguration元素的子元素。包含以下子元素（有严格的顺序）：
+
+```xml
+<properties> (0个或1个)
+<classPathEntry> (0个或多个)
+<context> (1个或多个)
+```
+
+####### 3.1 properties元素 #######
+这个元素用来指定外部的属性元素，不是必须的元素。
+这个元素用于指定一个需要在配置中解析使用的外部属性文件，引入属性文件后，可以在配置中使用 ${property}这种形式的引用，通过这种方式引用属性文件中的属性值。对于后面需要配置的**jdbc**信息和targetProject属性会很有用。
+这个属性可以通过resource或者url来指定属性文件的位置，这两个属性只能使用其中一个来指定，同时出现会报错。
+>resource：指定**classpath**下的属性文件，使用类似com/myproject/generatorConfig.properties这样的属性值。
+>url：可以指定文件系统上的特定位置，例如file:///C:/myfolder/generatorConfig.properties
+
+####### 3.2 classPathEntry元素 #######
+这个元素的作用是将MBG运行时需要用到的jar包(或zip格式)添加到**classpath**下。
+最常见的用法是，当**classpath**下面**没有**JDBC驱动的时候，我们通常通过这个属性指定驱动的路径，例如：
+```xml
+<classPathEntry location="E:\mysql\mysql-connector-java-5.1.29.jar"/>
+```
+如果需要用到其他的jar包，也可以这么配置，例如如果你开发了一个MBG的插件，你就可以通过这种方式加入到**classpath**
+>这里注意上面重点强调的**没有**，一般在项目中使用的时候，如果在项目中添加了驱动库，**classpath**下面都有JDBC驱动，因此从项目中启动的时候不需要配置该项。
+>>建议:由于该参数使用了绝对路径，因此不利用在不同电脑上通用，因此建议最好把需要的jar包放到项目的**classpath**下，避免每个人都得单独配置路径。
+
+####### 3.3 context元素 #######
+在MBG的配置中，至少需要有一个<context>元素。<context>元素用于指定生成一组对象的环境。例如指定要连接的数据库，要生成对象的类型和要处理的数据库中的表。运行MBG的时候还可以指定要运行的<context>。
+该元素只有一个**必选属性**id，用来唯一确定一个<context>元素，该id属性可以在运行MBG的使用。
+在这个元素下面还有一些非常必要的子元素来进行配置，这些子元素（有严格的配置顺序）包括：
+
+```xml
+<property> (0个或多个)
+<plugin> (0个或多个)
+<commentGenerator> (0个或1个)
+<jdbcConnection> (1个)
+<javaTypeResolver> (0个或1个)
+<javaModelGenerator> (1个)
+<sqlMapGenerator> (0个或1个)
+<javaClientGenerator> (0个或1个)
+<table> (1个或多个)
+```
+
+这些子元素在自动生成中是非常关键的，下面就针对工程中常用的元素进行说明。
+
+##### (b) mybatis generator的模板补充 #####
+上述自动配置文件中，只是根据mybatis默认的内容进行了生成说明，有时候我们需要对生成内容进行自定义，就需要在配置文件中引入自定义的模板来指导生成过程。
+在本工程中，就是用了org.mybatis.generator.plugins.AddLimitOffsetPlugin.java文件对生成内容进行说明，然后在generatoronfig.xml中的context元素下添加如下引入命令：
+
+```xml
+<plugin type="org.mybatis.generator.plugins.AddLimitOffsetPlugin" />
+```
+这个java代码的内容如下：
+
+```java
+public class AddLimitOffsetPlugin extends PluginAdapter {
+
+    @Override
+    public boolean modelExampleClassGenerated(TopLevelClass topLevelClass, IntrospectedTable introspectedTable) {
+        PrimitiveTypeWrapper integerWrapper = FullyQualifiedJavaType.getIntInstance().getPrimitiveTypeWrapper();
+
+        Field limit = new Field();
+        limit.setName("limit");
+        limit.setVisibility(JavaVisibility.PRIVATE);
+        limit.setType(integerWrapper);
+        topLevelClass.addField(limit);
+
+        Method limitSet = new Method();
+        limitSet.setVisibility(JavaVisibility.PUBLIC);
+        limitSet.setName("setLimit");
+        limitSet.addParameter(new Parameter(integerWrapper, "limit"));
+        limitSet.addBodyLine("this.limit = limit;");
+        topLevelClass.addMethod(limitSet);
+
+        Method limitGet = new Method();
+        limitGet.setVisibility(JavaVisibility.PUBLIC);
+        limitGet.setReturnType(integerWrapper);
+        limitGet.setName("getLimit");
+        limitGet.addBodyLine("return limit;");
+        topLevelClass.addMethod(limitGet);
+
+        Field offset = new Field();
+        offset.setName("offset");
+        offset.setVisibility(JavaVisibility.PRIVATE);
+        offset.setType(integerWrapper);
+        topLevelClass.addField(offset);
+
+        Method offsetSet = new Method();
+        offsetSet.setVisibility(JavaVisibility.PUBLIC);
+        offsetSet.setName("setOffset");
+        offsetSet.addParameter(new Parameter(integerWrapper, "offset"));
+        offsetSet.addBodyLine("this.offset = offset;");
+        topLevelClass.addMethod(offsetSet);
+
+        Method offsetGet = new Method();
+        offsetGet.setVisibility(JavaVisibility.PUBLIC);
+        offsetGet.setReturnType(integerWrapper);
+        offsetGet.setName("getOffset");
+        offsetGet.addBodyLine("return offset;");
+        topLevelClass.addMethod(offsetGet);
+
+        return true;
+    }
+
+    @Override
+    public boolean sqlMapSelectByExampleWithoutBLOBsElementGenerated(XmlElement element, IntrospectedTable introspectedTable) {
+        FullyQualifiedTable table = introspectedTable.getFullyQualifiedTable();
+
+        //XmlElement lastElement = (XmlElement)element.getElements().get(element.getElements().size());
+
+        XmlElement isNotNullElement = new XmlElement("if");
+        isNotNullElement.addAttribute(new Attribute("test", "limit != null"));
+        isNotNullElement.addElement(new TextElement("limit ${limit}"));
+        element.getElements().add(isNotNullElement);
+
+
+        isNotNullElement = new XmlElement("if");
+        isNotNullElement.addAttribute(new Attribute("test", "offset != null"));
+        isNotNullElement.addElement(new TextElement("offset ${offset}"));
+        element.getElements().add(isNotNullElement);
+        return true;
+    }
+
+    public boolean validate(List<String> warnings) {
+        return true;
+    }
+}
+```
+下面就上面的配置说明。
+通过查找，发现出处如下：
+> [limit-offset for selectByExample plugin](http://ibatis.10938.n7.nabble.com/limit-offset-for-selectByExample-plugin-td15193.html)
+> [AW: limit-offset for selectByExample plugin](http://ibatis.10938.n7.nabble.com/AW-limit-offset-for-selectByExample-plugin-td15227.html)
+
+这个文件以附件的形式添加到回复中，但是没有其他任何的说明。代码内容和上面使用的还是有差别，附上代码如下：
+
+```java
+package org.apache.ibatis.ibator.plugins;
+
+import java.util.List;
+import org.apache.ibatis.ibator.api.FullyQualifiedTable;
+import org.apache.ibatis.ibator.api.IbatorPluginAdapter;
+import org.apache.ibatis.ibator.api.IntrospectedTable;
+import org.apache.ibatis.ibator.api.dom.java.Field;
+import org.apache.ibatis.ibator.api.dom.java.FullyQualifiedJavaType;
+import org.apache.ibatis.ibator.api.dom.java.JavaVisibility;
+import org.apache.ibatis.ibator.api.dom.java.Method;
+import org.apache.ibatis.ibator.api.dom.java.Parameter;
+import org.apache.ibatis.ibator.api.dom.java.PrimitiveTypeWrapper;
+import org.apache.ibatis.ibator.api.dom.java.TopLevelClass;
+import org.apache.ibatis.ibator.api.dom.xml.Attribute;
+import org.apache.ibatis.ibator.api.dom.xml.TextElement;
+import org.apache.ibatis.ibator.api.dom.xml.XmlElement;
+import org.apache.ibatis.ibator.generator.ibatis2.XmlConstants;
+
+/**
+ * This plugin adds limit and offset clause to the example class and 
+ * to the sqlMap selectByExample map.
+ *
+ * @author Marco Musu
+ *
+ */
+public class AddLimitOffsetPlugin extends IbatorPluginAdapter {
+
+    public boolean validate(List<String> warnings) {
+        return true;
+    }
+
+    @Override
+    public boolean modelExampleClassGenerated(TopLevelClass topLevelClass, IntrospectedTable introspectedTable) {
+        PrimitiveTypeWrapper integerWrapper = FullyQualifiedJavaType.getIntInstance().getPrimitiveTypeWrapper();
+
+        Field limit = new Field();
+        limit.setName("limit");
+        limit.setVisibility(JavaVisibility.PRIVATE);
+        limit.setType(integerWrapper);
+        topLevelClass.addField(limit);
+
+        Method limitSet = new Method();
+        limitSet.setVisibility(JavaVisibility.PUBLIC);
+        limitSet.setName("setLimit"); 
+        limitSet.addParameter(new Parameter(integerWrapper, "limit")); 
+        limitSet.addBodyLine("this.limit = limit;"); 
+        topLevelClass.addMethod(limitSet);
+
+        Method limitGet = new Method();
+        limitGet.setVisibility(JavaVisibility.PUBLIC);
+        limitGet.setReturnType(integerWrapper);
+        limitGet.setName("getLimit"); 
+        limitGet.addBodyLine("return limit;"); 
+        topLevelClass.addMethod(limitGet);
+
+        Field offset = new Field();
+        offset.setName("offset");
+        offset.setVisibility(JavaVisibility.PRIVATE);
+        offset.setType(integerWrapper);
+        topLevelClass.addField(offset);
+
+        Method offsetSet = new Method();
+        offsetSet.setVisibility(JavaVisibility.PUBLIC);
+        offsetSet.setName("setOffset"); 
+        offsetSet.addParameter(new Parameter(integerWrapper, "offset")); 
+        offsetSet.addBodyLine("this.offset = offset;"); 
+        topLevelClass.addMethod(offsetSet);
+
+        Method offsetGet = new Method();
+        offsetGet.setVisibility(JavaVisibility.PUBLIC);
+        offsetGet.setReturnType(integerWrapper);
+        offsetGet.setName("getOffset"); 
+        offsetGet.addBodyLine("return offset;"); 
+        topLevelClass.addMethod(offsetGet);
+
+        return true;
+    }
+
+    @Override
+    public boolean sqlMapSelectByExampleWithoutBLOBsElementGenerated(XmlElement element, IntrospectedTable introspectedTable) {
+        FullyQualifiedTable table = introspectedTable.getFullyQualifiedTable();
+        element.getElements().remove(element.getElements().size() - 1);
+        XmlElement isParameterPresenteElement =
+                new XmlElement("isParameterPresent"); 
+        element.addElement(isParameterPresenteElement);
+
+        XmlElement includeElement = new XmlElement("include"); 
+        includeElement.addAttribute(new Attribute("refid", 
+                table.getSqlMapNamespace() + "." + XmlConstants.EXAMPLE_WHERE_CLAUSE_ID)); 
+        isParameterPresenteElement.addElement(includeElement);
+
+        XmlElement isNotNullElement = new XmlElement("isNotNull"); 
+        isNotNullElement.addAttribute(new Attribute("property", "orderByClause"));  
+        isNotNullElement.addElement(new TextElement("order by $orderByClause$")); 
+        isParameterPresenteElement.addElement(isNotNullElement);
+
+        isNotNullElement = new XmlElement("isNotNull"); 
+        isNotNullElement.addAttribute(new Attribute("property", "limit"));  
+        isNotNullElement.addElement(new TextElement("limit $limit$")); 
+        isParameterPresenteElement.addElement(isNotNullElement);
+
+
+        isNotNullElement = new XmlElement("isNotNull"); 
+        isNotNullElement.addAttribute(new Attribute("property", "offset"));  
+        isNotNullElement.addElement(new TextElement("offset $offset$")); 
+        isParameterPresenteElement.addElement(isNotNullElement);
+        return true;
+    }
+}
+```
+
+##### (c) mybatis generator的自动生成方式 #####
+完成上述基本配置之后，mybatis需要根据这个配置文件生成相应的代码，mybatis generator有三种方式可以完成自动生成：命令行，eclipse插件和maven插件。
+>[官方文档](http://mybatis.github.io/generator/running/running.html)有详细的说明
+下面就针对这三种方式进行讲解。
+
+###### 1 命令行下的自动生成 ######
+mybatis generator最简单的就是命令行的方式，只需要指定相应的配置文件的路径即可：
+
+```shell
+java -jar /path/to/mybatis-generator-core-xxx.jar -configfile /path/to/config.xml -overwrite
+```
+将上述命令中的mybatis-generator-core和config.xml的路径替换为实际路径就可以生成了。
+
+###### 2 eclipse集成插件完成自动生成 ######
+eclipse提供了一个插件，安装之后可以对xml文件直接生成代码。现在简述安装过程如下：
+打开eclipse的menu
+```menu
+help->install new software
+```
+然后输入如下地址：
+```address
+http://mybatis.googlecode.com/svn/sub-projects/generator/trunk/eclipse/UpdateSite/
+```
+然后点击“Add”添加，安装插件就可以了。
+重启之后右键点击xml配置文件就可以根据配置生成代码了。
+
+>**注意：**eclipse中手动新建的目录和工程中添加的目录是不同的，因为工程中添加的目录会修改当前工程的.classpath文件，在其中进行文件夹的管理。
+>自己手动新建的文件夹在mybatis generator自动生成的时候回找不到路径而报错。因为没有在工程中进行管理。
+
+###### 3 maven插件安装 ######
+maven作为包java的管理器是非常好的，但是自己在实际工程中使用不多，现在简述一下插件安装过程感受一下。
+参考[利用mybatis-generator自动生成代码](http://www.cnblogs.com/yjmyzz/p/mybatis-generator-tutorial.html)这一篇博文来学习。
+
+
+#### <3> mybatis的java调用 ####
+不论我们是手动还是通过mybatis-generator帮助我们生成了数据库表对应的bean、bean对应的mapper类和mapper对应的xml文件之后，还需要进一步的配置才能初始化mybatis，然后java才可以通过mybatis听过的session来对后台数据库操作完整封装使用。
+> **工具只是手段，问题的解决才是核心**
+
+##### (a) 创建MyBatis的mapper配置文件 #####
+首先需要将给出当前mapper有多少个的具体配置，这样mybatis才能够管理这些mapper。这个过程也称为对mapper对象的配置。
+
+根据官方文档 [运行 MyBatis Generator 后的任务](http://generator.sturgeon.mopaas.com/afterRunning.html) 的说明，mybatis需要MapperConfig.xml这个配置文件用于mybatis统一管理事务。
+MapperConfig.xml需要添加所有的映射文件，所以我们按照如下格式手写配置文件：
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+    PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <environments default="development">
+        <environment id="development">
+            <transactionManager type="JDBC" />
+            <dataSource type="POOLED">
+                <property name="driver" value="com.mysql.jdbc.Driver" />
+                <property name="url" value="jdbc:mysql://localhost/test" />
+                <property name="username" value="qgd" />
+                <property name="password" value="123456" />
+            </dataSource>
+        </environment>
+    </environments>
+    <mappers>
+        <mapper resource="test/dao/PetMapper.xml" />
+    </mappers>
+</configuration>
+```
+在这个配置文件中mappers元素中添加了所有的SQL Mapper，也就是xml文件。
+
+> 网上的文章 [Mybatis初始化配置](http://hao0.me/mybatis/2015/02/20/mybatis-init.html)对mybatis的初始化做出了完整的分析
+
+##### (b) java调用mybatis提供的SQLSession来管理事务 #####
+mybatis通过上述配置就可以完成java对象和数据库表的管理，接下来就需要通过java调用mybatis提供的SQLSession完成数据库操作了。
 但是因为本项目中使用Spring来进行session管理，所以现在这一部分内容暂时没有考虑，不过官方网站给出了很详细的例子，可以参考学习。
 总体上来说还是通过sqlsession来对后台数据操作进行管理，具体代码示例如下：
 
@@ -235,205 +614,18 @@ public class MyBatisTest {
 }
 ```
 
-#### <3> mybatis的自动生成 ####
-根据上面的流程，对于数据库表的java对象表示而言，每一个表都要手动写xml描述和dao的xml描述，这个是非常麻烦的事情，所以mybatis提供了自动生成工具：[MyBatis Generator](http://mybatis.github.io/generator/)，简称为MBG。通过建立起这个工具需要的配置文件，我们就能自动根据数据库中的表来生成bean结构以及mapper配置文件。
+#### <4> 总体配置使用流程总结 ####
 
-##### (a) mybatis 自动生成的配置 #####
+上述<1>到<3>描述了java调用mybatis完成ORM框架的流程，总体上最为关键的就是mappers元素中说明的bean结构映射关系，这个文件中说明了基本的SQL语句的映射关系，将传统SQL转换为函数调用；然后通过一个mapper对象的管理来处理添加进入的所有mapper供java调用。整体思路如下：
 
-MBG需要一个xml格式的配置文件来描述，这个配置文件非常详细的给定了自动生成所需要的一切，在网上有一篇非常好的博文：[MyBatis Generator 详解](http://blog.csdn.net/isea533/article/details/42102297) 可以参看。
-这是一个简单的配置示例：
+> （1）创建数据库表：根据业务需要完成数据库设计之后，在数据库中create table，完成这一步骤；
+> （2）创建java实体类：在工程中根据基本的table结构完成java bean的编写（类似C语言中的结构体，但是java中的一切都是对象，也就是class，所以这儿就是java bean了），并且添加基本的set和get函数；
+> （3）创建dao接口：在完成java实体类之后，因为这个类表示了数据库表的抽象，所以还需要添加基本的增删查改操作，也就是一般意义的dao层，也就是mybatis中所谓的Mapper，表示了对抽象数据库表的基本操作；
+> （4）创建dao的实现：和hibernate不同，mybatis使用一个xml文件来描述所谓的[映射语句](http://mybatis.github.io/mybatis-3/zh/sqlmap-xml.html)，通过这个xml文件中不同标签的设置，实现对数据库表的基本操作；
+> （5）装载映射文件：完成上述步骤之后，需要在mybatis的总体配置文件的mapper标签下添加（4）中实现的所有xml文件，只有这样才能将（1）和（2）分别代表的数据库表项实体和java程序中的基本对象这两个内容链接在一起，完成ORM框架中的去耦作用。（这部分在后面更为详细的说明）
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE generatorConfiguration
-  PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
-  "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
-
-<generatorConfiguration>
-    <classPathEntry location="mysql-connector-java-5.1.6-bin.jar" />
-
-    <context id="DB2Tables" targetRuntime="MyBatis3">
-
-        <commentGenerator>
-            <property name="suppressDate" value="true" />
-        </commentGenerator>
-
-        <jdbcConnection driverClass="com.mysql.jdbc.Driver"
-            connectionURL="jdbc:mysql://localhost/test" userId="qgd" password="123456">
-        </jdbcConnection>
-
-        <javaTypeResolver>
-            <property name="forceBigDecimals" value="false" />
-        </javaTypeResolver>
-
-        <javaModelGenerator targetPackage="test.model"
-            targetProject="../src/main/java">
-            <property name="enableSubPackages" value="true" />
-            <property name="trimStrings" value="true" />
-        </javaModelGenerator>
-
-        <sqlMapGenerator targetPackage="test.dao"
-            targetProject="../src/main/java">
-            <property name="enableSubPackages" value="true" />
-        </sqlMapGenerator>
-
-        <javaClientGenerator type="XMLMAPPER"
-            targetPackage="test.dao" targetProject="../src/main/java">
-            <property name="enableSubPackages" value="true" />
-        </javaClientGenerator>
-
-        <table tableName="pet" domainObjectName="Pet">
-        </table>
-
-    </context>
-</generatorConfiguration>
-```
-这个配置文件提供了 mybatis-generator所需要的参数信息：
-  * 其中classPathEntry 是引用的jdbc的类路径，这里将jdbc jar和generator的jar包放在一起了；
-  * commentGenerator 是用来除去时间信息的，这在配合类似subversion的代码管理工具时使用很有效，因为可以减少没有必要的注释迁入；
-  * jdbcConnection是指定的jdbc的连接信息；
-  * javaTypeResolver式类型转换的信息，这里并没有用到；
-  * javaModelGenerator是模型的生成信息，这里将指定这些Java model类的生成路径；
-  * sqlMapGenerator是mybatis 的sqlMapper XML文件的生成信息，包括生成路径等；
-  * javaClientGenerator是应用接口的生成信息；
-  * table是用户指定的被生成相关信息的表，它必须在指定的jdbc连接中已经被建立。
-
-
-下面结合上面的例子和工程中实际用到的内容进行分析：
-
-###### 1 配置头文件 ######
-就是xml文件头，描述xml的格式情况。具体内容如下：
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE generatorConfiguration
-        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
-        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
-```
-
-###### 2 generatorConfiguration根节点 ######
-generatorConfiguration节点没有任何属性，直接写节点即可，如下：
-
-```xml
-<generatorConfiguration>
-    <!-- 具体配置内容 -->
-</generatorConfiguration>
-```
-
-###### 3 根节点下的配置元素 ######
-从这段开始，就是配置的主要内容，这些配置都是generatorConfiguration元素的子元素。包含以下子元素（有严格的顺序）：
-
-```xml
-<properties> (0个或1个)
-<classPathEntry> (0个或多个)
-<context> (1个或多个)
-```
-
-####### 3.1 properties元素 #######
-这个元素用来指定外部的属性元素，不是必须的元素。
-这个元素用于指定一个需要在配置中解析使用的外部属性文件，引入属性文件后，可以在配置中使用 ${property}这种形式的引用，通过这种方式引用属性文件中的属性值。对于后面需要配置的**jdbc**信息和targetProject属性会很有用。
-这个属性可以通过resource或者url来指定属性文件的位置，这两个属性只能使用其中一个来指定，同时出现会报错。
->resource：指定**classpath**下的属性文件，使用类似com/myproject/generatorConfig.properties这样的属性值。
->url：可以指定文件系统上的特定位置，例如file:///C:/myfolder/generatorConfig.properties
-
-####### 3.2 classPathEntry元素 #######
-这个元素的作用是将MBG运行时需要用到的jar包(或zip格式)添加到**classpath**下。
-最常见的用法是，当**classpath**下面**没有**JDBC驱动的时候，我们通常通过这个属性指定驱动的路径，例如：
-```xml
-<classPathEntry location="E:\mysql\mysql-connector-java-5.1.29.jar"/>
-```
-如果需要用到其他的jar包，也可以这么配置，例如如果你开发了一个MBG的插件，你就可以通过这种方式加入到**classpath**
->这里注意上面重点强调的**没有**，一般在项目中使用的时候，如果在项目中添加了驱动库，**classpath**下面都有JDBC驱动，因此从项目中启动的时候不需要配置该项。
->>建议:由于该参数使用了绝对路径，因此不利用在不同电脑上通用，因此建议最好把需要的jar包放到项目的**classpath**下，避免每个人都得单独配置路径。
-
-####### 3.3 context元素 #######
-在MBG的配置中，至少需要有一个<context>元素。<context>元素用于指定生成一组对象的环境。例如指定要连接的数据库，要生成对象的类型和要处理的数据库中的表。运行MBG的时候还可以指定要运行的<context>。
-该元素只有一个**必选属性**id，用来唯一确定一个<context>元素，该id属性可以在运行MBG的使用。
-在这个元素下面还有一些非常必要的子元素来进行配置，这些子元素（有严格的配置顺序）包括：
-
-```xml
-<property> (0个或多个)
-<plugin> (0个或多个)
-<commentGenerator> (0个或1个)
-<jdbcConnection> (1个)
-<javaTypeResolver> (0个或1个)
-<javaModelGenerator> (1个)
-<sqlMapGenerator> (0个或1个)
-<javaClientGenerator> (0个或1个)
-<table> (1个或多个)
-```
-
-这些子元素在自动生成中是非常关键的，下面就针对工程中常用的元素进行说明。
-
-##### (b) mybatis generator的自动生成 #####
-完成上述基本配置之后，mybatis需要根据这个配置文件生成相应的代码，mybatis generator有三种方式可以完成自动生成：命令行，eclipse插件和maven插件。
->[官方文档](http://mybatis.github.io/generator/running/running.html)有详细的说明
-下面就针对这三种方式进行讲解。
-
-###### 1 命令行下的自动生成 ######
-mybatis generator最简单的就是命令行的方式，只需要指定相应的配置文件的路径即可：
-
-```shell
-java -jar /path/to/mybatis-generator-core-xxx.jar -configfile /path/to/config.xml -overwrite
-```
-将上述命令中的mybatis-generator-core和config.xml的路径替换为实际路径就可以生成了。
-
-###### 2 eclipse集成插件完成自动生成 ######
-eclipse提供了一个插件，安装之后可以对xml文件直接生成代码。现在简述安装过程如下：
-打开eclipse的menu
-```menu
-help->install new software
-```
-然后输入如下地址：
-```address
-http://mybatis.googlecode.com/svn/sub-projects/generator/trunk/eclipse/UpdateSite/
-```
-然后点击“Add”添加，安装插件就可以了。
-重启之后右键点击xml配置文件就可以根据配置生成代码了。
-
->**注意：**eclipse中手动新建的目录和工程中添加的目录是不同的，因为工程中添加的目录会修改当前工程的.classpath文件，在其中进行文件夹的管理。
->自己手动新建的文件夹在mybatis generator自动生成的时候回找不到路径而报错。因为没有在工程中进行管理。
-
-###### 3 maven插件安装 ######
-maven作为包java的管理器是非常好的，但是自己在实际工程中使用不多，现在简述一下插件安装过程感受一下。
-参考[利用mybatis-generator自动生成代码](http://www.cnblogs.com/yjmyzz/p/mybatis-generator-tutorial.html)这一篇博文来学习。
-
-
-
-##### (c) java直接使用mybatis自动生成的代码 #####
-完成自动生成之后，最核心的问题就是如何使用mybatis生成的这些代码组织自己的工程了。
-
->**工具只是手段，问题的解决才是核心**
-
-要利用这些生成的代码，首先我们需要一个关于所有映射的配置文件。需要我们手写如下配置文件：
-
-```xml
-<?xml version="1.0" encoding="UTF-8" ?>
-<!DOCTYPE configuration
-    PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
-    "http://mybatis.org/dtd/mybatis-3-config.dtd">
-<configuration>
-    <environments default="development">
-        <environment id="development">
-            <transactionManager type="JDBC" />
-            <dataSource type="POOLED">
-                <property name="driver" value="com.mysql.jdbc.Driver" />
-                <property name="url" value="jdbc:mysql://localhost/test" />
-                <property name="username" value="qgd" />
-                <property name="password" value="123456" />
-            </dataSource>
-        </environment>
-    </environments>
-    <mappers>
-        <mapper resource="test/dao/PetMapper.xml" />
-    </mappers>
-</configuration>
-```
-在这个配置文件中
-
-##### (d) Spring使用mybatis自动生成代码 #####
-这部分属于Spring和mybatis的集成，使用Spring来管理session从而完成对mybatis原生的SqlSessionFactory的替换和管理。
-具体内容参考###（4）###章内容。
+通过上述5个步骤，mybatis就完成了从数据库表实体到java对象的关联配置。可以在java程序中使用（2）中定义的实体类来根据在（4）中定义的同名xml中实现的基本操作来对据库表进行处理了。
+手动生成和自动生成的唯一差别就在于（2）、（3）和（4）的生成过程上了，其他都没有任何区别。
 
 
 ### （2）java web工程 ###
@@ -1237,6 +1429,7 @@ web 层		test-servlet.xml（用于控制的bean，Spring MVC组件）
 
 这儿使用了
 
+#### <2> Spring作为容器管理java class ####
 
 ### （5） javaScript前端开发 ###
 本项目中使用html5、css3和jQuery来作为前端开发主要语言。其中：
@@ -1331,6 +1524,56 @@ document.write(arr.join())
 George,John,Thomas
 ```
 
+###### 2 setTimeout()函数 ######
+setTimeout() 方法用于在指定的毫秒数后调用函数或计算表达式。
+
+语法
+setTimeout(code,millisec)
+参数	描述
+code	必需。要调用的函数后要执行的 JavaScript 代码串。
+millisec	必需。在执行代码前需等待的毫秒数。
+提示和注释
+提示：setTimeout() 只执行 code 一次。如果要多次调用，请使用 setInterval() 或者让 code 自身再次调用 setTimeout()。
+实例
+```JavaScript
+<HTML>
+  <HEAD>
+    <SCRIPT type="text/javascript">
+    function timedMsg()
+    {
+    var t=setTimeout("alert('5 seconds!')",5000)
+    }
+    </SCRIPT>
+  </HEAD>
+  
+  <BODY>
+    <FORM>
+      <input type="button" value="Display timed alertbox!"
+      onClick="timedMsg()">
+    </FORM>
+    <P>Click on the button above. An alert box will be
+    displayed after 5 seconds.</P>
+  </BODY>
+</HTML>
+```
+
+###### 3 javaScript浏览器对象模型 ######
+在代码中看到片段：
+
+```JavaScript
+function resetTheTimeout() {
+	clearTimeout(timeOutSetting);
+	timeOutSetting = setTimeout(function() {
+		showAlertWindow(i18nmsg.text("text.alert.timeout"));
+		location.assign(g_loginURL);
+	}, g_millisecondsForTimeout);
+}
+```
+其中的"location.assign()"方法加载新的文档，从而完成跳转。
+这儿使用了JavaScript的浏览器对象模型（Browser Object Model），使 JavaScript 有能力与浏览器“对话”。
+所有浏览器都支持 window 对象。它表示浏览器窗口。所有 JavaScript 全局对象、函数以及变量均自动成为 window 对象的成员。
+全局变量是 window 对象的属性。全局函数是 window 对象的方法。
+也就是说windows表示了当前js的执行环境，通过在不同的windows下进行切换，来完成交互的操作是需要js和windows进行沟通的。
 
 
 ##### (c) jQuery的选择符 #####
@@ -1418,3 +1661,47 @@ $("#input1").alertWhileClick();
 
 对比这两种方法：
 > jQuery.extend() 的调用并不会把方法扩展到对象的实例上，引用它的方法也需要通过jQuery类来实现，如jQuery.init()，而 jQuery.fn.extend()的调用把方法扩展到了对象的prototype上，所以实例化一个jQuery对象的时候，它就具有了这些方法，这 是很重要的，在jQuery.JS中到处体现这一点。
+
+
+##### <e> 前台js代码的调试工具 #####
+前台代码调试需要一个整体环境，包含HTML、CSS和JavaScript这三样，所以单纯的JavaScript解释器是没有用的，因此最好的调试器还是浏览器的开发者工具，推荐使用chrome的F12打开的Chrome developer tool。
+网上有详细的 [官方文档](https://developer.chrome.com/devtools) 可与参看。
+还有一个中文文档 [Chrome developer tool介绍（javascript调试）](http://www.cnblogs.com/wukenaihe/archive/2013/01/27/javascript%E8%B0%83%E8%AF%95.html) 也非常详细。
+
+###### <f> 页面跳转方法 ######
+在一个网站中，不同的页面之间跳转是一个非常重要的操作，通过页面的验证和跳转可以完成用户的登入等不同功能的展示，增加了网站页面内容的管理和丰富程度，HTML和JavaScript都可以实现页面跳转。
+现在就JavaScript的页面跳转，总结不同的方式：
+第一种：
+```javaScript
+<script language="javascript" type="text/javascript">
+       window.location.href="login.jsp?backurl="+window.location.href;
+</script>
+```
+使用 window.location.href 来重定位页面链接。根据stackoverflow的 []()：
+> window.location.href is not a method, it's a property that will tell you the current URL location of the browser. 
+
+第二种：
+<script language="javascript">
+       alert("返回");
+       window.history.back(-1);
+</script>
+
+
+第三种：
+<script language="javascript">
+       window.navigate("top.jsp");
+</script>
+
+
+第四种：
+<script language="JavaScript">
+       self.location=’top.htm’;
+</script>
+
+
+第五种：
+<script language="javascript">
+       alert("非法访问！");
+       top.location=’xx.jsp’;
+</script>
+
