@@ -129,6 +129,7 @@ mybatis通过管理数据库表的java对象和在这些对象上的数据库操
 需要的生产步骤如下：
 
 > （1）创建数据库表对应的java bean结构，包含了数据库表中的字段和属性说明；
+
 > （2）创建上述java bean对应的数据库基本操作mapper，包含对这个数据库表的增删查改等功能接口；
 
 通过上述步骤就完成了数据库表到java对象之间的映射关系。
@@ -207,7 +208,9 @@ MBG需要一个xml格式的配置文件来描述，这个配置文件包含获�
 这个文件整体上分为两个个部分：xml文件头（用来验证xml文件的正确性）和整体配置信息（用来说明具体的配置细节）。
 其中整体配置信息为configuration体，又包含多个具体的配置信息，包括：
 > environment 元素体中包含了事务管理和连接池的配置。
+
 > mappers 元素则是包含一组 mapper 映射器（这些 mapper 的 XML 文件包含了 SQL 代码和映射定义信息）。
+
 >>更为详细的说明参看[官方文档配置说明部分](http://mybatis.github.io/mybatis-3/zh/configuration.html)。
 
 这个配置文件提供了mybatis-generator所需要的参数信息：
@@ -257,6 +260,7 @@ mybatis自动生成的配置选项都作为这个元素的子元素存在。
 这个元素用于指定一个需要在配置中解析使用的外部属性文件，引入属性文件后，可以在配置中使用 ${property}这种形式的引用，通过这种方式引用属性文件中的属性值。对于后面需要配置的**jdbc**信息和targetProject属性会很有用。
 这个属性可以通过resource或者url来指定属性文件的位置，这两个属性只能使用其中一个来指定，同时出现会报错。
 >resource：指定**classpath**下的属性文件，使用类似com/myproject/generatorConfig.properties这样的属性值。
+
 >url：可以指定文件系统上的特定位置，例如file:///C:/myfolder/generatorConfig.properties
 
 ####### 3.2 classPathEntry元素 #######
@@ -374,6 +378,7 @@ public class AddLimitOffsetPlugin extends PluginAdapter {
 下面就上面的配置说明。
 通过查找，发现出处如下：
 > [limit-offset for selectByExample plugin](http://ibatis.10938.n7.nabble.com/limit-offset-for-selectByExample-plugin-td15193.html)
+
 > [AW: limit-offset for selectByExample plugin](http://ibatis.10938.n7.nabble.com/AW-limit-offset-for-selectByExample-plugin-td15227.html)
 
 这个文件以附件的形式添加到回复中，但是没有其他任何的说明。代码内容和上面使用的还是有差别，附上代码如下：
@@ -619,9 +624,13 @@ public class MyBatisTest {
 上述<1>到<3>描述了java调用mybatis完成ORM框架的流程，总体上最为关键的就是mappers元素中说明的bean结构映射关系，这个文件中说明了基本的SQL语句的映射关系，将传统SQL转换为函数调用；然后通过一个mapper对象的管理来处理添加进入的所有mapper供java调用。整体思路如下：
 
 > （1）创建数据库表：根据业务需要完成数据库设计之后，在数据库中create table，完成这一步骤；
+
 > （2）创建java实体类：在工程中根据基本的table结构完成java bean的编写（类似C语言中的结构体，但是java中的一切都是对象，也就是class，所以这儿就是java bean了），并且添加基本的set和get函数；
+
 > （3）创建dao接口：在完成java实体类之后，因为这个类表示了数据库表的抽象，所以还需要添加基本的增删查改操作，也就是一般意义的dao层，也就是mybatis中所谓的Mapper，表示了对抽象数据库表的基本操作；
+
 > （4）创建dao的实现：和hibernate不同，mybatis使用一个xml文件来描述所谓的[映射语句](http://mybatis.github.io/mybatis-3/zh/sqlmap-xml.html)，通过这个xml文件中不同标签的设置，实现对数据库表的基本操作；
+
 > （5）装载映射文件：完成上述步骤之后，需要在mybatis的总体配置文件的mapper标签下添加（4）中实现的所有xml文件，只有这样才能将（1）和（2）分别代表的数据库表项实体和java程序中的基本对象这两个内容链接在一起，完成ORM框架中的去耦作用。（这部分在后面更为详细的说明）
 
 通过上述5个步骤，mybatis就完成了从数据库表实体到java对象的关联配置。可以在java程序中使用（2）中定义的实体类来根据在（4）中定义的同名xml中实现的基本操作来对据库表进行处理了。
