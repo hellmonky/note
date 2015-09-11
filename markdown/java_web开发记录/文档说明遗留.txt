@@ -1,0 +1,23 @@
+当前文档纪要的缺少内容：
+
+（1）####### 3.3 context元素 #######
+对于mybatis自动生成脚本中的context元素的说明没有添加。
+
+（2）##### (b) mybatis generator的模板补充 #####
+项目中使用了mybatis-generator来自动生成数据库表的抽象，但是还添加了自定义模板来控制自动生成的内容，也就是org.mybatis.generator.plugins文件夹下的java代码，这部分内容还是不明白，暂时留着。
+
+（3）##### (d) java直接使用mybatis自动生成的代码 #####
+对于mybatis-generator自动生成的代码，java原生调用的说明。这部分内容因为工程中没有使用（使用Spring来配置管理）
+注：已经完成，并且更名为：##### (d) mybatis管理自动生成的代码 #####
+
+（4）#### <1> mybatis基本配置 ####
+这部分内容没有说明手动配置mybatis的过程，和使用自动生成工具混合起来了，说明概念不清。
+
+SqlSessionFactory factory=new SqlSessionFactoryBuilder().build(is);
+            //3,创建SqlSession
+            SqlSession session = factory.openSession();
+            //4,调用mapper文件插入数据（mapper文件必须加入到mybatis-config.xml中）
+            User user = new User();
+			
+（5）##### (b) mapper映射关系说明 #####
+重新修改关于mybatis的配置说明
