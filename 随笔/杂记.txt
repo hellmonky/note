@@ -1,0 +1,30 @@
+锻炼方式学习：
+
+
+http://www.zhihu.com/question/20723595
+	http://bbs.hupu.com/2873681.html
+	http://bbs.hupu.com/3270810.html
+http://www.nzjsw.com/jianshen/2012/04/07/11977.htm
+http://zhidao.baidu.com/question/137522804.html
+
+http://www.douban.com/group/topic/2389105/?start=100
+增大肌肉块的14大秘诀：大重量、低次数、多组数、长位移、慢速度、高密度、念动一致、顶峰收缩、持续紧张、组间放松、多练大肌群、训练后进食蛋白质、休息48小时、宁轻勿假。
+
+
+wifi攻防教程：
+很不错：http://netsecurity.51cto.com/art/201105/264844_all.htm
+参考：
+http://blog.csdn.net/luohuaruxue/article/details/22954777
+http://blog.csdn.net/kibaamor/article/details/42979863
+
+kali的安装教程：
+http://zdzhu.blog.51cto.com/6180070/1574543
+http://www.freebuf.com/articles/system/23018.html
+
+
+
+xface4和archlinux安装网络设置：
+https://wiki.archlinux.org/index.php/NetworkManager_(%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87)
+http://bbs.archlinuxcn.org/viewtopic.php?id=2916
+http://forum.ubuntu.org.cn/viewtopic.php?f=155&t=347020
+http://www.oschina.net/question/4873_16006

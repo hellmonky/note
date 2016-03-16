@@ -1,0 +1,183 @@
+VMware安装centos7 
+
+采用centos7的minimal版本进行安装，保证没有多余的组件被添加，提升虚拟机的执行速度。而且减少安装空间需要，减少硬盘消耗。
+安装完毕之后用root登入，进行下面的所有配置。
+
+（1）打开网络支持：
+编辑网卡的配置文件，在vi /etc/sysconfig/network-script/目录下面，具体的名称在虚拟机中不同
+vi /etc/sysconfig/network-script/ifcfg-eXXX
+然后使用自动获取IP方式联网，因为VMware添加硬件的时候使用了NAT方式共享上网，修改内容如下：
+ONBOOT=yes
+BOOTPROTO=dhcp
+如果要确定IP地址上网：
+ONBOOT="yes" 
+MM_Controlled="no" 
+IPADDR=192.168.0.33 
+BOOTPROTO=none 
+NETMASK=255.255.255.0 
+GATEWAY=192.168.0.1 
+DNS1=192.168.0.1 
+DNS2=192.168.0.2 
+USERCTL=yes
+修改完之后
+service network restart
+然后可以ping百度试试
+
+
+（2）添加第三方源：
+yum install epel-release
+
+（3）安装基本的xwindow支持：
+yum groupinstall "X Window system"
+安装完成后执行
+systemctl isolate graphical.target
+检验安装成功
+
+（4）安装基本的GUI界面支持，选择了xfce4
+使用：
+yum grouplist
+查看当前所有支持的组安装，找到了xfce的支持：
+yum groupinstall "Xfce"
+然后：
+systemctl isolate graphical.target
+进入GUI界面
+
+（5）安装GUI的terminal：
+进入GUI之后发现minimal没有默认安装终端，所以切换到tty2下面用root登入，然后：
+yum search terminal
+找到xfce4提供的终端软件
+yum install xfce4-terminal
+
+（6）安装VMware tools：
+加载VMware的工具，terminal中输入：
+mkdir /mnt/cdrom
+mount /dev/cdrom /mnt/cdrom
+cd /mnt/cdrom/
+tar -zxvf /mnt/cdrom/vmware-linux-tools.tar.gz -C /tmp
+cd /tmp/vmware-tools-distrib/
+需要执行perl脚本进行安装，所以首先安装perl支持：
+yum install perl perl-devel
+安装完毕之后开始正式安装：
+./vmware-install.pl
+安装的初始化过程中报错，需要GCC等工具，所以开一个新的终端安装必要工具：
+yum groupinstall "Development tools" -y
+需要内核补丁支持功能，报错：
+Searching for a valid kernel header path...
+需要根据当前内核安装头文件包：
+使用：yum install linux-headers-$(uname -r)失败
+查找对应的版本yum search linux-headers提示已经安装，所以需要制定版本安装：
+yum install kernel-headers-$(uname -r)
+安装完毕之后重新执行脚本安装：
+Would you like to enable VMware automatic kernel modules? 
+输入yes，默认是no
+完成安装，重启后生效。
+
+（7）安装中文字体
+知乎上的B放出了一个制作的字体，tsentsiu
+下载后复制到虚拟机上，然后执行安装：
+mkdir /usr/share/fonts/chinese/
+cp tsentsiu.ttc /usr/share/fonts/chinese/
+yum install mkfontscale
+cd /usr/share/fonts/chinese/
+mkfontscale
+mkfontdir
+fc-cache -fv
+完毕之后就可以在设置中看到安装的字体了。
+
+（8）中文支持和时区设置：
+localectl set-locale LANG=zh_CN.UTF-8
+重启后变为中文支持，但是时间还不对
+设置时区
+timedatectl set-timezone Asia/Shanghai
+NTP服务器同步
+timedatectl set-ntp yes
+将硬件时钟调整为与本地时钟一致
+timedatectl set-local-rtc 1
+重启后时间正常。
+
+（9）安装usb命令支持
+yum install usbutils
+然后就可以使用lsusb来看当前的usb设备了。
+
+（10）添加命令缩写
+linux添加清屏命令：
+添加到整个系统
+vim  /etc/bashrc
+alias cls='printf "\033c"'
+source /etc/bashrc
+这样全局都可以使用cls命令来清屏了。
+
+（11）删除多余内核：
+为了以防万一，最好还是留一个上次正常启动的内核，不然太麻烦了。
+查看系统中所有的内核：
+rpm -qa | grep kernel
+查看当期内核：
+uname -a
+结果如下：
+{
+[root@localhost mt7601u]# uname -a
+Linux localhost.localdomain 3.10.0-229.7.2.el7.x86_64 #1 SMP Tue Jun 23 22:06:11 UTC 2015 x86_64 x86_64 x86_64 GNU/Linux
+[root@localhost mt7601u]# rpm -qa | grep kernel
+kernel-headers-3.10.0-229.7.2.el7.x86_64
+kernel-devel-3.10.0-229.7.2.el7.x86_64
+kernel-devel-3.10.0-229.el7.x86_64
+kernel-tools-libs-3.10.0-229.7.2.el7.x86_64
+kernel-3.10.0-229.7.2.el7.x86_64
+kernel-3.10.0-229.el7.x86_64
+kernel-tools-3.10.0-229.7.2.el7.x86_64
+}
+
+进入boot下检查更新日期：
+-rw-r--r--. 1 root root 16574762 7月  20 17:02 initramfs-3.10.0-229.7.2.el7.x86_64.img
+-rw-r--r--. 1 root root 16947995 7月  20 17:03 initramfs-3.10.0-229.7.2.el7.x86_64kdump.img
+-rw-r--r--. 1 root root 16608945 7月  18 15:35 initramfs-3.10.0-229.el7.x86_64.img
+-rw-r--r--. 1 root root 16990352 7月  20 16:57 initramfs-3.10.0-229.el7.x86_64kdump.img
+-rwxr-xr-x. 1 root root  5029200 6月  24 06:15 vmlinuz-3.10.0-229.7.2.el7.x86_64
+-rwxr-xr-x. 1 root root  5029136 3月   6 19:45 vmlinuz-3.10.0-229.el7.x86_64
+
+确定3.10.0-229.7.2.el7要更新一些，所以删除7月18号的内核。
+所以执行命令应该为：
+yum remove kernel-3.10.0-229.el7.x86_64
+yum remove kernel-devel-3.10.0-229.el7.x86_64
+重启之后生效。
+
+
+
+（12）aircrack-ng安装测试：
+安装基本工具支持：
+yum install wireless-tools openssl-devel libnl* pciutils
+安装破解包：
+yum install reaver
+下载安装包编译安装：
+wget http://download.aircrack-ng.org/aircrack-ng-1.2-beta3.tar.gz
+wget http://download.aircrack-ng.org/aircrack-ng-1.2-rc2.tar.gz
+tar -xvf aircrack-ng-1.2-rc2.tar.gz
+make && make install
+airodump-ng-oui-update
+开启监控：
+airmon-ng start ra0
+搜索附近WIFI信号，执行命令：
+airodump-ng ra0
+
+（13）添加常用命令支持：
+vim  /etc/bashrc
+alias cls='printf "\033c"'
+source /etc/bashrc
+
+
+
+
+
+参考网页：
+http://www.jb51.net/LINUXjishu/65679.html
+http://blog.csdn.net/smstong/article/details/44802989
+http://www.centoscn.com/CentOS/Intermediate/2014/0407/2738.html
+http://www.cnblogs.com/fujinliang/p/4233353.html
+http://blog.csdn.net/danieluk/article/details/9719661
+http://www.cnhonkerarmy.com/thread-104893-1-1.html
+http://jingyan.baidu.com/article/cb5d61050041fa005c2fe003.html
+http://www.wanghailin.cn/centos-7-install-desktop-timezone/
+http://wangyan.org/blog/timedatectl.html
+
+
+http://b.v3p.co/

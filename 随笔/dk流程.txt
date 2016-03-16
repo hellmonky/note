@@ -1,0 +1,30 @@
+（1）	去银行网点领取材料清单，我去的是金融街支行
+（2）	打电话跟开发商确认并领取材料，不懂的地方到受理网点现场填写
+（3）	网点提交材料，得到受理函
+（4）	大概3个星期后，收到短信确认审核通过
+（5）	大概一个星期后，银行打电话面签，退回两份收押合同
+（6）	大概3个星期后领取贷款合同，带着贷款合同和收押合同去开发商哪里领取贷款这部分的发票
+（7）	之后就是自个联系单位后勤提取公积金的事儿了
+
+编译器相关
+
+关于宏预处理的讨论（C preprocessor implementation）：
+首先是GCC的macro处理：http://gcc.gnu.org/onlinedocs/cpp/Macros.html
+然后在stackoverflow上看到相关的讨论：
+http://stackoverflow.com/questions/7361144/implementing-a-c-preprocessor
+找到了推荐的mcpp：http://mcpp.sourceforge.net/
+还找到了使用python来实现的主题：
+http://stackoverflow.com/questions/4350764/implementation-of-a-c-pre-processor-in-python-or-javascript
+
+
+还有关于预处理器语法的介绍：http://www.perfect-is-shit.com/c-language-preprocess.html
+
+以及利用宏处理器实现一些相关运算的库：boost::preprocessor
+
+然后回想了一下自己处理C++中行数统计的程序，还有最为关键的chibi-scheme库。
+
+参考别人关于lua的分析来加强整个概念和实现之间的关联：http://airtrack.me/
+
+
+关于byq的相关主题：
+http://community.schemewiki.org/?90min-scheme2c

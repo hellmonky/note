@@ -1,0 +1,16 @@
+linux下常用工具和命令使用：
+
+find参数：
+find  [指定查找目录]  [查找规则]  [查找完后执行的action]
+find /home -name "*.ko"
+
+tar解压缩：
+.tar.gz     格式解压为          tar   -zxvf   xx.tar.gz
+.tar.bz2   格式解压为          tar   -jxvf    xx.tar.bz2
+
+yum命令详解
+yum list|more
+列出所有包文件，可搭配grep查询软件包，如yum list |grep kernel
+
+
+http://pan.baidu.com/s/1bnyLYxh#path=%252F%25E7%25A0%25B4%25E8%25A7%25A3
