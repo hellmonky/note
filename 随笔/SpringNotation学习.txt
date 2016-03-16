@@ -1,0 +1,64 @@
+Spring notation学习：
+(1)RESTful webservices:
+In Spring’s approach to building RESTful web services, HTTP requests are handled by a controller. 
+These components are easily identified by the @RestController annotation.
+The @RequestMapping annotation ensures that HTTP requests to /XXX are mapped to the XXX() method. 
+代码示例：
+@RestController
+public class GreetingController {
+
+    private static final String template = "Hello, %s!";
+    private final AtomicLong counter = new AtomicLong();
+
+    @RequestMapping("/greeting")
+    public Greeting greeting(@RequestParam(value="name", defaultValue="World") String name) {
+        return new Greeting(counter.incrementAndGet(),
+                            String.format(template, name));
+    }
+}
+最核心的一点就是：
+A key difference between a traditional MVC controller and the RESTful web service controller above is 
+the way that the HTTP response body is created. 
+Rather than relying on a view technology to perform server-side rendering of the self-defined data to HTML, 
+this RESTful web service controller simply populates and returns a self-defined object. 
+The object data will be written directly to the HTTP response as JSON.
+也就是说传统的MVC结构在RESTful概念下发生了变化，控制器不在负责直接的渲染，而是更为集中的调度，只返回一个POJO对象给Viewer。
+
+这种对MVC架构理解产生变化的原因在于看问题的角度不同，传统MVC是从控制流程的角度来分析搭建一个结构的，
+而REST的核心在于，当你设计一个系统的时候，资源是第一位的考虑：
+你首先从资源的角度进行系统的拆分、设计，而不是像以往一样以操作为角度来进行设计。
+
+传统MVC设计系统是这样的：
+1 有新建用户功能
+2 新建用户需要一个URL
+3 往这个URL发送的数据要定义好
+4 开始写后端和前端
+这是以操作为第一位的设计方法，首先我们确认了一个操作，然后围绕这个操作把周边需要的东西建设好，这种方式当然可以架构出一个系统，甚至是一个好系统，但是偶尔会有些问题：
+1 操作之间是会有关联，你的设计容易变成“第2个操作要求第1个操作进行过”，这种关系多起来你的系统就乱了
+2 你的URL设计会缺乏一致性
+3 操作通常被认为是有副作用（Side Effect）的，所以很少有人基于操作去设计缓存之类的东西
+
+传统MVC中V和C是紧耦合的，这样的设计模式并不能降低设计的复杂度，所以后续提出了MVP模式来解决这个问题。
+
+（2）打包可执行的jar文件：
+可以通过传统的打包服务为war包供外部应用服务启动，Spring也提供了一个简化的打包为单个可执行jar包的方式供Spring内建的Tomcat来作为web服务应用来直接启动。
+需要做的就是实现一个单独的传统的main方法来打包当前的所有服务:
+@SpringBootApplication
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+最关键的就是这个SpringBootApplication注解：
+@SpringBootApplication is a convenience annotation that adds all of the following:
+1 @Configuration tags the class as a source of bean definitions for the application context.
+2 @EnableAutoConfiguration tells Spring Boot to start adding beans based on classpath settings, other beans, and various property settings.
+3 Normally you would add @EnableWebMvc for a Spring MVC app, but Spring Boot adds it automatically when it sees spring-webmvc on the classpath. This flags the application as a web application and activates key behaviors such as setting up a DispatcherServlet.
+4 @ComponentScan tells Spring to look for other components, configurations, and services in the hello package, allowing it to find the GreetingController.
+也就是说这个注解简化了一系列的操作过程，让开发人员集中于业务逻辑的实现，而不是手动打包的整个过程。
+The main() method uses Spring Boot’s SpringApplication.run() method to launch an application. 
+
+整个过程中没有任何的xml配置文件，只有完全的java代码，这样业务人员就可以集中于业务流程的开发，不用担心部署问题。
+
+其中主函数main中使用了Spring Boot’s SpringApplication.run()方法来运行整个代码。run函数将会返回ApplicationContext对象。
