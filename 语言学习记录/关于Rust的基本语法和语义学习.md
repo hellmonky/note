@@ -21,7 +21,86 @@ fn main(){
 * (2) 什么是模式匹配;
 * (3) 为什么模式匹配非常好用;
 
-### 简单介绍代数数据类型：
+### （1）简单介绍代数数据类型：
+ML类型的函数式程序设计语言中，运行用户定义叫做“disjoint unions”或者“algebraic data types”简单的数据类型。这些数据结构是简单的容器，并且可以递归定义。例如：
 
+```ML
+type 'a list =
+    | Nil
+    | Cons of 'a * 'a list
+```
+同样的使用C#定义一个堆栈式（stack-like）的数据结构为：
 
-### 
+```C#
+public abstract class List<T>
+{
+    public class Nil : List<T> { }
+    public class Cons : List<T>
+    {
+        public readonly T Item1;
+        public readonly List<T> Item2;
+        public Cons(T item1, List<T> item2)
+        {
+            this.Item1 = item1;
+            this.Item2 = item2;
+        }
+    }
+}
+```
+其中的Nil和Cons标识符定义了简单的数据类型；类似于x*y*z*...的形式定义了一种构造函数或者数据类型，这个构造函数的参数并没有给出，而是通过参数的位置和数据类型来决定。
+
+根据上述ML和C#我们可以构造一个list的实例为：
+
+```ML
+let x = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
+```
+
+```C#
+Stack<int> x = new Cons(1, new Cons(2, new Cons(3, new Cons(4, new Nil()))));
+```
+
+### （2）简单介绍模式匹配：
+模式匹配就像是一种类型测试。我们就用上述ML和C#创建的list对象为例，实现以下peek和pop方法来说明模式匹配。
+
+```ML
+let peek s =
+    match s with
+    | Cons(hd, tl) -> hd
+    | Nil -> failwith "Empty stack"
+
+let pop s =
+    match s with
+    | Cons(hd, tl) -> tl
+    | Nil -> failwith "Empty stack"
+```
+同样的功能，在stack-like对象的C#上实现如下：	
+
+```C#
+public static T Peek<T>(Stack<T> s)
+{
+    if (s is Stack<T>.Cons)
+    {
+        T hd = ((Stack<T>.Cons)s).Item1;
+        Stack<T> tl = ((Stack<T>.Cons)s).Item2;
+        return hd;
+    }
+    else if (s is Stack<T>.Nil)
+        throw new Exception("Empty stack");
+    else
+        throw new MatchFailureException();
+}
+
+public static Stack<T> Pop<T>(Stack<T> s)
+{
+    if (s is Stack<T>.Cons)
+    {
+        T hd = ((Stack<T>.Cons)s).Item1;
+        Stack<T> tl = ((Stack<T>.Cons)s).Item2;
+        return tl;
+    }
+    else if (s is Stack<T>.Nil)
+        throw new Exception("Empty stack");
+    else
+        throw new MatchFailureException();
+}
+```
