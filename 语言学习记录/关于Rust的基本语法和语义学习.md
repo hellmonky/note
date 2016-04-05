@@ -23,14 +23,13 @@ fn main(){
 
 ### （1）简单介绍代数数据类型：
 ML类型的函数式程序设计语言中，运行用户定义叫做“disjoint unions”或者“algebraic data types”简单的数据类型。这些数据结构是简单的容器，并且可以递归定义。例如：
-
+ML实现为：
 ```ML
 type 'a list =
     | Nil
     | Cons of 'a * 'a list
 ```
 同样的使用C#定义一个堆栈式（stack-like）的数据结构为：
-
 ```C#
 public abstract class List<T>
 {
@@ -49,19 +48,17 @@ public abstract class List<T>
 ```
 其中的Nil和Cons标识符定义了简单的数据类型；类似于x*y*z*...的形式定义了一种构造函数或者数据类型，这个构造函数的参数并没有给出，而是通过参数的位置和数据类型来决定。
 
-根据上述ML和C#我们可以构造一个list的实例为：
-
+根据上述ML和C#我们可以构造一个list的实例为，ML实现为：
 ```ML
 let x = Cons(1, Cons(2, Cons(3, Cons(4, Nil))))
 ```
-
+C#实现为：
 ```C#
 Stack<int> x = new Cons(1, new Cons(2, new Cons(3, new Cons(4, new Nil()))));
 ```
 
 ### （2）简单介绍模式匹配：
 模式匹配就像是一种类型测试。我们就用上述ML和C#创建的list对象为例，实现以下peek和pop方法来说明模式匹配。
-
 ```ML
 let peek s =
     match s with
@@ -74,7 +71,6 @@ let pop s =
     | Nil -> failwith "Empty stack"
 ```
 同样的功能，在stack-like对象的C#上实现如下：	
-
 ```C#
 public static T Peek<T>(Stack<T> s)
 {
@@ -104,3 +100,104 @@ public static Stack<T> Pop<T>(Stack<T> s)
         throw new MatchFailureException();
 }
 ```
+ML语言实现模式匹配并没有运行时的类型检查和类型转换，而C#的代码有，所以看起来有些复杂。
+
+### （3）数据结构分解：
+首先看上述代码中peek方法：
+```ML
+let peek s =
+    match s with
+    | Cons(hd, tl) -> hd
+    | Nil -> failwith "Empty stack"
+```
+关键就在于理解其中的hd和tl描述符是变量（其实，他们不可以改变，所以并不是真正的变量，更像是值）。如果s具有Cons类型，那么我们就可以从结构中拉取出值，并且将他们绑定到名为hd和tl的变量上。
+模式匹配的用途就在于它可以让我们通过结构来分解一个数据结构，而不需要依赖于它的内容。
+考虑我们定义一个二叉树：
+```ML
+type 'a tree =
+    | Node of 'a tree * 'a * 'a tree
+    | Nil
+```
+那么我们可以在这个二叉树基础上定义一些树的旋转操作：
+```ML
+let rotateLeft = function
+    | Node(a, p, Node(b, q, c)) -> Node(Node(a, p, b), q, c)
+    | x -> x
+
+let rotateRight = function
+    | Node(Node(a, p, b), q, c) -> Node(a, p, Node(b, q, c))
+    | x -> x
+```
+其中的：
+```ML
+let rotateRight = function
+```
+结构是:
+```ML
+let rotateRight s = match s with ...
+```
+的语法糖。
+
+所以利用模式匹配，我们不仅可以绑定结构到变量上，还可以深入到数据结构之中。例如，我们有一个节点x：
+```ML
+let x = Node(Nil, 1, Nil)
+```
+如果我们调用rotateLeft x，程序的执行如下：
+（1）首先用第一个模式对x进行测试，这个测试会因为右边的子节点类型为Nil而不是Node从而导致错误；
+（2）然后继续下一个模式的测试，x->x，这个模式会匹配任何的输入，然后无修改的返回作为输出；
+
+为了进行比较，上述函数用C#重写如下：
+```C#
+public abstract class Tree<T>
+{
+    public abstract U Match<U>(Func<U> nilFunc, Func<Tree<T>, T, Tree<T>, U> nodeFunc);
+
+    public class Nil : Tree<T>
+    {
+        public override U Match<U>(Func<U> nilFunc, Func<Tree<T>, T, Tree<T>, U> nodeFunc)
+        {
+            return nilFunc();
+        }
+    }
+
+    public class Node : Tree<T>
+    {
+        readonly Tree<T> Left;
+        readonly T Value;
+        readonly Tree<T> Right;
+
+        public Node(Tree<T> left, T value, Tree<T> right)
+        {
+            this.Left = left;
+            this.Value = value;
+            this.Right = right;
+        }
+
+        public override U Match<U>(Func<U> nilFunc, Func<Tree<T>, T, Tree<T>, U> nodeFunc)
+        {
+            return nodeFunc(Left, Value, Right);
+        }
+    }
+
+    public static Tree<T> RotateLeft(Tree<T> t)
+    {
+        return t.Match(
+            () => t,
+            (l, x, r) => r.Match(
+                () => t,
+                (rl, rx, rr) => new Node(new Node(l, x, rl), rx, rr))));
+    }
+
+    public static Tree<T> RotateRight(Tree<T> t)
+    {
+        return t.Match(
+            () => t,
+            (l, x, r) => l.Match(
+                () => t,
+                (ll, lx, lr) => new Node(ll, lx, new Node(lr, x, r))));
+    }
+}	
+```
+
+### （3）为什么模式匹配非常好用：
+
