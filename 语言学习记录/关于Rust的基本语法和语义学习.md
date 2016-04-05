@@ -15,9 +15,13 @@ fn main(){
 （2）匹配就是建立在上述模式上的检查，表示匹配变量是否符合这种模式。
 所以按照上述理解，正则表达式中的模式匹配用来检查特定的字符类型是否满足要求，lisp中的模式匹配用来检查列表结构是否满足要求，都是一种具体的模式匹配方式。
 
-理解模式匹配需要分为三个部分：
+[理解模式匹配需要分为三个部分](http://stackoverflow.com/questions/2502354/what-is-pattern-matching-in-functional-languages)，现在自己翻译如下：
 
-*(1) Algebraic data types;
-*(2) What pattern matching is;
-*(3) Why its awesome;
+* (1) 代数数据类型;
+* (2) 什么是模式匹配;
+* (3) 为什么模式匹配非常好用;
 
+### 简单介绍代数数据类型：
+
+
+### 
