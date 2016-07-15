@@ -199,7 +199,7 @@ minute hour day-of-month month-of-year day-of-week commands
 }
 添加到cron中，开启定时任务：
 crontab /home/wentao/timeJob/backup.cron >~/log
-对于复杂的任务，可以编写脚本，然后再定时任务中执行脚本就好了。
+这样会将之前的定时任务取消，执行这个任务。对于复杂的任务，可以编写脚本，然后再定时任务中执行脚本就好了。
 
 
 
