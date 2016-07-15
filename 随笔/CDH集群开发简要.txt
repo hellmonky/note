@@ -133,7 +133,6 @@ tar -zcvpf /backups/full-backup.tar.gz / --exclude=/backup --exclude=/proc --exc
 进入备份路径查看：
 cd /backup
 
-
 9 离线安装docker执行环境：
 https://yum.dockerproject.org/repo/main/centos/7/Packages/
 下载：
@@ -158,6 +157,49 @@ service docker start
 因为centos7的docker版本太旧，建议使用在线安装docker的基础环境，然后localinstall最新的docker：
 yum -y install policycoreutils-python libtool-ltdl
 yum -y localinstall /home/wentao/docker-engine*.rpm
+
+11 添加自动执行脚本：由于部署开发的需要，系统需要定时自动执行脚本来完成任务，例如Jenkins等
+Linux中，周期执行的任务一般由cron这个守护进程来处理。cron读取一个或多个配置文件，这些配置文件中包含了命令行及其调用时间。cron的配置文件称为“crontab”，是“cron table”的简写。
+检查并且启用cron服务：
+service cron status
+service cron start
+然后编写自动执行脚本，新建test.cron，添加内容：
+{
+10,40 * * * * echo "hello~" >> /tmp/test.txt 
+}
+表示：每小时的10分，40分执行一个文本写入操作
+保存后添加到cron的任务中：
+crontab /home/wentao/timeJob/test.cron >~/log
+查看定时任务是否成功：
+crontab -l
+会回显在test.cron中添加的任务。
+
+在crontab文件中写入需要执行的命令和时间，该文件中每行都包括六个域，其中前五个域是指定命令被执行的时间，最后一个域是要被执行的命令。每个域之间使用空格或者制表符分隔。格式如下： 
+minute hour day-of-month month-of-year day-of-week commands    
+合法值为：00-59 00-23 01-31 01-12 0-6 (0 is sunday) 
+除了数字还有几个特殊的符号："*"、"/"和"-"、","
+{
+*代表所有的取值范围内的数字
+"/"代表每的意思,"/5"表示每5个单位
+"-"代表从某个数字到某个数字
+","分开几个离散的数字
+}
+注：commands 注意以下几点
+	1 要是存在文件，要写绝对路径；
+	2 即使是打印也不会显示在显示屏，在后台运行，最好重定向日志。
+
+例子：添加自动执行备份的脚本
+要求每天凌晨3点备份当前系统，然后凌晨5点删除其他备份只保留最近两天备份：
+编写backup.cron文本：
+{
+# 每天凌晨3点，开始备份
+0 3 * * * tar -zcvpf /backups/full-backup.tar.gz / --exclude=/backup --exclude=/proc --exclude=/lost+found --exclude=/tmp --exclude=/sys --exclude=/media
+# 每天凌晨5点，执行查找和删除操作
+0 5 * * * find /backups/ -mtime +2 -name "*.*" -exec rm -Rf {} \
+}
+添加到cron中，开启定时任务：
+crontab /home/wentao/timeJob/backup.cron >~/log
+对于复杂的任务，可以编写脚本，然后再定时任务中执行脚本就好了。
 
 
 
@@ -191,6 +233,7 @@ manifest.json
 cp * /opt/cloudera/parcel-repo/
 
 4 安装CM
+
 chmod a+x cloudera-manager-installer.bin
 如果没有错就表示当前的CM安装已经完毕了，访问：
 localhost:7180
