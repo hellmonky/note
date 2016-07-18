@@ -128,8 +128,8 @@ cd /
 mkdir backup
 新建目录是因为mount没有建立挂载点的功能，挂载前必须保证路径存在。
 mount /dev/sdb /backup
-然后执行压缩备份脚本：
-tar -zcvpf /backups/full-backup.tar.gz / --exclude=/backup --exclude=/proc --exclude=/lost+found --exclude=/tmp --exclude=/sys --exclude=/media
+然后执行压缩备份脚本，使用shell来获取当前时间：
+tar -zcvpf /backups/full-backup_$(date +\%Y-\%m-\%d-\%H:\%M).tar.gz / --exclude=/backup --exclude=/proc --exclude=/lost+found --exclude=/tmp --exclude=/sys --exclude=/media
 进入备份路径查看：
 cd /backup
 
@@ -192,14 +192,68 @@ minute hour day-of-month month-of-year day-of-week commands
 要求每天凌晨3点备份当前系统，然后凌晨5点删除其他备份只保留最近两天备份：
 编写backup.cron文本：
 {
-# 每天凌晨3点，开始备份
-0 3 * * * tar -zcvpf /backups/full-backup.tar.gz / --exclude=/backup --exclude=/proc --exclude=/lost+found --exclude=/tmp --exclude=/sys --exclude=/media
+# 每天凌晨3点，开始备份，需要注意需要在cron文件中对%使用转义
+0 3 * * * tar -zcvpf /home/iscas/backups/full-backup_$(date +\%Y-\%m-\%d-\%H:\%M).tar.gz / --exclude=/home/iscas/backups --exclude=/proc --exclude=/lost+found --exclude=/tmp --exclude=/sys --exclude=/media >> /home/iscas/backups/${date}.log
 # 每天凌晨5点，执行查找和删除操作
 0 5 * * * find /backups/ -mtime +2 -name "*.*" -exec rm -Rf {} \
 }
 添加到cron中，开启定时任务：
-crontab /home/wentao/timeJob/backup.cron >~/log
+crontab /home/wentao/timeJob/backup.cron > /root/log
 这样会将之前的定时任务取消，执行这个任务。对于复杂的任务，可以编写脚本，然后再定时任务中执行脚本就好了。
+将上述备份命令变为可执行脚本，添加到cron中去：
+首先，编写一个backup.sh的脚本，内容：
+{
+#!/bin/bash
+# full system backup
+
+# Backup destination
+backdest=/home/iscas/backups
+
+# Labels for backup name
+#pc=${HOSTNAME}
+distro=${cat /etc/redhat-release}
+type=full
+date=$(date +\%Y-\%m-\%d-\%H-\%M)
+backupfile="$backdest/$distro-$type-$date.tar.gz"
+
+# Exclude file location
+prog=${0##*/} # Program name from filename
+excdir="/home/<user>/.bin/root/backup"
+exclude_file="$excdir/$prog-exc.txt"
+
+# record log
+mylog=/home/iscas/backups/${date}.log
+
+# Check if chrooted prompt.
+echo -n "First chroot from a LiveCD.  Are you ready to backup? (y/n): "
+read executeback
+
+# Check if exclude file exists
+if [ ! -f $exclude_file ]; then
+  echo -n "No exclude file exists, continue? (y/n): "
+  read continue
+  if [ $continue == "n" ]; then exit; fi
+fi
+
+if [ $executeback = "y" ]; then
+  # -p and --xattrs store all permissions and extended attributes. 
+  # Without both of these, many programs will stop working!
+  # It is safe to remove the verbose (-v) flag. If you are using a 
+  # slow terminal, this can greatly speed up the backup process.
+  tar --exclude-from=$exclude_file --xattrs -czpvf $backupfile /
+fi
+}
+然后将这个脚本添加为自动执行，编辑cron文件：
+{
+# 每天凌晨3点，开始备份，需要注意需要在cron文件中对%使用转义
+0 3 * * * bash /home/iscas/backups/full_backup.sh
+# 每天凌晨5点，执行查找和删除操作
+0 5 * * * find /backups/ -mtime +2 -name "*.*" -exec rm -Rf {} \
+}
+然后将上面这个文件，添加到cron中。
+通过上述方法就可以执行更多的任务，将执行脚本和执行任务安排分离开来。
+
+
 
 
 
