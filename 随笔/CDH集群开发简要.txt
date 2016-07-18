@@ -253,7 +253,19 @@ fi
 然后将上面这个文件，添加到cron中。
 通过上述方法就可以执行更多的任务，将执行脚本和执行任务安排分离开来。
 
-
+12 在windwos下使用Emacs的tramp插件和Putty远程编辑文件：
+Emacs22之后默认集成了tramp，可以通过这个插件配合windows下的Putty来远程编辑文件。
+需要将windows下的Putty添加到环境变量里面，然后在Emacs中打开文件：
+C-c C-F
+然后输入：
+/protocol:user@host:path
+protocol可以是ssh和ftp，因为现在使用windows下的Putty，所以是plink，然后测试命令为：
+打开文件夹：
+/plink:root@192.168.1.161:/home/iscas/timeJob/
+打开文件：
+/plink:root@192.168.1.161:/home/iscas/timeJob/test.cron
+这样就可以在windows下愉快的使用emacs来编辑远程linux下的文件了，不用再安装各种编辑器了。
+果然 emacs == OS 
 
 
 
