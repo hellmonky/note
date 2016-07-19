@@ -2,79 +2,7 @@ CDH 5.7.1 安装教程：
 
 搭建环境：centos7_x64,CDH5.7.1安装包
 
-（1）基础环境搭建：
-1 主机名称修改：
-hostnamectl set-hostname master
-hostname 查看
-
-2 host配置：
-使用文本编辑器
-127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
-
-192.168.1.200 master
-192.168.1.201 slave01
-192.168.1.202 slave02
-192.168.1.203 slave03
-192.168.1.204 slave04
-192.168.1.205 slave05
-192.168.1.206 slave06
-192.168.1.207 slave07
-192.168.1.208 slave08
-192.168.1.209 slave09
-192.168.1.210 slave10
-192.168.1.211 slave11
-
-3 关闭防火墙：
-sudo systemctl stop firewalld.service
-关闭开机启动：
-sudo systemctl disable firewalld.service
-
-4 关闭selinux：
-nano /etc/selinux/config
-设置其中的
-SELINUX=disabled
-退出后
-setenforce 0
-立即生效
-
-5 开机启动联网：
-/etc/sysconfig/network-scripts/ifcfg-eno1
-设置其中的ONBOOT=yes
-
-6 生成ssh密钥
-ssh-keygen -t rsa
-一路回车直到结束，然后切换到/root/.ssh下对公钥重命名
-cat id_rsa.pub >authorized_keys
-修改公钥权限：
-chmod 600 authorized_keys
-将authorized_keys从master分发到各个slave：
-scp /root/.ssh/authorized_keys root@slave01:/root/.ssh/
-
-7 安装oracle的jdk：
-rpm -qa |grep java
-rpm -qa |grep jdk
-yum remove java*(删除自带的java)
-安装JDK的rpm包：
-rpm -ivh jdk1.7.0_67.rpm
-设置环境变量：
-nano /etc/profile
-添加以下内容：
-export JAVA_HOME=/usr/java/jdk1.8.0_92
-export CLASSPATH=.:$CLASSPTAH:$JAVA_HOME/lib
-export PATH=$PATH:$JAVA_HOME/bin
-环境变量生效：
-source /etc/profile
-
-8 卸载默认安装的mysql
-rpm -qa | grep mariadb
-rpm -e --nodeps mariadb-libs-5.5.41-2.el7_0.x86_64
-注意：如果默认自带的mysql不卸载会包数据库连接错误，安装失败，删除配置文件之后重新安装也是可以的。
-
-上述步骤完毕之后备份虚拟机，方便后续搭建CDH集群。
-
-
-ps : centos7 minimal安装配置：
+（0）centos7 minimal安装配置：
 0 官方rpm包下载：
 http://mirror.centos.org/centos/7/extras/x86_64/Packages/
 http://mirror.centos.org/centos/7/os/x86_64/Packages/
@@ -267,8 +195,209 @@ protocol可以是ssh和ftp，因为现在使用windows下的Putty，所以是pli
 这样就可以在windows下愉快的使用emacs来编辑远程linux下的文件了，不用再安装各种编辑器了。
 果然 emacs == OS 
 
+13 远程开发和部署：
+现在的开发模式采用分布式方式，用统一的版本控制来进行代码管理。现在准备将统一的代码管理和自动化生成部署集中在一起，例如使用jekins来自动进行。
+对于java项目，还是要记得一个关键点：项目结构对于java非常关键，不同的java项目有不同的组织结构。而如何组织代码是java的核心，就是每一个单独的java文件都被编译为一个class包，然后用jvm来进行组织合并。
+所以，从抛开IDE的角度出发，使用gradle来进行项目开发就非常的合适了。类似的自动化编译管理脚本还有cmake等等。通过这些脚本就可以方便的进行自动化的编译测试和部署了。
+我们需要搭建的就是分布式的代码管理git服务器，还有自动编译部署环境jekins。
+<0>基础知识：
+Git可以使用四种主要的协议来传输数据：本地传输，SSH 协议，Git 协议和 HTTP 协议。除了 HTTP 协议外，其他所有协议都要求在服务器端安装并运行 Git。
+(a)
+
+Git可以以两种主要的方式跨越两个仓库传输数据：基于HTTP协议之上，和 file://, ssh://, 和 git:// 等智能传输协议。
+(a)git 基于HTTP之上传输通常被称为哑协议，这是因为它在服务端不需要有针对 Git 特有的代码。这个获取过程仅仅是一系列GET请求，客户端可以假定服务端的Git仓库中的布局。
 
 
+<1>安装git服务：
+安装git，以及相关的包：
+yum -y install curl-devel expat-devel gettext-devel openssl-devel zlib-devel perl-devel
+yum -y install git
+创建一个git用户，用来运行git服务：
+groupadd git
+adduser git -g git
+对这个新增的用户添加密码：
+passwd git
+输入密码，确认。
+<2>建立ssh连接密码：
+SSH 也是唯一一个同时支持读写操作的网络协议。所以我们使用这个协议搭建GIT服务器。创建SSH的公钥：
+su git
+ssh-keygen -t rsa
+默认回车，生成/home/git/.ssh/id_rsa.pub，然后在其中添加需要ssh过来的客户端密钥，一行一个：
+cd /home/git/.ssh
+cp id_ras.pub authorized_keys
+touch authorized_keys
+更改权限：
+chmod 600 .ssh/authorized_keys
+<3>在git服务器上建立总仓库：
+在git用户的路径下新建一个文件夹作为总的仓库：
+cd /home/git/
+mkdir gitrepo
+然后将这个文件夹的权限赋予git用户：
+chown git:git gitrepo/
+<4>新建一个仓库测试：
+使用git用户权限，进入gitrepo文件夹下，创建一个裸仓库：
+cd gitrepo
+git init --bare testGitServer.git
+然后在客户端尝试clone这个新的项目：
+git clone  git@192.168.1.161:/home/gitrepo/testGitServer.git
+然后就可以将这个空的仓库同步下来，通过执行添加就可以使用这个git仓库了。
+<5>从别的仓库移植到当前仓库：
+测试成功之后就可以将现在的git仓库移植到这个新的git服务器了：
+首先将原来的git仓库克隆到本地：
+git clone remote_GIT_URL
+然后再git服务器上创建一个新的空仓库：
+git init --bare DataSong.git
+然后在当前克隆仓库下执行：
+"c:\Program Files (x86)\Git\bin\git.exe" push --mirror git@192.168.1.161:/home/gitrepo/DataSong.git
+这下就完成了不同git仓库之间的切换，并且保证了之前的版本记录。
+<6>不同仓库之间的同步备份：
+建立不同的同步仓库相当于备份，而且方便使用。
+首先在自己的git服务器上建立一个同名的空仓库，例如test：
+git init --bare test.git
+然后使用命令来进行远程克隆：
+git clone --mirror ssh://git@A/path/test.git
+这时我们自己的服务器上就有了一份跟机器A一模一样的git仓库了。然后在自己的服务器上配置一个cron，时不时地从机器A上同步一下就行了：
+git --git-dir=/dir/test.git remote update
+PS：问题在于这两个git仓库服务器之间可以互相联通。
+<7>禁用 shell 登录：
+出于安全考虑，你可以用 Git 自带的 git-shell 工具限制 git 用户的活动范围。这可以通过编辑 /etc/passwd 文件完成。找到类似下面的一行：
+把 bin/sh 改为 /usr/bin/git-shell （或者用 which git-shell 查看它的实际安装路径）
+git:x:1001:1001::/home/git:/bin/bash
+改为：
+git:x:1001:1001::/home/git:/bin/git-shell
+因为服务器上的 Git 仓库是为了共享，所以不让用户直接登录到服务器上去改工作区。
+<8>公共匿名访问GIT服务器：
+匿名的读取权限该怎么实现呢？也许除了内部私有的项目之外，你还需要托管一些开源项目。或者因为要用一些自动化的服务器来进行编译，或者有一些经常变化的服务器群组，而又不想整天生成新的 SSH 密钥 — 总之，你需要简单的匿名读取权限。
+在centos7下面搭建HTTP协议的GIT服务，需要使用apache。查看当前apache的版本：
+rpm -qa | grep httpd
+返回
+httpd-tools-2.4.6-40.el7.centos.1.x86_64
+httpd-2.4.6-40.el7.centos.1.x86_64
+或者httpd -v：
+Server version: Apache/2.4.6 (CentOS)
+Server built:   May 12 2016 10:27:23
+所以centos7默认安装了2.4.6版本的apache。
+创建由apache管理的用于git用户验证的帐户（用户帐户）：
+htpasswd -m -c /etc/httpd/conf.d/git-team.htpasswd <username>
+然后输入该用户要使用的密码。
+修改git-team.htpasswd文件的所有者与所属群组：
+chown git:git /etc/httpd/conf.d/git-team.htpasswd
+设置git-team.htpasswd文件的访问权限：
+chmod 640 /etc/httpd/conf.d/git-team.htpasswd
+修改apache配置文件httpd.conf：
+nano /etc/httpd/conf/httpd.conf
+在结尾添加如下内容：
+{
+<VirtualHost *:80>
+        ServerName git.hellmonky.com
+        SetEnv GIT_HTTP_EXPORT_ALL
+        SetEnv GIT_PROJECT_ROOT /home/git/gitrepo
+        ScriptAlias /git/ /usr/libexec/git-core/git-http-backend/
+        <Location />
+                AuthType Basic
+                AuthName "Git"
+                AuthUserFile /etc/httpd/conf.d/git-team.htpasswd
+                Require valid-user
+        </Location>
+</VirtualHost>
+}
+其中：
+{
+ServerName是git服务器的域名
+/home/git/gitrepo是代码库存放的文件夹
+ScriptAlias是将以/git/开头的访问路径映射至git的CGI程序git-http-backend
+AuthUserFile是验证用户帐户的文件
+}
+保存后退出，重启httpd服务。然后就可以访问了：
+git clone http://git.hellmonky.com/git/testGitServer
+输入用户名与密码，如果输出下面的信息，就说明签出成功。
+
+
+
+
+<9>权限管理：
+通过ssh的方式进行代码上传和下载需要使用git用户的密码，或者使用authorized_keys来进行授权。这种权限包含了所有的读写操作，并且不方便动态调整，不利于管理。应该使用权限管理的方式进行更为细致的服务。
+
+参考教程：
+https://git-scm.com/book/zh/v1/Git-%E5%86%85%E9%83%A8%E5%8E%9F%E7%90%86-%E4%BC%A0%E8%BE%93%E5%8D%8F%E8%AE%AE
+https://git-scm.com/book/zh/v1/%E6%9C%8D%E5%8A%A1%E5%99%A8%E4%B8%8A%E7%9A%84-Git-%E5%8D%8F%E8%AE%AE
+http://wlog.cn/soft/git-ssh-server-for-debian.html
+http://www.open-open.com/lib/view/open1328069988843.html
+http://www.cnblogs.com/dudu/archive/2012/12/09/linux-apache-git.html
+
+
+
+
+（1）基础环境搭建：
+1 主机名称修改：
+hostnamectl set-hostname master
+hostname 查看
+
+2 host配置：
+使用文本编辑器
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+192.168.1.200 master
+192.168.1.201 slave01
+192.168.1.202 slave02
+192.168.1.203 slave03
+192.168.1.204 slave04
+192.168.1.205 slave05
+192.168.1.206 slave06
+192.168.1.207 slave07
+192.168.1.208 slave08
+192.168.1.209 slave09
+192.168.1.210 slave10
+192.168.1.211 slave11
+
+3 关闭防火墙：
+sudo systemctl stop firewalld.service
+关闭开机启动：
+sudo systemctl disable firewalld.service
+
+4 关闭selinux：
+nano /etc/selinux/config
+设置其中的
+SELINUX=disabled
+退出后
+setenforce 0
+立即生效
+
+5 开机启动联网：
+/etc/sysconfig/network-scripts/ifcfg-eno1
+设置其中的ONBOOT=yes
+
+6 生成ssh密钥
+ssh-keygen -t rsa
+一路回车直到结束，然后切换到/root/.ssh下对公钥重命名
+cat id_rsa.pub >authorized_keys
+修改公钥权限：
+chmod 600 authorized_keys
+将authorized_keys从master分发到各个slave：
+scp /root/.ssh/authorized_keys root@slave01:/root/.ssh/
+
+7 安装oracle的jdk：
+rpm -qa |grep java
+rpm -qa |grep jdk
+yum remove java*(删除自带的java)
+安装JDK的rpm包：
+rpm -ivh jdk1.7.0_67.rpm
+设置环境变量：
+nano /etc/profile
+添加以下内容：
+export JAVA_HOME=/usr/java/jdk1.8.0_92
+export CLASSPATH=.:$CLASSPTAH:$JAVA_HOME/lib
+export PATH=$PATH:$JAVA_HOME/bin
+环境变量生效：
+source /etc/profile
+
+8 卸载默认安装的mysql
+rpm -qa | grep mariadb
+rpm -e --nodeps mariadb-libs-5.5.41-2.el7_0.x86_64
+注意：如果默认自带的mysql不卸载会包数据库连接错误，安装失败，删除配置文件之后重新安装也是可以的。
+
+上述步骤完毕之后备份虚拟机，方便后续搭建CDH集群。
 
 
 
