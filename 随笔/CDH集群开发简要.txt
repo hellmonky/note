@@ -693,11 +693,33 @@ exit
 docker save -o /home/wentao/ubuntu1604Docker.tar full_ubuntu
 
 <4>使用官方提供的boot.iso构造docker镜像：
+官方的安装教程：https://github.com/CentOS/sig-cloud-instance-build/tree/master/docker
 针对centos7，官方提供了一个基本的可引导镜像：
 http://mirror.centos.org/centos/7/os/x86_64/images/boot.iso
 来作为docker镜像的生成基础：
-sudo livemedia-creator --make-tar --iso=/tmp/boot7.iso --ks=/path/to/centos-7.ks --image-name=centos-7-docker.tar.xz
+livemedia-creator 工具是 lorax 软件包的一部分，所以首先安装lorax：
+yum -y install lorax
+lorax 之外还需要安装其他几个软件包。这些软件包不是 lorax 的相依性软件包，因此不会自动安装，但您可能会需要他们，具体要看您使用 livemedia-creator 要做什么。这些软件包为：
+{
+virt-install：提供构建新虚拟机的软件包，除非指定 --no-virt 选项，否则会在生成 live 介质的第一阶段使用这个软件包。
+libvirt、qemu-kvm、virsh 和其他虚拟化工具：使用 virt-install 时，必须让系统准备好生成、运行并管理虚拟机。有关 Red Hat Enterprise Linux 中虚拟化的信息以及安装及使用虚拟化工具的文档，请查看《Red Hat Enterprise Linux 7 虚拟化部署及管理指南》。
+anaconda： Red Hat Enterprise Linux 安装程序，如果使用 --no-virt 选项，则在第一阶段使用，而不是在 virt-install 中使用。
+}
+参考：https://access.redhat.com/documentation/zh-CN/Red_Hat_Enterprise_Linux/7/html/Installation_Guide/sect-disk-image-installation-automatic.html
+选择安装：
+yum -y install virt-install 
+还需要安装：
+yum -y install libvirt-daemon-config-network
+否则会提示：Failed to connect socket to '/var/run/libvirt/libvirt-sock': No such file or directory
+重启libvirtd服务：
+service libvirtd start
+然后就可以使用livemedia-creator来从可引导的iso制作rootfs：
+sudo livemedia-creator --make-tar --iso=/path/to/boot7.iso --ks=/path/to/centos-7.ks --image-name=centos-7-docker.tar.xz
 这样就生成了当前使用的tar.xz包。
+PS:在vmware虚拟机中上述操作失败，因为权限问题，参考：https://www.brianlane.com/creating-live-isos-with-livemedia-creator.html
+需要将当前文件路径的权限修改：
+chmod a+x /
+建议直接下载做好的rootfs的tar包进行下面的操作生成镜像。
 然后使用tar包导入的方式来生成docker镜像，新建文件夹centos7_base，然后将上述tar.xz包和下面内容的Dockerfile保存：
 {
 FROM scratch
@@ -719,7 +741,7 @@ docker images
 docker run -t -i centos7_base /bin/bash
 输入：
 docker save -o /home/iscas/centos7_base.tar centos7_base
-保存当前生成的镜像，供别人使用。
+保存当前生成的镜像，下次直接用来导入，不用再进行生成工作了。
 
 
 <5>查看当前的dockerImage的层次结构：
