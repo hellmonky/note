@@ -313,7 +313,322 @@ drwxr-xr-x. 2 root root   47 7月  21 07:10 742434c0e47091563023a7702c7e4901ad04
 -rw-r--r--. 1 root root  279 1月   1 1970 manifest.json
 -rw-r--r--. 1 root root   89 1月   1 1970 repositories
 ```
-发现多了一个文件
+发现多了一个文件，按照层级结构展开看：
+```shell
+[root@localhost 2imageAnalysis]# tree .
+.
+├── 034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56
+│   ├── json
+│   ├── layer.tar
+│   └── VERSION
+├── 742434c0e47091563023a7702c7e4901ad04f9fc9bd3b200bb4f9ede7e3aea80
+│   ├── json
+│   ├── layer.tar
+│   └── VERSION
+├── 83749061359cf0a1a356a8d2080a97921597b66f73a2a8bdd164cdd5f8bc05c1.json
+├── manifest.json
+└── repositories
+
+2 directories, 9 files
+```
+比较之前的多了一个文件夹，继续查看顶层的.json文件内容：
+```shell
+{
+    "architecture": "amd64", 
+    "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+    "config": {
+        "Hostname": "37ea39904090", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/bash"
+        ], 
+        "ArgsEscaped": true, 
+        "Image": "sha256:cdb8f5b67c5c3aa647cf354e8ecdd0e9806e91dbfccedecbe0d6d96e2b687671", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "container": "8e5c9fa558fbfe039cfef7604812351ae6680530d5bb821d46aa2d7428d48a62", 
+    "container_config": {
+        "Hostname": "37ea39904090", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/sh", 
+            "-c", 
+            "#(nop) CMD [\"/bin/bash\"]"
+        ], 
+        "ArgsEscaped": true, 
+        "Image": "sha256:cdb8f5b67c5c3aa647cf354e8ecdd0e9806e91dbfccedecbe0d6d96e2b687671", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "created": "2016-07-20T23:10:05.42782255Z", 
+    "docker_version": "1.11.2", 
+    "history": [
+        {
+            "created": "2016-07-20T16:59:02.526315828Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) MAINTAINER https://github.com/CentOS/sig-cloud-instance-images", 
+            "empty_layer": true
+        }, 
+        {
+            "created": "2016-07-20T16:59:15.208340206Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) ADD file:892891d20280e59b4522cfb77e3c30ef777e2ddaf1635ed925bd91ad4ba06ade in /"
+        }, 
+        {
+            "created": "2016-07-20T16:59:16.428144924Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) LABEL name=CentOS Base Image vendor=CentOS license=GPLv2 build-date=20160701", 
+            "empty_layer": true
+        }, 
+        {
+            "created": "2016-07-20T23:10:03.941170325Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c yum -y install nano"
+        }, 
+        {
+            "created": "2016-07-20T23:10:05.42782255Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) CMD [\"/bin/bash\"]", 
+            "empty_layer": true
+        }
+    ], 
+    "os": "linux", 
+    "rootfs": {
+        "type": "layers", 
+        "diff_ids": [
+            "sha256:02f2e4ddf954c6d094ce78049af091017c5ba2cdd1fac7acfd9fafd6f7803d7e", 
+            "sha256:838487ddacc1b514dd54da1c70a9ae693e470836c0d7651f17a64a0e899e45fc"
+        ]
+    }
+}
+```
+和上面的比较，差别在于history中多了一个记录，并且这个记录对应的层是非空的。顺便看看manifest.json的内容为：
+```shell
+[
+    {
+        "Config": "83749061359cf0a1a356a8d2080a97921597b66f73a2a8bdd164cdd5f8bc05c1.json", 
+        "RepoTags": [
+            "centos:latest"
+        ], 
+        "Layers": [
+            "742434c0e47091563023a7702c7e4901ad04f9fc9bd3b200bb4f9ede7e3aea80/layer.tar", 
+            "034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56/layer.tar"
+        ]
+    }
+]
+```
+明显的多出来一个layer的描述。在看看repositories：
+```shell
+{"centos":{"latest":"034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56"}}
+```
+可见，repositories中只记录了一层内容。现在进入两个文件夹来查看具体的内容进行分析。
+将两个文件夹中的tar包解压到各自路径下，然后进行对比。7开头的文件夹中tar包解压后的内容为：
+```shell
+[root@localhost 742434c0e47091563023a7702c7e4901ad04f9fc9bd3b200bb4f9ede7e3aea80]# tree -L 1 layer
+layer
+├── anaconda-post.log
+├── bin -> usr/bin
+├── etc
+├── home
+├── lib -> usr/lib
+├── lib64 -> usr/lib64
+├── lost+found
+├── media
+├── mnt
+├── opt
+├── root
+├── run
+├── sbin -> usr/sbin
+├── srv
+├── tmp
+├── usr
+└── var
+
+16 directories, 1 file
+```
+0开头的文件夹中的tar包解压后的内容为：
+```shell
+[root@localhost 034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56]# tree -L 1 layer
+layer
+├── etc
+├── usr
+└── var
+
+3 directories, 0 files
+```
+更为详细的内容为：
+```shell
+[root@localhost 034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56]# tree layer
+layer
+├── etc
+│   └── nanorc
+├── usr
+│   ├── bin
+│   │   ├── nano
+│   │   └── rnano -> nano
+│   └── share
+│       └── nano
+│           ├── asm.nanorc
+│           ├── awk.nanorc
+│           ├── cmake.nanorc
+│           ├── c.nanorc
+│           ├── css.nanorc
+│           ├── debian.nanorc
+│           ├── fortran.nanorc
+│           ├── gentoo.nanorc
+│           ├── groff.nanorc
+│           ├── html.nanorc
+│           ├── java.nanorc
+│           ├── lua.nanorc
+│           ├── makefile.nanorc
+│           ├── man-html
+│           │   ├── fr
+│           │   │   ├── nano.1.html
+│           │   │   ├── nanorc.5.html
+│           │   │   └── rnano.1.html
+│           │   ├── nano.1.html
+│           │   ├── nanorc.5.html
+│           │   └── rnano.1.html
+│           ├── man.nanorc
+│           ├── mgp.nanorc
+│           ├── mutt.nanorc
+│           ├── nanorc.nanorc
+│           ├── objc.nanorc
+│           ├── ocaml.nanorc
+│           ├── patch.nanorc
+│           ├── perl.nanorc
+│           ├── php.nanorc
+│           ├── pov.nanorc
+│           ├── python.nanorc
+│           ├── ruby.nanorc
+│           ├── sh.nanorc
+│           ├── spec.nanorc
+│           ├── tcl.nanorc
+│           ├── tex.nanorc
+│           └── xml.nanorc
+└── var
+    ├── cache
+    │   └── yum
+    │       └── x86_64
+    │           └── 7
+    │               ├── base
+    │               │   ├── 436345f4b666f0a461d479ccfabc2c22823d4f2173c2653e5250fea62f0afe98-c7-x86_64-comps.xml.gz
+    │               │   ├── c6411f1cc8a000ed2b651b49134631d279abba1ec1f78e5dcca79a52d8c1eada-primary.sqlite.bz2
+    │               │   ├── cachecookie
+    │               │   ├── gen
+    │               │   │   └── primary_db.sqlite
+    │               │   ├── mirrorlist.txt
+    │               │   ├── packages
+    │               │   └── repomd.xml
+    │               ├── extras
+    │               │   ├── 8bbaece36ec6587426c9685a366f242c6a976e781db53be42c50bff51147cf39-primary.sqlite.bz2
+    │               │   ├── cachecookie
+    │               │   ├── gen
+    │               │   │   └── primary_db.sqlite
+    │               │   ├── mirrorlist.txt
+    │               │   ├── packages
+    │               │   └── repomd.xml
+    │               ├── timedhosts
+    │               ├── timedhosts.txt
+    │               └── updates
+    │                   ├── ad3c2808ae940c9bb62494c2ff9f0ac9fb1dd8a5380b9d056a3587ac04e17da1-primary.sqlite.bz2
+    │                   ├── cachecookie
+    │                   ├── gen
+    │                   │   └── primary_db.sqlite
+    │                   ├── mirrorlist.txt
+    │                   ├── packages
+    │                   └── repomd.xml
+    ├── lib
+    │   ├── rpm
+    │   │   ├── Basenames
+    │   │   ├── Conflictname
+    │   │   ├── __db.001
+    │   │   ├── __db.002
+    │   │   ├── __db.003
+    │   │   ├── Dirnames
+    │   │   ├── Group
+    │   │   ├── Installtid
+    │   │   ├── Name
+    │   │   ├── Packages
+    │   │   ├── Providename
+    │   │   ├── Requirename
+    │   │   ├── Sha1header
+    │   │   └── Sigmd5
+    │   └── yum
+    │       ├── history
+    │       │   ├── 2016-07-01
+    │       │   │   └── 3
+    │       │   │       ├── config-main
+    │       │   │       ├── config-repos
+    │       │   │       └── saved_tx
+    │       │   ├── history-2016-07-01.sqlite
+    │       │   └── history-2016-07-01.sqlite-journal
+    │       ├── rpmdb-indexes
+    │       │   ├── conflicts
+    │       │   ├── file-requires
+    │       │   ├── obsoletes
+    │       │   ├── pkgtups-checksums
+    │       │   └── version
+    │       └── yumdb
+    │           └── n
+    │               └── b4a8577b1e26738e571f0796bf4c1ddb726382dd-nano-2.3.1-10.el7-x86_64
+    │                   ├── checksum_data
+    │                   ├── checksum_type
+    │                   ├── command_line
+    │                   ├── from_repo
+    │                   ├── from_repo_revision
+    │                   ├── from_repo_timestamp
+    │                   ├── installed_by
+    │                   ├── origin_url
+    │                   ├── reason
+    │                   ├── releasever
+    │                   ├── tsflag_nodocs
+    │                   ├── ts_install_langs
+    │                   ├── var_infra
+    │                   └── var_uuid
+    └── log
+        └── yum.log
+
+32 directories, 96 files
+```
+对比可见，0开头的文件夹中的tar包只包含了安装nano的时候发生改变的文件夹和内容。整个镜像的加载是按照层次顺序进行的，后面的层中的文件系统依赖于之前所有层次的综合出来的文件系统的内容，这样构成了整个docker镜像的组成关系。
 
 
 
