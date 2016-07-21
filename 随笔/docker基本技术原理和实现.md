@@ -273,9 +273,31 @@ tar -xvf layer.tar -C layer
 cd layer
 tree -L 1
 ```
-内容基本就是生成centos7_base镜像的boot.iso文件的内容，也就是rootfs。
+结果为：
+```shell
+[root@localhost 1dc8088f1c85a445fa66de54f3d7a2352cf811db392415a610573c3a2f14b9e5]# tree -L 1 layer
+layer
+├── anaconda-post.log
+├── bin -> usr/bin
+├── etc
+├── home
+├── lib -> usr/lib
+├── lib64 -> usr/lib64
+├── lost+found
+├── media
+├── mnt
+├── opt
+├── root
+├── run
+├── sbin -> usr/sbin
+├── srv
+├── tmp
+├── usr
+└── var
 
-结合生成这个dockerImage的Dockerfile内容：
+16 directories, 1 file
+```
+内容基本就是生成centos7_base镜像的boot.iso文件的内容，也就是rootfs。结合生成这个dockerImage的Dockerfile内容：
 ```shell
 FROM scratch
 MAINTAINER https://github.com/CentOS/sig-cloud-instance-images
