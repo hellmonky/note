@@ -32,6 +32,294 @@ Docker容器是建立在Aufs基础上的，Aufs(advanced multi layered unificati
 ```shell
 mount -t aufs -o br=/tmp/dir1=ro:/tmp/dir2=rw none /tmp/newfs
 ```
+其中参数：
+```shell
+-o 指定mount传递给文件系统的参数
+br 指定需要挂载的文件夹，这里包括dir1和dir2
+ro/rw 指定文件的权限只读和可读写
+none 这里没有设备，用none表示
+```
+这个结果是什么样子的呢。 就是把/tmp/dir1 t和/tmp/dir2  合并之后挂载到/tmp/newfs ，如果这时在/tmp/dir1 下创建一个文件a  /tmp/dir2下创建一个文件b 则  在/tmp/newfs 会看到a,b 这两个文件，并且a 是只读的， 如果有相同的文件则以先挂载的为准，后面挂载的操作会被忽略掉。
+
+继续查看docker通过save参数保存的tar包的结构来进行理解。这儿用centos7官方的docker镜像来作为分析对象：
+首先查看当前生成的镜像历史：
+再使用：
+```shell
+docker history centos7_base
+```
+查看结果为：
+```shell
+IMAGE               CREATED             CREATED BY                                      SIZE                COMMENT
+ded5d38233c0        16 minutes ago      /bin/sh -c #(nop) CMD ["/bin/bash"]             0 B                 
+2eea88e40ecf        16 minutes ago      /bin/sh -c #(nop) LABEL name=CentOS Base Imag   0 B                 
+4e8f709f2cf1        16 minutes ago      /bin/sh -c #(nop) ADD file:892891d20280e59b45   196.8 MB            
+329afbcdc6b4        16 minutes ago      /bin/sh -c #(nop) MAINTAINER https://github.c   0 B   
+```
+然后将这个镜像导出为tar包，然后解压查看：
+```shell
+mkdir /home/wentao/docker/imageAnalysis
+cd /home/wentao/docker/centos7_base/
+tar xvf centos7_base.tar -C /home/wentao/docker/imageAnalysis/
+tree .
+```
+查看当前的tar包结果为：
+```shell
+.
+├── 1dc8088f1c85a445fa66de54f3d7a2352cf811db392415a610573c3a2f14b9e5
+│   ├── json
+│   ├── layer.tar
+│   └── VERSION
+├── ded5d38233c09a3628cc803071d60d1c449416d60986c6ead4d11b4a22c132a2.json
+├── manifest.json
+└── repositories
+```
+看到有一个目录和三个与这个目录平级的文件。查看de开头的顶层json文件内容为（格式化之后）：
+```shell
+{
+    "architecture": "amd64", 
+    "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+    "config": {
+        "Hostname": "dac7902ade73", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/bash"
+        ], 
+        "Image": "sha256:2eea88e40ecf0c1aa5abc6e9e63d112cbfdd7ba779d9317a6f08eb221b6e64fb", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "container": "c76ac64e706f2941562383b40b4de773db905cf3f920ff7c60407e24d60d424b", 
+    "container_config": {
+        "Hostname": "dac7902ade73", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/sh", 
+            "-c", 
+            "#(nop) CMD [\"/bin/bash\"]"
+        ], 
+        "Image": "sha256:2eea88e40ecf0c1aa5abc6e9e63d112cbfdd7ba779d9317a6f08eb221b6e64fb", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "created": "2016-07-20T16:59:17.855636307Z", 
+    "docker_version": "1.11.2", 
+    "history": [
+        {
+            "created": "2016-07-20T16:59:02.526315828Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) MAINTAINER https://github.com/CentOS/sig-cloud-instance-images", 
+            "empty_layer": true
+        }, 
+        {
+            "created": "2016-07-20T16:59:15.208340206Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) ADD file:892891d20280e59b4522cfb77e3c30ef777e2ddaf1635ed925bd91ad4ba06ade in /"
+        }, 
+        {
+            "created": "2016-07-20T16:59:16.428144924Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) LABEL name=CentOS Base Image vendor=CentOS license=GPLv2 build-date=20160701", 
+            "empty_layer": true
+        }, 
+        {
+            "created": "2016-07-20T16:59:17.855636307Z", 
+            "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+            "created_by": "/bin/sh -c #(nop) CMD [\"/bin/bash\"]", 
+            "empty_layer": true
+        }
+    ], 
+    "os": "linux", 
+    "rootfs": {
+        "type": "layers", 
+        "diff_ids": [
+            "sha256:02f2e4ddf954c6d094ce78049af091017c5ba2cdd1fac7acfd9fafd6f7803d7e"
+        ]
+    }
+}
+```
+这个文件中记录了当前dockerImage的总体内容，并且其中的history段记录了生成过程。
+查看manifest.json文件内容为（格式化）：
+```shell
+[
+    {
+        "Config": "ded5d38233c09a3628cc803071d60d1c449416d60986c6ead4d11b4a22c132a2.json", 
+        "RepoTags": [
+            "centos7_base:latest"
+        ], 
+        "Layers": [
+            "1dc8088f1c85a445fa66de54f3d7a2352cf811db392415a610573c3a2f14b9e5/layer.tar"
+        ]
+    }
+]
+```
+查看repositories内容为：
+```shell
+{"centos7_base":{"latest":"1dc8088f1c85a445fa66de54f3d7a2352cf811db392415a610573c3a2f14b9e5"}}
+```
+这个文件记录了当前的docker镜像的最上层。
+
+最上层的id和tar包中唯一的json文件的id是相同，并且history展示了当前这个镜像生成的过程文件，查看history知道只有第二步的ADD发生了文件的改变，其他操作都没有新增和删除文件，所以对应的size为0。
+进入唯一的文件夹中，查看json文件内容（格式化之后）：
+```shell
+{
+    "id": "1dc8088f1c85a445fa66de54f3d7a2352cf811db392415a610573c3a2f14b9e5", 
+    "created": "2016-07-20T16:59:17.855636307Z", 
+    "container": "c76ac64e706f2941562383b40b4de773db905cf3f920ff7c60407e24d60d424b", 
+    "container_config": {
+        "Hostname": "dac7902ade73", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/sh", 
+            "-c", 
+            "#(nop) CMD [\"/bin/bash\"]"
+        ], 
+        "Image": "sha256:2eea88e40ecf0c1aa5abc6e9e63d112cbfdd7ba779d9317a6f08eb221b6e64fb", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "docker_version": "1.11.2", 
+    "author": "https://github.com/CentOS/sig-cloud-instance-images", 
+    "config": {
+        "Hostname": "dac7902ade73", 
+        "Domainname": "", 
+        "User": "", 
+        "AttachStdin": false, 
+        "AttachStdout": false, 
+        "AttachStderr": false, 
+        "Tty": false, 
+        "OpenStdin": false, 
+        "StdinOnce": false, 
+        "Env": [
+            "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+        ], 
+        "Cmd": [
+            "/bin/bash"
+        ], 
+        "Image": "sha256:2eea88e40ecf0c1aa5abc6e9e63d112cbfdd7ba779d9317a6f08eb221b6e64fb", 
+        "Volumes": null, 
+        "WorkingDir": "", 
+        "Entrypoint": null, 
+        "OnBuild": null, 
+        "Labels": {
+            "build-date": "20160701", 
+            "license": "GPLv2", 
+            "name": "CentOS Base Image", 
+            "vendor": "CentOS"
+        }
+    }, 
+    "architecture": "amd64", 
+    "os": "linux"
+}
+```
+
+继续看看tar包中唯一的文件夹中的layer.tar的内容：
+```shell
+mkdir layer
+tar -xvf layer.tar -C layer
+cd layer
+tree -L 1
+```
+内容基本就是生成centos7_base镜像的boot.iso文件的内容，也就是rootfs。
+
+结合生成这个dockerImage的Dockerfile内容：
+```shell
+FROM scratch
+MAINTAINER https://github.com/CentOS/sig-cloud-instance-images
+ADD centos-7-docker.tar.xz /
+
+LABEL name="CentOS Base Image" \
+    vendor="CentOS" \
+    license="GPLv2" \
+    build-date="20160701"
+
+CMD ["/bin/bash"]
+```
+可以看出，tar包中的文件夹表示了不同的层的内容，并且不同的层之间属于继承关系，进行之前镜像上的增加和删除。修改这个Dockerfile文件，增加一个安装脚本：
+```shell
+FROM scratch
+MAINTAINER https://github.com/CentOS/sig-cloud-instance-images
+ADD centos-7-docker.tar.xz /
+
+LABEL name="CentOS Base Image" \
+    vendor="CentOS" \
+    license="GPLv2" \
+    build-date="20160701"
+
+RUN yum -y install nano
+
+CMD ["/bin/bash"]
+```
+继续按照上述方式分析。解压从这个image生成的tar包：
+```shell
+[root@localhost 2imageAnalysis]# ll
+总用量 12
+drwxr-xr-x. 2 root root   47 7月  21 07:10 034d3aafe3adf0c7e4a48693bc69034792274e824bcb7f5c5ca82b510697df56
+drwxr-xr-x. 2 root root   47 7月  21 07:10 742434c0e47091563023a7702c7e4901ad04f9fc9bd3b200bb4f9ede7e3aea80
+-rw-r--r--. 1 root root 2566 7月  21 07:10 83749061359cf0a1a356a8d2080a97921597b66f73a2a8bdd164cdd5f8bc05c1.json
+-rw-r--r--. 1 root root  279 1月   1 1970 manifest.json
+-rw-r--r--. 1 root root   89 1月   1 1970 repositories
+```
+发现多了一个文件
+
+
+
+[image tarball format](https://docs.docker.com/engine/reference/api/docker_remote_api_v1.20/#image-tarball-format)
+
+
 
 
 

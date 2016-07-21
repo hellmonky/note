@@ -62,7 +62,7 @@ tar -zcvpf /backups/full-backup_$(date +\%Y-\%m-\%d-\%H:\%M).tar.gz / --exclude=
 cd /backup
 
 9 离线安装docker执行环境：
-https://yum.dockerproject.org/repo/main/centos/7/Packages/
+docker官方维护的dockerEngine包可以从这儿下载：https://yum.dockerproject.org/repo/main/centos/7/Packages/
 下载：
 docker-engine-selinux
 docker-engine
