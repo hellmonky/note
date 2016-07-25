@@ -1102,8 +1102,38 @@ hadoop只是一个技术框架，而不是解决方案，从技术框架到解�
 
 
 
-
-
+（24）kafka的搭建和使用：
+<1>环境搭建和服务启动测试：
+使用CDH自己打包的kafka安装包进行安装，然后再：
+cd /bin
+路径下查看相关的执行命令：
+[root@slave01 bin]# ll| grep kafka
+lrwxrwxrwx  1 root root         28 7月  22 10:59 kafka-acls -> /etc/alternatives/kafka-acls
+lrwxrwxrwx  1 root root         31 7月  22 10:59 kafka-configs -> /etc/alternatives/kafka-configs
+lrwxrwxrwx  1 root root         40 7月  22 10:59 kafka-console-consumer -> /etc/alternatives/kafka-console-consumer
+lrwxrwxrwx  1 root root         40 7月  22 10:59 kafka-console-producer -> /etc/alternatives/kafka-console-producer
+lrwxrwxrwx  1 root root         39 7月  22 10:59 kafka-consumer-groups -> /etc/alternatives/kafka-consumer-groups
+lrwxrwxrwx  1 root root         47 7月  22 10:59 kafka-consumer-offset-checker -> /etc/alternatives/kafka-consumer-offset-checker
+lrwxrwxrwx  1 root root         50 7月  22 10:59 kafka-preferred-replica-election -> /etc/alternatives/kafka-preferred-replica-election
+lrwxrwxrwx  1 root root         43 7月  22 10:59 kafka-reassign-partitions -> /etc/alternatives/kafka-reassign-partitions
+lrwxrwxrwx  1 root root         33 7月  22 10:59 kafka-run-class -> /etc/alternatives/kafka-run-class
+lrwxrwxrwx  1 root root         30 7月  22 10:59 kafka-topics -> /etc/alternatives/kafka-topics
+查看当前kafka是否启动：
+[root@slave01 bin]# jps
+3504 NodeManager
+3571 QuorumPeerMain
+14644 Kafka
+3508 HRegionServer
+14375 Jps
+3723 DataNode
+4893 
+显示已经启动了，可以进行测试。
+在其中一个kafka的broker的节点上打开producer服务：
+kafka-console-producer.sh --broker-list 192.168.1.201:9092 --topic test
+然后再另一个kafka的borker节点上打开consumer服务：
+kafka-console-consumer.sh --zookeeper 192.168.1.201:2181 --topic test --from-beginning
+在producer服务中输入任意字符串之后，另一台机器上可以显示出这个字符串，表示接受成功。
+<2>java程序编写：
 
 
 
