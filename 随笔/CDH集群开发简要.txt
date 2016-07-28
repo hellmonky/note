@@ -885,7 +885,57 @@ docker build -t datasong dataSong/
 docker history datasong
 然后开始运行这个docker：
 docker run -t -i datasong /bin/bash
-这样命令行会直接进入这个容器，如果需要守护状态的容器，可以使用-d命令：
+
+<3>开放docker镜像端口，供外部调用：
+需要注意的就是启动的docker如果需要通过端口提供服务，就一定需要将docker和主机进行通信设置，否则相当于封闭环境。虽然在<2>中成功的运行了docker，但是外部无法访问datasong提供的服务，所以需要进行设置。
+首先查看当前docker镜像的信息：
+docker inspect <container_id>
+那么就是：
+docker inspect datasong
+在Dockfile中使用EXPOSE表明需要暴露的端口，那么就需要将docker镜像的端口绑定到主机的指定接口，语法为：
+docker run -p [([<host_interface>:[host_port]])|(<host_port>):]<container_port>[/udp] <image> <cmd>
+所以使用如下命令打开端口：
+docker run -i -t -p 8080:8080 datasong
+-p指定容器端口到主机端口的映射，表示使用主机的8080端口，对应到docker的8080端口。然后从外部进行访问。
+我们可以实例化多个容器，因为它们的端口在宿主上不会发生冲突。我将再启动两个容器并将8080端口分别暴露为8280和8380：
+docker -H tcp://127.0.0.1:2375 run -p 8280:8080 javaee_sample 
+docker -H tcp://127.0.0.1:2375 run -p 8380:8080 javaee_sample 
+
+<4>docker镜像中如果层数过多会带来性能问题，那么在编写Dockfile的时候尽量减少不必要的步骤：
+例如可以将需要的资源直接拷贝到已有地址，提前解压缩等等。
+修改后的脚本如下：
+{
+# 设置基本的环境
+FROM centos7_base
+MAINTAINER hellmonky <hellmonky@qq.com> 
+
+# 创建目录，从主机拷贝需要的文件，需要注意解压后的目录拷贝到docker中，需要指明这个文件夹的名称，否则为文件拷贝
+COPY jdk1.8.0_92 /usr/local/bin/jdk1.8.0_92/
+
+# 设置环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_92
+ENV CLASSPATH=.:$CLASSPTAH:$JAVA_HOME/lib
+ENV PATH=$PATH:$JAVA_HOME/bin
+
+# 拷贝运行包
+COPY DataSong.jar /home
+
+# 需要对外开放的端口 
+EXPOSE 8080 9990 
+
+# 设置docker启动时候需要执行的命令
+CMD ["java", "-jar", "/opt/java/DataSong.jar"]
+}
+这样生成的镜像少了jdk-8u92-linux-x64.tar.gz所占用的空间，利用率更高。
+
+关于Dockfile的CMD命令，参考官方文档：
+https://docs.docker.com/engine/reference/builder/#cmd
+参考文档：
+http://cloud.51cto.com/art/201501/464181.htm
+<5>运行和进入容器：
+直接使用：
+docker run -it datasong /bin/bash
+命令行会直接进入这个容器，如果需要守护状态的容器，可以使用-d命令：
 docker run -itd datasong /bin/bash 
 这样容器会在后台执行，命令行并不会进入。
 可以查看当前运行中的容器：
@@ -960,69 +1010,19 @@ http://blog.csdn.net/u010397369/article/details/41045251
 http://www.roddypy.com/index.php/2015/11/27/%E4%BD%BF%E7%94%A8nsenter%E8%BF%9B%E5%85%A5docker%E5%AE%B9%E5%99%A8/
 
 
-
-
-<3>开发docker镜像端口，供外部调用：
-需要注意的就是启动的docker如果需要通过端口提供服务，就一定需要将docker和主机进行通信设置，否则相当于封闭环境。虽然在<2>中成功的运行了docker，但是外部无法访问datasong提供的服务，所以需要进行设置。
-首先查看当前docker镜像的信息：
-docker inspect <container_id>
-那么就是：
-docker inspect datasong
-在Dockfile中使用EXPOSE表明需要暴露的端口，那么就需要将docker镜像的端口绑定到主机的指定接口，语法为：
-docker run -p [([<host_interface>:[host_port]])|(<host_port>):]<container_port>[/udp] <image> <cmd>
-所以使用如下命令打开端口：
-docker run -i -t -p 8080:8080 datasong
--p指定容器端口到主机端口的映射，表示使用主机的8080端口，对应到docker的8080端口。然后从外部进行访问。
-我们可以实例化多个容器，因为它们的端口在宿主上不会发生冲突。我将再启动两个容器并将8080端口分别暴露为8280和8380：
-docker -H tcp://127.0.0.1:2375 run -p 8280:8080 javaee_sample 
-docker -H tcp://127.0.0.1:2375 run -p 8380:8080 javaee_sample 
-
-<4>docker镜像中如果层数过多会带来性能问题，那么在编写Dockfile的时候尽量减少不必要的步骤：
-例如可以将需要的资源直接拷贝到已有地址，提前解压缩等等。
-修改后的脚本如下：
-{
-# 设置基本的环境
-FROM centos7_base
-MAINTAINER hellmonky <hellmonky@qq.com> 
-
-# 创建目录，从主机拷贝需要的文件，需要注意解压后的目录拷贝到docker中，需要指明这个文件夹的名称，否则为文件拷贝
-COPY jdk1.8.0_92 /usr/local/bin/jdk1.8.0_92/
-
-# 设置环境变量
-ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_92
-ENV CLASSPATH=.:$CLASSPTAH:$JAVA_HOME/lib
-ENV PATH=$PATH:$JAVA_HOME/bin
-
-# 拷贝运行包
-COPY DataSong.jar /home
-
-# 需要对外开放的端口 
-EXPOSE 8080 9990 
-
-# 设置docker启动时候需要执行的命令
-CMD ["java", "-jar", "/opt/java/DataSong.jar"]
-}
-这样生成的镜像少了jdk-8u92-linux-x64.tar.gz所占用的空间，利用率更高。
-
-关于Dockfile的CMD命令，参考官方文档：
-https://docs.docker.com/engine/reference/builder/#cmd
-
-
-参考文档：
-http://cloud.51cto.com/art/201501/464181.htm
-
-
-
 （19）在docker中使用磁盘空间存储：
 首先需要明确的就是：不要在 container 里存放永久性数据，contain类似于静态的，无法处理需要固化的数据。
 但是实际使用场景中需要在contain中去操作文件等，类似于mysql数据库，是需要将动态数据固化的。
+保持容器为静态并且可以有持久化机制的方式可以有：挂载主机目录和使用数据卷。
+<1>在docker中挂载主机目录：
 
+<2>使用数据卷:
 然后看看docker的镜像结构：
 Docker镜像是由多个文件系统（只读层）叠加而成。当我们启动一个容器的时候，Docker会加载只读镜像层并在其上（也就是镜像栈顶部）添加一个读写层。如果运行中的容器修改了现有的一个已经存在的文件，那该文件将会从读写层下面的只读层复制到读写层，该文件的只读版本仍然存在，只是已经被读写层中该文件的副本所隐藏。当删除Docker容器，并通过该镜像重新启动时，之前的更改将会丢失。在Docker中，只读层及在顶部的读写层的组合被称为Union File System（联合文件系统）。
 为了能够保存（持久化）数据以及共享容器间的数据，Docker提出了Volume的概念。简单来说，Volume就是目录或者文件，它可以绕过默认的联合文件系统，而以正常的文件或者目录的形式存在于宿主机上。
 
 可以通过两种方式来初始化Volume：
-<1>在运行时使用-v来声明Volume：
+1 在运行时使用-v来声明Volume：
 docker run --name data -v /data -t -i datasong /bin/bash
 #docker run -it --name mount_data -h CONTAINER -v /data datasong /bin/bash
 上面的命令会将/data挂载到容器中，并绕过联合文件系统，我们可以在主机上直接操作该目录。任何在该镜像/data路径的文件将会被复制到Volume。
@@ -1033,11 +1033,10 @@ docker inspect data
 }
 创建的数据卷可以通过docker inspect获取宿主机对应路径:
 
+2 
 
-<2>
 
-
-（）综合应用：搭建java集成开发环境（IDEA）：
+（20）综合应用：搭建java集成开发环境（IDEA）：
 既然docker既保证了隔离性，又可以挂载主机的目录作为可写区，那么我们可以尝试在centos7的基础上搭建完整的java IDE开发环境了。
 需要注意的是，因为IDEA需要图形界面，所以有两种方式：
 	1 基础镜像支持GUI显示
