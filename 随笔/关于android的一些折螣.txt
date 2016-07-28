@@ -1,0 +1,195 @@
+关于android的一些折腾：
+
+
+（1）在自己安装busybox之后手动删除/system/xbin的所有内容，然后无法获取app的root之后的恢复方法：
+<1>
+关于root的一些基本概念：
+http://stackoverflow.com/questions/33624228/does-deleting-system-xbin-su-prevent-root-access
+
+You are mixing two type of roots.
+
+The root you are getting from adb is calld unsecure boot, or debuggable kernel option. This is set inside the default.prop file in the ramdisk, and used in the adbd binary.
+
+The /system/xbin/su is just a root elevation binary which in your version also has the right configuration in SE-Policy. Just deleting it will deny root for all the apps, but not for you when you debug using ADB.
+
+If you want to disable root for yourself in adb, you can just compile as 'user' instead of userdebug or hack into the /system/core/adb binary.
+<2>恢复/system/xbin/文件夹内容：
+手动使用adb的shell获取su，并且重新remount rw也失败之后，重新进入recovery，然后挂载/system路径，进行文件操作，将之前的/system/xbin/su文件恢复，然后权限修改为0755，重新开机，就可以获取app的su了，然后重新安装busybox，并且建立连接，方便使用。
+
+（2）andorid上使用linux系统：
+<0>总体思路：
+安卓手机启动的过程： 上电>>arm芯片调入boot的程序执行>>调用内核执行>>打开android虚拟机
+所以把android手机改为嵌入式linux的方法就是：内核启动后调用自己做的文件系统，这里可以是qt等小巧的文件系统，也可以是ubuntu，debian等文件系统，也可以按自己的需求制作文件系统来进行加载。
+几个关键点：
+一、知道Boot怎么去调用内核，用的是什么boot程序。
+二、要有内核源码，编译自己的内核，有内核源码才值得玩，内核编译好后一般只有几M大小；
+三、要知道内核怎么调用文件系统，一般是一个脚本
+关于内核源码，关键的还是各个模块的驱动，很多产商只提供ko文件，并不提供源码，这就不好玩了。所以手机最好选大厂商的，这些厂家公布的源码相对完善一些。
+目前已经可以用的有：https://github.com/automateljw/c8812 ，这个项目提供了C8812的基本引导。
+参考文档：https://www.embbnux.com/2014/03/31/android_to_embeded_linux_board/
+<1>共生安装方式：
+如果不想破坏原来的安卓系统，用下面两个方法体验和使用Linux桌面比较好：
+1. 直接安装Linux到SD卡上。这种情况是运行一个完整的Linux版本。可以使用别人构建好的镜像，一句dd if=xxxx.img of=/dev/sdX命令，就可以安装Linux系统到sd卡。然后根据制造商的不同，关机使用不同的按键组合就能从SD引导运行这个Linux系统。但是这种镜像要有针对你的手机或平板的驱动，你才能用一些功能，比如说最基本的lcd屏要能显示、触摸屏至少要能用吧。
+
+2. 在安卓系统之上，利用安卓本身的Linux内核、服务和应用程序来运行Linux桌面。基本的原理都是chroot。但在使用图形界面这一块，有些不同：
+2.1 用的最多的是VNC，在Linux系统里运行一个VNC服务器，然后用安卓下的VNC客户端连接就可以了。但是这种方法在配置一般的手机或平板上运行不流畅。
+2.2 也可以使用Xserver应用（还没有Wayland或Mir），这比起VNC的速度比较慢的协议来说，效率要高一些，但是目前的Xserver基本不实用：http://blog.sina.com.cn/s/blog_59cf67260101bvjf.html。
+2.3. 关掉安卓服务，直接运行原生的Xorg，在这基础之上运行Linux桌面。 
+运行原生的Xorg有以下好处：
+a. 比VNC：流畅。我的全志A10单核1.0GHz的机器，基本上有我原来那个赛扬的老机器用Windows XP的流畅度了。
+b. 比TF卡：方便。不用重启机器，按各种按钮，就能切换到各种Linux桌面。
+c. 比TF卡：方便。同上，玩完Linux，不用重启机器，就可以重新回到安卓。当然，这一点比VNC要差一点，这是由于没有人开发比较完整的Xserver。（或者Wayland、Mir也行啊）。
+d. 比TF卡：还是方便。能直接用安卓下的驱动，不用从源码编译驱动。
+e. 就和虚拟机一样，可以无痛的体验任何linux系统，只要有它的rootfs就行了。
+<2>介绍linuxdeploy：
+linuxdeploy是俄国老毛子大神meefik开发的，官方网站是：https://github.com/meefik/linuxdeploy，上面安装busybox也是用的他的：https://github.com/meefik/busybox
+linuxdeploy总体上的思路就是和<1>中所述基本相同，实现的本质上是chroot 和 mount，所以安装的linux系统需要和自己的手机的CPU架构相符合，并且有足够的空间来进行放置img镜像。
+这样就可以简单的通过文件来进行恢复和操作系统的切换了，只要android系统还在运行，就可以mount和unmount不同的操作系统来玩了。
+参考文档：http://forum.ubuntu.org.cn/viewtopic.php?f=177&t=450030
+<3>安装linuxdeploy：
+参考教程：
+http://blog.csdn.net/leekwen/article/details/45093093
+http://www.oneplusbbs.com/thread-628385-1-1.html
+https://www.kali.org/tutorials/kali-linux-android-linux-deploy/
+http://forum.ubuntu.org.cn/viewtopic.php?t=463818
+http://www.freebuf.com/articles/terminal/13209.html
+http://tieba.baidu.com/p/3310711970
+http://tieba.baidu.com/p/4212305788
+另一种方式：
+http://forum.ubuntu.org.cn/viewtopic.php?t=451917
+<4>原理描述：
+基本就是创建一个img的映像文件，然后联网获取对应系统的rootfs些到这个镜像中，然后chroot这个img就可以启动这个linux系统了。
+这样所依赖的内核还是基本的android内核，
+<5>备份和还原：
+备份和还原一直都是linux系统的关键。linuxdeploy支持导出rootfs的tar包，并且可以通过对img和配置文件的备份来起到完整备份作用。
+
+（3）在linuxdeploy中使用ubuntu：
+<1>安装中文字体：
+进入ssh：
+输入用户名和密码changme
+安装中文字体：
+cd /home/wentao
+wget http://jaist.dl.sourceforge.net/project/wqy/wqy-microhei/0.2.0-beta/wqy-microhei-0.2.0-beta.tar.gz
+tar -xvf wqy-microhei-0.2.0-beta.tar.gz -C /home/wentao
+sudo mv wqy-microhei /usr/share/fonts/
+sudo chmod 555 /usr/share/fonts/wqy-microhei/*
+cd /usr/share/fonts/wqy-microhei/ 
+sudo mkfontscale 
+sudo mkfontdir 
+sudo fc-cache -fv
+这样进入vnc之后就可以看到中文了。
+<2>安装基本的docker支持：
+sudo apt-get install docker.io
+因为性能问题，只能保证可以用，不建议使用。
+<3>安装jdk环境：
+因为是arm64位架构，所以使用的jdk也需要适配这个版本：http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html
+选择Linux ARM 64 Hard Float ABI
+将下载的包拷贝到手机内置的sdcard中，然后进入ssh进行解压缩和安装：
+tar -xvf /mnt/0/jdk.tar.gz -C /usr/local/bin
+然后设置环境变量：
+nano /etc/profile
+添加以下内容：
+export JAVA_HOME=/usr/local/bin/jdk1.8.0_101
+export CLASSPATH=.:$CLASSPTAH:$JAVA_HOME/lib
+export PATH=$PATH:$JAVA_HOME/bin
+生效：
+source /etc/profile
+检查：
+java -version
+返回：
+java version "1.8.0_101"
+Java(TM) SE Runtime Environment (build 1.8.0_101-b13)
+Java HotSpot(TM) 64-Bit Server VM (build 25.101-b13, mixed mode)
+表示当前已经安装成功了。
+随着Oracle官方的Oracle Java 7 JDK (硬件浮点)支持被加入，现在ARM平台可以直接用官方的JDK了。
+参考：http://blog.csdn.net/mirkerson/article/details/8082065/
+<4>安装javaIDE：
+
+
+
+
+
+参考文档：http://blog.csdn.net/mirkerson/article/details/8082065/
+
+（4）android学习：
+<0>开发环境：
+使用centos7_X64版本来进行开发，并且使用docker来隔离开发环境。
+首先安装系统基本的开发环境：
+yum groupinstall "Development Tools"
+或者选择安装最小开发环境：
+yum install -y gcc g++ kernel-devel make
+参考文档：http://www.diogogmt.com/2015/09/19/installing-build-essentials-on-centos-7-and-ubuntu-14-03/
+
+<1>与GPL的linux内核的区别：
+android虽然基于linux，但是他不同于kernel.org所维护的linux内核上建立的完整的linux系统，并且在内核上还进行了定制，主要在于驱动上，并且根据手机端的特性对电源管理等进行了修改。
+既然android还是基于linux的内核，并且有所不同，那么就一定要仔细分析差异，然后对比学习。
+参考文档：http://blog.csdn.net/juana1/article/details/6648518
+<2>centOS7安装交叉编译环境：
+需要安装交叉编译环境才能在PC端进行嵌入式的开发，所以需要这个基本环境。然而centos官方源中并不支持这个程序，所以需要安装第三方源：
+安装EPEL源：
+rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+检查是否安装成功：
+yum repolist
+查看某个包的详细信息：
+yum --enablerepo=epel info htop
+列出epel源的所有包列表：
+yum --disablerepo="*" --enablerepo="epel" list available | less
+然后安装交叉编译器：
+yum -y install gcc-arm-linux-gnu
+检查是否安装成功：
+arm-linux-gnu-gcc --version
+回显：
+arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
+Copyright (C) 2013 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+表示已经安装成功。
+参考文档：
+http://www.ha97.com/5649.html
+https://pkgs.org/centos-7/epel-x86_64/gcc-arm-linux-gnu-4.8.1-5.2.el7.1.x86_64.rpm.html
+<3>编译android的内核：
+作为linux系统的核心，内核就是根本，之前的linuxDeploy也是利用了已经提供支持的内核才得以跑起来。
+针对android手机的内核编译，因为驱动的原因，尽量选择出货量大的，大型公司的产品，支持和开源会做的好一点，这儿选择HM3PRO作为例子.
+从xda上的HM3PRO板块找到android 6的可用的内核（也就是CM13），找到：
+http://forum.xda-developers.com/redmi-note-3/development/kernel-infected-kernel-r1-t3422554
+然后从 https://github.com/neonkat/kenzo_kernel 下载源代码：
+git clone https://github.com/neonkat/kenzo_kernel.git
+下载代码完毕之后，查看内核版本：
+git branch -a
+
+
+
+
+<3>构造文件系统：
+参考文档：
+http://blog.csdn.net/thisway_diy/article/details/51879670
+http://blog.csdn.net/water_cow/article/details/6847861
+
+<>综上所述，完整的Dockerfile为：
+{
+FROM scratch
+MAINTAINER https://github.com/CentOS/sig-cloud-instance-images
+ADD centos-7-docker.tar.xz /
+
+LABEL name="CentOS_7 Android Build Image" \
+    vendor="CentOS" \
+    license="GPLv2" \
+    build-date="20160728"
+
+# 安装开发需要的包
+RUN yum install -y gcc g++ kernel-devel make git wget
+
+# 添加第三方epel源，安装交叉编译器：
+RUN rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
+RUN rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+RUN yum -y install gcc-arm-linux-gnu
+
+CMD ["/bin/bash"]
+}
+编译镜像：
+docker build -t android android/
+然后挂载/home/wentao/docker/mountFolder文件夹作为dockerImage的工作文件夹运行：
+docker run -it -v /home/wentao/docker/mountFolder:/home/mountFolder android /bin/bash
+
+

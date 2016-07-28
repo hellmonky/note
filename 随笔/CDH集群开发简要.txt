@@ -885,6 +885,82 @@ docker build -t datasong dataSong/
 docker history datasong
 然后开始运行这个docker：
 docker run -t -i datasong /bin/bash
+这样命令行会直接进入这个容器，如果需要守护状态的容器，可以使用-d命令：
+docker run -itd datasong /bin/bash 
+这样容器会在后台执行，命令行并不会进入。
+可以查看当前运行中的容器：
+docker ps
+然后使用attach命令选中想要进入运行中的容器的CONTAINER ID：
+docker attach 44fc0f0582d9
+这样虽然方便，但是不同命令行进入容器会造成阻塞，而且不建议使用ssh到容器中：http://blog.docker.com/tag/nsenter/
+译文：http://www.oschina.net/translate/why-you-dont-need-to-run-sshd-in-docker?cmp
+所以需要使用nsenter来对后台运行的容器进行管理。
+首先需要在linux官方下载源代码包，从 https://www.kernel.org/pub/linux/utils/util-linux/ 找到最新的版本，然后下载：
+wget https://www.kernel.org/pub/linux/utils/util-linux/v2.28/util-linux-2.28-rc1.tar.gz
+然后编译安装（编译需要gcc和make的支持，可以在docker容器中进行编译）：
+tar -zxvf util-linux-2.28.tar.gz
+cd util-linux-2.28
+./configure --without-ncurses && make nsenter
+cp nsenter /usr/local/bin
+nsenter可以访问另一个进程的名称空间。所以为了连接到某个容器我们还需要获取该容器的第一个进程的PID。
+使用docker inspect命令来拿到该PID：
+docker inspect 258e36aeb1ee
+这样返回了所有的信息，而我们目前只需要PID信息，可以使用下属命令获取：
+docker inspect -f {{.State.Pid}} 258e36aeb1ee
+拿到该进程PID之后我们就可以使用nsenter命令访问该容器了：
+nsenter --target 30229 --mount --uts --ipc --net --pid
+其中30229就是刚刚获取的PID。
+为了简化这个步骤，可以编写脚本来完成：
+nano docker-enter.sh
+{
+#!/bin/sh
+ 
+  if [ -e $(dirname "$0")/nsenter ]; then
+    # with boot2docker, nsenter is not in the PATH but it is in the same folder
+    NSENTER=$(dirname "$0")/nsenter
+  else
+    NSENTER=nsenter
+  fi
+ 
+  if [ -z "$1" ]; then
+    echo "Usage: `basename "$0"` CONTAINER [COMMAND [ARG]...]"
+    echo ""
+    echo "Enters the Docker CONTAINER and executes the specified COMMAND."
+    echo "If COMMAND is not specified, runs an interactive shell in CONTAINER."
+  else
+    PID=$(docker inspect --format "{{.State.Pid}}" "$1")
+    if [ -z "$PID" ]; then
+      exit 1
+    fi
+    shift
+ 
+    OPTS="--target $PID --mount --uts --ipc --net --pid --"
+ 
+    if [ -z "$1" ]; then
+      # No command given.
+      # Use su to clear all host environment variables except for TERM,
+      # initialize the environment variables HOME, SHELL, USER, LOGNAME, PATH,
+      # and start a login shell.
+      "$NSENTER" $OPTS su - root
+    else
+      # Use env to clear all host environment variables.
+      "$NSENTER" $OPTS env --ignore-environment -- "$@"
+    fi
+  fi
+}
+保存后设置权限为可执行，然后拷贝到/usr/bin目录下可执行：
+chmod +x docker-enter  && cp docker-enter  /usr/bin/
+这样就可以直接使用docker镜像的ID来进入容器了：
+docker-enter 258e36aeb1ee
+上述方法比较繁琐，docker 1.3版本之后提供了exec命令来简化进入docker容器的方式：
+docker exec -it 258e36aeb1ee /bin/bash
+其中258e36aeb1ee是docker ps获取的运行容器的ID，不再需要执行容器的进程的PID了。
+参考文档：
+http://blog.csdn.net/u010397369/article/details/41045251
+http://www.roddypy.com/index.php/2015/11/27/%E4%BD%BF%E7%94%A8nsenter%E8%BF%9B%E5%85%A5docker%E5%AE%B9%E5%99%A8/
+
+
+
 
 <3>开发docker镜像端口，供外部调用：
 需要注意的就是启动的docker如果需要通过端口提供服务，就一定需要将docker和主机进行通信设置，否则相当于封闭环境。虽然在<2>中成功的运行了docker，但是外部无法访问datasong提供的服务，所以需要进行设置。
@@ -1133,7 +1209,26 @@ kafka-console-producer.sh --broker-list 192.168.1.201:9092 --topic test
 然后再另一个kafka的borker节点上打开consumer服务：
 kafka-console-consumer.sh --zookeeper 192.168.1.201:2181 --topic test --from-beginning
 在producer服务中输入任意字符串之后，另一台机器上可以显示出这个字符串，表示接受成功。
+
+进入kafka的一个服务节点，查看当前维护的topic：
+cd /bin
+kafka-topics --list --zookeeper 192.168.1.201:2181,192.168.1.202:2181,192.168.1.203:2181,192.168.1.204:2181,192.168.1.205:2181
+其中:
+192.168.1.201:2181,192.168.1.202:2181,192.168.1.203:2181,192.168.1.204:2181,192.168.1.205:2181
+是zookeeper的服务地址。
+
+从kafka 0.8.2.1开始可以直接删除topic，这样可以方便的进行程序的调试，下面删除名为test的topic：
+kafka-topics --zookeeper 192.168.1.201:2181,192.168.1.202:2181,192.168.1.203:2181,192.168.1.204:2181,192.168.1.205:2181 --delete --topic test
+然后检查当前的topic，发现已经删除了。
+
+
 <2>java程序编写：
+默认的kafka日志记录为info级别，这种级别方便运行，但是不方便调试，可以进入CDH，在其中的：“Kafka Broker 记录阈值”进行设置，可以修改为error来减少输出。
+同时，zookeeper的日志显示也可以修改一下，设置：
+Server 记录阈值
+为：
+ERROR
+
 
 
 
@@ -1168,6 +1263,7 @@ https://wiki.ubuntu.com/Kernel/BuildYourOwnKernel
 http://blog.csdn.net/jiangwei0910410003/article/details/37996723
 http://jingyan.baidu.com/article/5d368d1e12a1af3f60c0570a.html
 http://www.linuxidc.com/Linux/2016-05/131143.htm
+http://blog.csdn.net/u010397369/article/details/41045251
 
 
 
