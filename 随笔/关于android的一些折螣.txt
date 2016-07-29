@@ -106,9 +106,6 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.101-b13, mixed mode)
 <4>安装javaIDE：
 
 
-
-
-
 参考文档：http://blog.csdn.net/mirkerson/article/details/8082065/
 
 （4）android学习：
@@ -117,13 +114,32 @@ Java HotSpot(TM) 64-Bit Server VM (build 25.101-b13, mixed mode)
 首先安装系统基本的开发环境：
 yum groupinstall "Development Tools"
 或者选择安装最小开发环境：
-yum install -y gcc g++ kernel-devel make
+yum install -y gcc g++ kernel-devel make git
 参考文档：http://www.diogogmt.com/2015/09/19/installing-build-essentials-on-centos-7-and-ubuntu-14-03/
 
-<1>与GPL的linux内核的区别：
-android虽然基于linux，但是他不同于kernel.org所维护的linux内核上建立的完整的linux系统，并且在内核上还进行了定制，主要在于驱动上，并且根据手机端的特性对电源管理等进行了修改。
+<1>android内核与GUN/linux内核的区别：
+android虽然基于linux，但是他不同于kernel.org所维护的linux内核上建立的完整的linux系统，并且在内核上还进行了定制，主要在于驱动上，并且根据手机端的特性对电源管理等进行了修改。也正因为驱动的原因，android被从linux树种移除了。
 既然android还是基于linux的内核，并且有所不同，那么就一定要仔细分析差异，然后对比学习。
-参考文档：http://blog.csdn.net/juana1/article/details/6648518
+细节参考：http://www.cnblogs.com/manuosex/p/3590207.html
+概述参考：
+http://blog.csdn.net/juana1/article/details/6648518
+http://tech.it168.com/a2011/0725/1222/000001222793.shtml
+除了驱动的不同，两者在linux内核基础上使用的C库也不一样。
+传统的linux系统中的程序基本都依赖于GNU C Library (glibc)，google自己打造了一个C的运行时库，称为Bionic Library (bionic)。
+并且因为google的官方Toolchain也是基于Bionic Libc而并非glibc的。这使得使用或移植其他Toolchain来用于Android要比较麻烦：在Google公布用于Android的官方Toolchain之前，多数的Android爱好者使用的Toolchain是在http://www.codesourcery.com/gnu_toolchains/arm/download.html 下载的一个通用的Toolchain，它用来编译和移植Android 的Linux内核是可行的，因为内核并不需要C库，但是开发Android的应用程序时，直接采用或者移植其他的Toolchain都比较麻烦，其他Toolchain编译的应用程序只能采用静态编译的方式才能运行于Android模拟器中，这显然是实际开发中所不能接受的方式。目前尚没有看到说明成功移植其他交叉编译器来编译Android应用程序的资料。
+与glibc相比，Bionic Libc有如下一些特点：
+- 采用BSD License，而不是glibc的GPL License； 
+- 大小只有大约200k，比glibc差不多小一半，且比glibc更快； 
+- 实现了一个更小、更快的pthread； 
+- 提供了一些Android所需要的重要函数，如”getprop”, “LOGI”等； 
+- 不完全支持POSIX标准，比如C++ exceptions，wide chars等； 
+- 不提供libthread_db 和 libm的实现 
+
+细节参考：
+http://blog.csdn.net/andyhuabing/article/details/7183369
+http://blog.csdn.net/gzzaigcnforever/article/details/7480101
+
+
 <2>centOS7安装交叉编译环境：
 需要安装交叉编译环境才能在PC端进行嵌入式的开发，所以需要这个基本环境。然而centos官方源中并不支持这个程序，所以需要安装第三方源：
 安装EPEL源：
@@ -157,6 +173,17 @@ http://forum.xda-developers.com/redmi-note-3/development/kernel-infected-kernel-
 git clone https://github.com/neonkat/kenzo_kernel.git
 下载代码完毕之后，查看内核版本：
 git branch -a
+显示：
+* master
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/caf
+  remotes/origin/master
+  remotes/origin/test
+  remotes/origin/test1
+  remotes/origin/test2
+表示当前版本是master，如果需要切换版本，就检出需要编译的版本，例如test2：
+git checkout remotes/origin/test2
+如果不需要切换版本，就准备：
 
 
 

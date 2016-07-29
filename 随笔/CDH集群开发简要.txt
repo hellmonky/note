@@ -81,6 +81,19 @@ yum -y --nogpgcheck localinstall docker-engine-*.rpm
 安装完毕，启动docker服务：
 service docker start
 
+ps：更新安装docker
+因为docker现在还在发展阶段，有阶段性的更新带来重要改变，所以需要按照需求重新安装更新docker，一般方法为：
+列出当前系统已经安装的docker包：
+yum list installed | grep docker
+然后使用remove来删除引擎包：
+yum remove docker-engine.x86_64
+yum remove docker-engine-selinux.noarch
+然后本地安装最新的引擎包，但是需要注意，因为新的版本会增加依赖，最好是联网安装，这样自动下载依赖。例如docker1.20版本的安装中，CentOS中查看yum安装软件日志：
+tail /var/log/yum.log
+或者直接查看yum历史纪录：
+yum history info
+就会发现新增了对libseccomp-2.2.1-1.el7.x86_64的依赖。
+
 10 在线安装docker执行环境：
 因为centos7的docker版本太旧，建议使用在线安装docker的基础环境，然后localinstall最新的docker：
 yum -y install policycoreutils-python libtool-ltdl
@@ -1245,6 +1258,29 @@ ERROR
 
 
 
+常用linux命令：
+<1>Linux中查看各文件夹大小命令：du -h --max-depth=1
+具体命令格式为：
+du [-abcDhHklmsSx] [-L <符号连接>][-X <文件>][--block-size][--exclude=<目录或文件>] [--max-depth=<目录层数>][--help][--version][目录或文件]
+常用参数：
+-a或-all 为每个指定文件显示磁盘使用情况，或者为目录中每个文件显示各自磁盘使用情况。
+-b或-bytes 显示目录或文件大小时，以byte为单位。
+-c或–total 除了显示目录或文件的大小外，同时也显示所有目录或文件的总和。
+-D或–dereference-args 显示指定符号连接的源文件大小。
+-h或–human-readable 以K，M，G为单位，提高信息的可读性。
+-H或–si 与-h参数相同，但是K，M，G是以1000为换算单位,而不是以1024为换算单位。
+-k或–kilobytes 以1024 bytes为单位。
+-l或–count-links 重复计算硬件连接的文件。
+-L<符号连接>或–dereference<符号连接> 显示选项中所指定符号连接的源文件大小。
+-m或–megabytes 以1MB为单位。
+-s或–summarize 仅显示总计，即当前目录的大小。
+-S或–separate-dirs 显示每个目录的大小时，并不含其子目录的大小。
+-x或–one-file-xystem 以一开始处理时的文件系统为准，若遇上其它不同的文件系统目录则略过。
+-X<文件>或–exclude-from=<文件> 在<文件>指定目录或文件。
+–exclude=<目录或文件> 略过指定的目录或文件。
+–max-depth=<目录层数> 超过指定层数的目录后，予以忽略。
+–help 显示帮助。
+–version 显示版本信息。
 
 
 
