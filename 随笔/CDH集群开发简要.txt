@@ -777,6 +777,9 @@ cat json
 <6>删除标签为<none>的镜像：
 当创建docker镜像失败的时候，会生成tag为<none>的缓存文件，需要使用如下命令进行删除：
 docker rmi -f $(docker images | awk '/^<none>/ { print $3 }')
+参考文档：
+http://xiaorui.cc/2015/03/11/docker%E5%BC%BA%E5%88%B6%E6%89%B9%E9%87%8F%E5%88%A0%E9%99%A4none%E7%9A%84image%E9%95%9C%E5%83%8F/
+http://yaxin-cn.github.io/Docker/how-to-delete-a-docker-image.html
 
 
 

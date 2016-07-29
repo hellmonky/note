@@ -124,9 +124,10 @@ android虽然基于linux，但是他不同于kernel.org所维护的linux内核�
 概述参考：
 http://blog.csdn.net/juana1/article/details/6648518
 http://tech.it168.com/a2011/0725/1222/000001222793.shtml
-除了驱动的不同，两者在linux内核基础上使用的C库也不一样。
+<2>应用开发之间的差异：
+那么是不是除去驱动在两者之间分别为：编译好的.ko文件和开放源代码之间的差异，就没有什么不同？并不是，除了驱动的不同，两者在linux内核基础上使用的C库也不一样。
 传统的linux系统中的程序基本都依赖于GNU C Library (glibc)，google自己打造了一个C的运行时库，称为Bionic Library (bionic)。
-并且因为google的官方Toolchain也是基于Bionic Libc而并非glibc的。这使得使用或移植其他Toolchain来用于Android要比较麻烦：在Google公布用于Android的官方Toolchain之前，多数的Android爱好者使用的Toolchain是在http://www.codesourcery.com/gnu_toolchains/arm/download.html 下载的一个通用的Toolchain，它用来编译和移植Android 的Linux内核是可行的，因为内核并不需要C库，但是开发Android的应用程序时，直接采用或者移植其他的Toolchain都比较麻烦，其他Toolchain编译的应用程序只能采用静态编译的方式才能运行于Android模拟器中，这显然是实际开发中所不能接受的方式。目前尚没有看到说明成功移植其他交叉编译器来编译Android应用程序的资料。
+因为google的官方Toolchain也是基于Bionic Libc而并非glibc的。这使得使用或移植其他Toolchain来用于Android要比较麻烦：在Google公布用于Android的官方Toolchain之前，多数的Android爱好者使用的Toolchain是在http://www.codesourcery.com/gnu_toolchains/arm/download.html 下载的一个通用的Toolchain，它用来编译和移植Android 的Linux内核是可行的，因为内核并不需要C库，但是开发Android的应用程序时，直接采用或者移植其他的Toolchain都比较麻烦，其他Toolchain编译的应用程序只能采用静态编译的方式才能运行于Android模拟器中，这显然是实际开发中所不能接受的方式。目前尚没有看到说明成功移植其他交叉编译器来编译Android应用程序的资料。
 与glibc相比，Bionic Libc有如下一些特点：
 - 采用BSD License，而不是glibc的GPL License； 
 - 大小只有大约200k，比glibc差不多小一半，且比glibc更快； 
@@ -134,13 +135,21 @@ http://tech.it168.com/a2011/0725/1222/000001222793.shtml
 - 提供了一些Android所需要的重要函数，如”getprop”, “LOGI”等； 
 - 不完全支持POSIX标准，比如C++ exceptions，wide chars等； 
 - 不提供libthread_db 和 libm的实现 
+另外，Android中所用的其他一些二进制工具也比较特殊：
+- 加载动态库时使用的是/system/bin/linker而不是常用的/lib/ld.so; 
+- prelink工具不是常用的prelink而是apriori，其源代码位于” <your_android>/build/tools/apriori” 
+- strip工具也没有采用常用的strip，即“<your_android>/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin”目录下的arm-eabi-strip，而是位于<your_android>/out/host/linux-x86/bin/的soslim工具。
+Bionic的官方git地址为：
+https://android.googlesource.com/platform/bionic/
+github镜像地址为：
+https://github.com/android/platform_bionic
 
 细节参考：
 http://blog.csdn.net/andyhuabing/article/details/7183369
 http://blog.csdn.net/gzzaigcnforever/article/details/7480101
 
 
-<2>centOS7安装交叉编译环境：
+<2>centOS7安装通用交叉编译环境：
 需要安装交叉编译环境才能在PC端进行嵌入式的开发，所以需要这个基本环境。然而centos官方源中并不支持这个程序，所以需要安装第三方源：
 安装EPEL源：
 rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
@@ -164,7 +173,11 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 参考文档：
 http://www.ha97.com/5649.html
 https://pkgs.org/centos-7/epel-x86_64/gcc-arm-linux-gnu-4.8.1-5.2.el7.1.x86_64.rpm.html
-<3>编译android的内核：
+<3>centos7安装google提供的NDK开发工具：
+编译android相关的内容，最好使用google提供的工具链，包括编译内核，可以减少不必要的麻烦。官方下载地址为：https://developer.android.com/ndk/downloads/index.html
+
+
+<4>编译android的内核：
 作为linux系统的核心，内核就是根本，之前的linuxDeploy也是利用了已经提供支持的内核才得以跑起来。
 针对android手机的内核编译，因为驱动的原因，尽量选择出货量大的，大型公司的产品，支持和开源会做的好一点，这儿选择HM3PRO作为例子.
 从xda上的HM3PRO板块找到android 6的可用的内核（也就是CM13），找到：
@@ -183,7 +196,16 @@ git branch -a
   remotes/origin/test2
 表示当前版本是master，如果需要切换版本，就检出需要编译的版本，例如test2：
 git checkout remotes/origin/test2
-如果不需要切换版本，就准备：
+如果不需要切换版本，就准备交叉编译器。
+因为是编译内核，使用通用的gcc-arm-linux-gnu也是可以的，如果不放心，可以使用android官方的工具链arm-linux-androideabi-gcc，确定好需要的交叉编译器版本之后，修改Makefile中的交叉编译器设置：
+#ARCH ?= $(SUBARCH)
+#CROSS_COMPILE ?=
+修改成：
+ARCH ?= arm
+CROSS_COMPILE ?= arm-linux-androideabi-
+保存之后开始进行内核配置，这个使用默认配置：
+make defconfig
+
 
 
 
@@ -193,19 +215,18 @@ git checkout remotes/origin/test2
 http://blog.csdn.net/thisway_diy/article/details/51879670
 http://blog.csdn.net/water_cow/article/details/6847861
 
-<>综上所述，完整的Dockerfile为：
+（5）在docker中搭建开发环境：
+基于docker官方搭建的centos7_base镜像，编写完整的开发包Dockerfile为：
 {
-FROM scratch
-MAINTAINER https://github.com/CentOS/sig-cloud-instance-images
-ADD centos-7-docker.tar.xz /
-
+FROM centos7_base
+MAINTAINER hellmonky
 LABEL name="CentOS_7 Android Build Image" \
     vendor="CentOS" \
     license="GPLv2" \
     build-date="20160728"
 
 # 安装开发需要的包
-RUN yum install -y gcc g++ kernel-devel make git wget
+RUN yum install -y gcc g++ kernel-devel make git wget tree
 
 # 添加第三方epel源，安装交叉编译器：
 RUN rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
