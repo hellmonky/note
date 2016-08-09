@@ -781,6 +781,12 @@ docker rmi -f $(docker images | awk '/^<none>/ { print $3 }')
 http://xiaorui.cc/2015/03/11/docker%E5%BC%BA%E5%88%B6%E6%89%B9%E9%87%8F%E5%88%A0%E9%99%A4none%E7%9A%84image%E9%95%9C%E5%83%8F/
 http://yaxin-cn.github.io/Docker/how-to-delete-a-docker-image.html
 
+<7>删除被使用过的镜像：
+如果一个image被使用过，就会生成相应的container，虽然容器可以停止，但是这个时候删除镜像是不可以的，首先需要删除当前的容器：
+docker rm $(docker ps -a -q)
+然后再删除镜像：
+docker rmi 镜像ID或者名称
+
 
 
 PS：关于之后生成的docker镜像，参考了：

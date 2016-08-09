@@ -1,17 +1,23 @@
 关于android的一些折腾：
 
+（0）红米note3高配全网通使用：
+1 首先进入fastboot使用官方的线刷包进行完整的系统安装和重置；
+2 然后再次进入fastboot进行官方解锁，这样就可以开启root权限，并且可以为后续的system分区读写做准备；
+3 进入系统后打开adb调试功能，对system解锁：adb root; adb disable-verity; adb reboot，重启后获取到完整的root权限；
+	ps:或者直接在安全中心中打算root，miui系统会自动下载root包进行重启，重启完毕之后获取root权限。
+4 刷入第三方recovery：进入fastboot，然后输入：fastboot flash recovery recovery.img，成功后进入recovery进行基本操作，例如备份；
+5 重新进入fastboot进行解锁，然后进入recovery刷入第三方rom，因为第三方rom会改变system的内容，所以需要重新解锁。
+到这儿就完成了整个刷机过程。第三方固件需要注意底层不同会带来不同的问题，需要谨慎。
 
 （1）在自己安装busybox之后手动删除/system/xbin的所有内容，然后无法获取app的root之后的恢复方法：
-<1>
-关于root的一些基本概念：
+<1>关于root的一些基本概念：
+root对于android来说非常重要，因为很多定制系统的操作是需要依赖于root权限进行的。使用了root才能充分的享受android带来的自由。
+参考：
 http://stackoverflow.com/questions/33624228/does-deleting-system-xbin-su-prevent-root-access
-
+内容如下：
 You are mixing two type of roots.
-
 The root you are getting from adb is calld unsecure boot, or debuggable kernel option. This is set inside the default.prop file in the ramdisk, and used in the adbd binary.
-
 The /system/xbin/su is just a root elevation binary which in your version also has the right configuration in SE-Policy. Just deleting it will deny root for all the apps, but not for you when you debug using ADB.
-
 If you want to disable root for yourself in adb, you can just compile as 'user' instead of userdebug or hack into the /system/core/adb binary.
 <2>恢复/system/xbin/文件夹内容：
 手动使用adb的shell获取su，并且重新remount rw也失败之后，重新进入recovery，然后挂载/system路径，进行文件操作，将之前的/system/xbin/su文件恢复，然后权限修改为0755，重新开机，就可以获取app的su了，然后重新安装busybox，并且建立连接，方便使用。
@@ -202,8 +208,10 @@ git checkout remotes/origin/test2
 #CROSS_COMPILE ?=
 修改成：
 ARCH ?= arm
-CROSS_COMPILE ?= arm-linux-androideabi-
-保存之后开始进行内核配置，这个使用默认配置：
+CROSS_COMPILE ?= arm-linux-gnu-
+保存之后开始进行内核配置，使用这个内核自带的默认配置：
+cp android/config/default.cfg ../../.config
+然后使用这个配置文件来进行编译：
 make defconfig
 
 
@@ -239,5 +247,25 @@ CMD ["/bin/bash"]
 docker build -t android android/
 然后挂载/home/wentao/docker/mountFolder文件夹作为dockerImage的工作文件夹运行：
 docker run -it -v /home/wentao/docker/mountFolder:/home/mountFolder android /bin/bash
+
+
+关于虚拟机NAT网卡的上网问题：
+使用DHCP的方式自动获取设置，none方式失败：
+TYPE="Ethernet"
+BOOTPROTO="dhcp"
+DEFROUTE="yes"
+PEERDNS="yes"
+PEERROUTES="yes"
+IPV4_FAILURE_FATAL="no"
+IPV6INIT="yes"
+IPV6_AUTOCONF="yes"
+IPV6_DEFROUTE="yes"
+IPV6_PEERDNS="yes"
+IPV6_PEERROUTES="yes"
+IPV6_FAILURE_FATAL="no"
+NAME="eno16777736"
+UUID="26484f0f-fa3e-4cc1-a570-69204c000434"
+DEVICE="eno16777736"
+ONBOOT="yes"
 
 
