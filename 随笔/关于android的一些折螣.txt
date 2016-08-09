@@ -123,6 +123,10 @@ yum groupinstall "Development Tools"
 yum install -y gcc g++ kernel-devel make git
 参考文档：http://www.diogogmt.com/2015/09/19/installing-build-essentials-on-centos-7-and-ubuntu-14-03/
 
+<1>设置系统代理：
+开发android，那么代理必不可少，可以使用系统代理来进行设置：
+
+
 <1>android内核与GUN/linux内核的区别：
 android虽然基于linux，但是他不同于kernel.org所维护的linux内核上建立的完整的linux系统，并且在内核上还进行了定制，主要在于驱动上，并且根据手机端的特性对电源管理等进行了修改。也正因为驱动的原因，android被从linux树种移除了。
 既然android还是基于linux的内核，并且有所不同，那么就一定要仔细分析差异，然后对比学习。
@@ -155,7 +159,14 @@ http://blog.csdn.net/andyhuabing/article/details/7183369
 http://blog.csdn.net/gzzaigcnforever/article/details/7480101
 
 
-<2>centOS7安装通用交叉编译环境：
+（）android内核编译：
+作为整个android的底层，内核提供了对整体硬件的控制和性能的限制，很多开源硬件运行用户自定义内核来达到某些特殊需求，作为基本的geek，编译和定制内核是必须的。现在进入android内核的编译环节，这部分最大的不同在于交叉编译器的使用。
+1 初始环境设置和工具链安装：
+因为android也是属于linux内核的一种，只需要编译内核而不需要依赖别的组件，所以对toolchain(NDK)的选择上宽松得多。大体来讲有这样几种可能性：自己编译arm-eabi的gcc toolchain，使用Sourcery的toolchain，使用Google提供的NDK构建toolchain，或者使用第三方（比如crystax）修改过的NDK。
+<0>系统初始环境设置：
+首先系统必须安装有基本的编译环境：
+yum -y install gcc make git
+<1>通用交叉编译环境：
 需要安装交叉编译环境才能在PC端进行嵌入式的开发，所以需要这个基本环境。然而centos官方源中并不支持这个程序，所以需要安装第三方源：
 安装EPEL源：
 rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
@@ -179,13 +190,269 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 参考文档：
 http://www.ha97.com/5649.html
 https://pkgs.org/centos-7/epel-x86_64/gcc-arm-linux-gnu-4.8.1-5.2.el7.1.x86_64.rpm.html
-<3>centos7安装google提供的NDK开发工具：
+<2>从googleNDK获取开发工具：
 编译android相关的内容，最好使用google提供的工具链，包括编译内核，可以减少不必要的麻烦。官方下载地址为：https://developer.android.com/ndk/downloads/index.html
+例如下载：android-ndk-r12b-linux-x86_64.zip
+下载之后根据当前的系统，在压缩包的toolchains目录下选择对应的包，解压到某一个目录中，然后将这个目录添加到系统环境变量中。
+$export PATH=$PATH:/myandroid/androidsrc/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin
+<3>从google官方工具库获取：
+从官方维护网站：https://android.googlesource.com/platform/prebuilts/gcc/
+下载对应版本的工具链，然后安装：
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9
+安装方法同上。
+<4>第三方修改的工具链：
+和上面类似，需要手动安装并且添加到环境变量中去。关键就是选取的第三方工具链的来源。
 
-
-<4>编译android的内核：
+2 内核代码编译：
 作为linux系统的核心，内核就是根本，之前的linuxDeploy也是利用了已经提供支持的内核才得以跑起来。
-针对android手机的内核编译，因为驱动的原因，尽量选择出货量大的，大型公司的产品，支持和开源会做的好一点，这儿选择HM3PRO作为例子.
+针对android手机的内核编译，因为驱动的原因，尽量选择出货量大的，大型公司的产品，支持和开源会做的好一点。
+<1>nexus 5内核编译：
+作为官方亲儿子，编译内核方面还是有足够的支持的，并且初学编译内核，使用亲儿子可以减少干扰，降低编译难度。
+参考文档：http://www.roboby.com/android%E5%86%85%E6%A0%B8%E7%BC%96%E8%AF%91%E8%BF%87%E7%A8%8B%E5%85%A8%E8%A7%A3.html
+操作系统为ubuntu14.04_X64
+sudo apt-get install gcc make git libncurses5-dev
+下载boot.img打包程序：
+git clone https://github.com/pbatard/bootimg-tools.git
+cd bootimg-tools/
+make
+cd cpio/
+gcc mkbootfs.c  -o mkbootfs -I../include
+cd ../..
+mkdir andorid_boot_tools_bin
+cd andorid_boot_tools_bin/
+cp ../bootimg-tools/mkbootimg/mkbootimg .
+cp ../bootimg-tools/mkbootimg/unmkbootimg .
+cp ../bootimg-tools/cpio/mkbootfs .
+cd ..
+这样就在bootimg-tools文件夹中生成了构建boot镜像的可执行文件。
+
+准备编译环境设置脚本：
+nano run_this_android.sh
+内容如下：
+{
+# 设置交叉编译器位置
+export CC=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
+export CROSS_COMPILE=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
+# 设置编译内核架构
+export ARCH=arm
+export SUBARCH=arm
+# 设置boot.img生成工具
+export PATH=$PATH:$(pwd)/andorid_boot_tools_bin
+}
+然后设置为可执行，然后再当前终端中生效：
+chmod +x run_this_android.sh
+source run_this_android.sh
+
+设置交叉编译器的权限（这一步非常关键）：
+从官方下载下来的工具的权限是有问题的，所以一定要对交叉编译器目录进行整体的权限设置：
+chmod -R +x arm-eabi-4.7/
+然后对其中的bin目录设置为755权限：
+chmod -R 755 bin/*
+（之前没有这样设置，会有各种编译的权限问题，并且造成无法写入的错误）
+
+完成基本环境设置之后，在官方内核代码页面找到代码同步目录：
+http://source.android.com/source/building-kernels.html#figuring-out-which-kernel-to-build
+选择：
+Device		Binary location					Source location		Build configuration
+hammerhead	device/lge/hammerhead-kernel	kernel/msm			hammerhead_defconfig
+确定git路径：
+git clone https://android.googlesource.com/kernel/msm
+挂载代理下载完整的代码。
+然后查看当前代码树的分支：
+git branch -r
+显示结果为：
+{
+origin/HEAD -> origin/master
+  origin/android-msm-2.6.35
+  origin/android-msm-3.9-usb-and-mmc-hacks
+  origin/android-msm-angler-3.10-marshmallow-dr
+  origin/android-msm-angler-3.10-marshmallow-dr1.5
+  origin/android-msm-angler-3.10-marshmallow-dr1.6
+  origin/android-msm-angler-3.10-marshmallow-dr1.6-1
+  origin/android-msm-angler-3.10-marshmallow-mr1
+  origin/android-msm-angler-3.10-n-preview-1
+  origin/android-msm-angler-3.10-n-preview-2
+  origin/android-msm-angler-3.10-n-preview-3
+  origin/android-msm-angler-3.10-n-preview-4
+  origin/android-msm-angler-3.10-n-preview-5
+  origin/android-msm-anthias-3.10-lollipop-mr1-wear-release
+  origin/android-msm-anthias-3.10-lollipop-wear-release
+  origin/android-msm-anthias-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-asus-3.10-lollipop-mr1-wear-release
+  origin/android-msm-asus-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-bass-3.10-lollipop-mr1-wear-release
+  origin/android-msm-bass-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-bullhead-3.10-marshmallow-dr
+  origin/android-msm-bullhead-3.10-marshmallow-dr-0
+  origin/android-msm-bullhead-3.10-marshmallow-dr1.5
+  origin/android-msm-bullhead-3.10-marshmallow-dr1.6
+  origin/android-msm-bullhead-3.10-marshmallow-mr1
+  origin/android-msm-bullhead-3.10-marshmallow-mr1-eas
+  origin/android-msm-bullhead-3.10-marshmallow-mr2
+  origin/android-msm-bullhead-3.10-n-preview-1
+  origin/android-msm-bullhead-3.10-n-preview-2
+  origin/android-msm-bullhead-3.10-n-preview-3
+  origin/android-msm-bullhead-3.10-n-preview-4
+  origin/android-msm-bullhead-3.10-n-preview-5
+  origin/android-msm-dory-3.10-kitkat-wear
+  origin/android-msm-dory-3.10-lollipop-mr1-wear-release
+  origin/android-msm-dory-3.10-lollipop-wear-release
+  origin/android-msm-dory-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-flo-3.4-jb-mr2
+  origin/android-msm-flo-3.4-kitkat-mr0
+  origin/android-msm-flo-3.4-kitkat-mr1
+  origin/android-msm-flo-3.4-kitkat-mr2
+  origin/android-msm-flo-3.4-l-preview
+  origin/android-msm-flo-3.4-lollipop-mr1
+  origin/android-msm-flo-3.4-lollipop-mr1.1
+  origin/android-msm-flo-3.4-lollipop-mr1.2
+  origin/android-msm-flo-3.4-lollipop-release
+  origin/android-msm-flo-3.4-marshmallow
+  origin/android-msm-flo-3.4-marshmallow-mr1
+  origin/android-msm-flo-3.4-marshmallow-mr2
+  origin/android-msm-hammerhead-3.4-kitkat-mr1
+  origin/android-msm-hammerhead-3.4-kitkat-mr2
+  origin/android-msm-hammerhead-3.4-kk-fr1
+  origin/android-msm-hammerhead-3.4-kk-fr2
+  origin/android-msm-hammerhead-3.4-kk-r1
+  origin/android-msm-hammerhead-3.4-l-preview
+  origin/android-msm-hammerhead-3.4-lollipop-mr1
+  origin/android-msm-hammerhead-3.4-lollipop-mr1.1
+  origin/android-msm-hammerhead-3.4-lollipop-release
+  origin/android-msm-hammerhead-3.4-m-preview
+  origin/android-msm-hammerhead-3.4-marshmallow
+  origin/android-msm-hammerhead-3.4-marshmallow-mr1
+  origin/android-msm-hammerhead-3.4-marshmallow-mr2
+  origin/android-msm-huawei-3.10-lollipop-mr1-wear-release
+  origin/android-msm-huawei-3.10-lollipop-mr1-wear-release-1
+  origin/android-msm-huawei-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-huawei-3.10-marshmallow-mr1-wear-release-1
+  origin/android-msm-huawei-3.10-marshmallow-mr1-wear-release-2
+  origin/android-msm-lego-3.10-marshmallow-dr
+  origin/android-msm-lenok-3.10-kitkat-wear
+  origin/android-msm-lenok-3.10-lollipop-mr1-wear-release
+  origin/android-msm-lenok-3.10-lollipop-wear-release
+  origin/android-msm-lenok-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-mako-3.4-jb-mr1
+  origin/android-msm-mako-3.4-jb-mr1-fr
+  origin/android-msm-mako-3.4-jb-mr1-kgsl
+  origin/android-msm-mako-3.4-jb-mr1.1
+  origin/android-msm-mako-3.4-jb-mr2
+  origin/android-msm-mako-3.4-kitkat-mr0
+  origin/android-msm-mako-3.4-kitkat-mr1
+  origin/android-msm-mako-3.4-kitkat-mr2
+  origin/android-msm-mako-3.4-lollipop-mr1
+  origin/android-msm-mako-3.4-lollipop-mr1.1
+  origin/android-msm-mako-3.4-lollipop-release
+  origin/android-msm-moto-3.10-lollipop-mr1-wear-release
+  origin/android-msm-nemo-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-nemo-3.10-n-preview-1-wear-release
+  origin/android-msm-nemo-3.10-n-preview-2-wear-release
+  origin/android-msm-seed-3.10-lollipop-mr1
+  origin/android-msm-seed-3.10-marshmallow
+  origin/android-msm-seed-3.10-marshmallow-mr1
+  origin/android-msm-seed-3.10-marshmallow-mr2
+  origin/android-msm-seed-3.10-n-preview-2
+  origin/android-msm-seed-3.10-n-preview-3
+  origin/android-msm-seed-3.10-n-preview-4
+  origin/android-msm-seed-3.10-n-preview-5
+  origin/android-msm-shamu-3.10-lollipop-mr1
+  origin/android-msm-shamu-3.10-lollipop-release
+  origin/android-msm-shamu-3.10-m-preview
+  origin/android-msm-shamu-3.10-marshmallow
+  origin/android-msm-shamu-3.10-marshmallow-mr1
+  origin/android-msm-shamu-3.10-marshmallow-mr1-r0.15
+  origin/android-msm-shamu-3.10-marshmallow-mr2
+  origin/android-msm-shamu-3.10-n-preview-1
+  origin/android-msm-shamu-3.10-n-preview-2
+  origin/android-msm-shamu-3.10-n-preview-3
+  origin/android-msm-shamu-3.10-n-preview-4
+  origin/android-msm-shamu-3.10-n-preview-5
+  origin/android-msm-smelt-3.10-lollipop-mr1-wear-release
+  origin/android-msm-smelt-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-sony-cm-jb-3.0
+  origin/android-msm-sparrow-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-sprat-3.10-kitkat-wear
+  origin/android-msm-sprat-3.10-lollipop-mr1-wear-release
+  origin/android-msm-sprat-3.10-lollipop-wear-release
+  origin/android-msm-sprat-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-sturgeon-3.10-marshmallow-mr1-wear-release
+  origin/android-msm-sturgeon-3.10-n-preview-1-wear-release
+  origin/android-msm-sturgeon-3.10-n-preview-2-wear-release
+  origin/android-msm-wren-3.10-marshmallow-mr1-wear-release
+  origin/master
+}
+检出需要编译的分支，这儿选取最新的分支：
+git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
+（顺便问下，nexus 5 是不是上不去3.10内核了？）
+这个时候目录下除了.git文件夹，多出来完整的代码了。
+
+然后设置编译环境，主要就是添加交叉编译器的路径和前缀：
+export ARCH=arm
+export SUBARCH=arm
+export CROSS_COMPILE=/home/wentao/androidKernel/arm-linux-androideabi-4.9/bin/arm-linux-androideabi-
+
+下一步就是定制内核配置了。
+按理来说，编译device对应的内核，最好从当前使用的内核中拷贝出配置文件，然后进行修改，这个最为保险，一般而言当前使用的内核配置可以用adb来拷贝出来：
+adb pull /proc/config.gz
+如果没有这个配置文件，就使用当前内核代码中的工具，生成一个默认配置（貌似是亲儿子系列独有？）：
+make hammerhead_defconfig
+
+回显：
+{
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/kconfig/conf.o
+  SHIPPED scripts/kconfig/zconf.tab.c
+  SHIPPED scripts/kconfig/zconf.lex.c
+  SHIPPED scripts/kconfig/zconf.hash.c
+  HOSTCC  scripts/kconfig/zconf.tab.o
+  HOSTLD  scripts/kconfig/conf
+#
+# configuration written to .config
+#
+}
+生成了.config文件，然后生成编译需要的配置文件：
+make menuconfig
+如果有需要修改的就保存后退出。然后开始编译：
+make -j4
+当出现：
+{
+OBJCOPY arch/arm/boot/zImage
+Kernel: arch/arm/boot/zImage is ready
+CAT     arch/arm/boot/zImage-dtb
+Kernel: arch/arm/boot/zImage-dtb is ready
+}
+表示编译内核成功结束。
+
+接下来就需要根据编译成功的结果制作可以写入的内核镜像了。
+首先从原来的boot.img入手，将这个旧的镜像用unmkbootimg分解：
+mkdir image
+cd image
+unmkbootimg -i boot.img
+回显：
+{
+kernel written to 'kernel' (8331496 bytes)
+ramdisk written to 'ramdisk.cpio.gz' (498796 bytes)
+	To rebuild this boot image, you can use the command:
+    mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel --ramdisk ramdisk.cpio.gz -o boot_img/boot.img
+}
+然后原来的boot.img解压出：kernel和ramdisk.cpio.gz 两个文件。
+然后用我们自己编译的进行替换：
+cp ../msm/arch/arm/boot/zImage-dtb kernel_new
+然后开始用这个新的内核进行打包：
+mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
+这样新的可以直接刷入的boot_new.img就成功制作好了。
+
+最后刷入新的内核进行开机测试：
+adb start-server
+adb reboot bootloader
+fastboot flash boot boot_new.img
+fastboot reboot
+测试一下自己编译的内核有没有正常运行吧。
+
+
+
+<2>HMN3pro内核编译：
 从xda上的HM3PRO板块找到android 6的可用的内核（也就是CM13），找到：
 http://forum.xda-developers.com/redmi-note-3/development/kernel-infected-kernel-r1-t3422554
 然后从 https://github.com/neonkat/kenzo_kernel 下载源代码：
