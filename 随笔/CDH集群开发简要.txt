@@ -1292,7 +1292,9 @@ du [-abcDhHklmsSx] [-L <符号连接>][-X <文件>][--block-size][--exclude=<目
 –version 显示版本信息。
 
 
-
+关于centos7中落后内核的删除：
+yum remove kernel
+这个命令会删除非当前使用的内核，并做好清理工作。
 
 
 

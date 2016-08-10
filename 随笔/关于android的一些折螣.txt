@@ -1,5 +1,92 @@
 关于android的一些折腾：
 
+（0）关于android的一些基本概念：
+我们从android的分区和启动顺序来进行梳理，分析下整个流程中涉及到的相关概念。
+
+1 分区：
+android系统的分区可以从线刷包中看到，一般而言线刷包是完整系统部署包，只要系统可以进入fastboot，那么就可以进行完整的系统部署。以nexus5为例，看看线刷脚本：
+{
+:: 开始刷入底层重要分区
+:: 进行基础bootloader更新
+fastboot flash bootloader bootloader-hammerhead-hhz20h.img
+:: 更新完毕之后重启到这个bootloader环境下，准备后续操作
+fastboot reboot-bootloader
+:: 检查当前主机连通性
+ping -n 5 127.0.0.1 >nul
+:: 刷入基带
+fastboot flash radio radio-hammerhead-m8974a-2.0.50.2.29.img
+:: 重启bootloader
+fastboot reboot-bootloader
+ping -n 5 127.0.0.1 >nul
+
+
+:: 开始刷入一般分区
+:: 这个分区上有Android的引导程序，包括内核和内存操作程序。没有这个分区设备就不能被引导。恢复系统的时候会擦除这个分区，并且必须重新安装引导程序和ROM才能重启系统。
+fastboot flash boot boot.img
+:: 这个分区是Android系统存储频繁访问的数据和app的地方。擦除这个分区不影响你的个人数据，当你继续使用设备时，被擦除的数据就会自动被创建。
+fastboot flash cache cache.img
+:: recovery分区被认为是另一个启动分区，你可以启动设备进入recovery控制台去执行高级的系统恢复和管理操作。
+fastboot flash recovery recovery.img
+:: 这个分区上是除了内核和内存操作之外的整个操作系统。里面包含了Android用户接口和预先安装的系统应用。擦除了这个分区就会删除掉Andorid系统，所以你需要进入recovery模式或者bootloader模式去安装一个新的ROM。
+fastboot flash system system.img
+:: 这个分区保存着用户数据。通讯录、短信、设置和你安装的apps都在这个分区上。擦除这个分区相当于恢复出厂设置，当你第一次启动设备的时候或者在安装了官方或者客户的ROM之后系统会自动重建这个分区。当你执行恢复出厂设置时，就是在擦除这个分区。
+fastboot flash userdata userdata.img
+:: 到此为止，完整系统更新结束，重启进入系统
+fastboot reboot
+}
+
+2 启动：
+<0>Boot ROM
+手机上电的时候，硬件自动从设定的地址开始执行程序，主要负责将后续的bootloader加载进入ram，然后将执行权限交给bootloader。
+这部分类似于PC上的BIOS代码。
+
+<1>Bootloader
+它不属于操作系统的一部分，主要负责硬件的初始化和系统加载。
+相关的代码位于：<android source>/bootable/bootloader/legacy/usbloader
+主要有两个阶段：
+阶段1：检查RAM，然后将阶段2的代码加载到内存中，主要涉及代码为：Init.s :: Initializes stacks, zeros the BSS segments and  call_main() in main.c
+阶段2：根据预设的参数初始化网络，内存等硬件，让系统的硬件准备完毕，主要涉及代码为：Main.c :: Initializes hardware (clocks, board, keyboard, console) and creates linux tags.
+因为bootloader是硬件相关的，除非是开源硬件，不然总是需要厂家进行开发和维护，而且bootloader是可以升级的，例如nexus5的官方factory线刷包中就包含了bootloader镜像，bootloader的写入是在fastboot模式下的，虽然针对分区的写入也可以在recovery中进行。
+bootloader是可以被加密和上锁的：
+如果加密了，那么不能对bootloader进行任何操作；
+如果上锁了，用户可以通过密码解锁，然后进行操作。
+所以一般手机厂商会上锁bootloader进行限制，然后用户通过厂商获取解锁，获取进一步的操作。
+如果bootloader上锁了，是否有可能进行刷机？答案是肯定的，但是需要进行一些迂回操作：
+在读取boot分区完成后，读取Android操作系统前，执行了这个所谓的recovery，所以用户看起来就像进入了recovery，这种recovery被称为2ndinit。
+当从boot分区完成原厂内核的加载后，2ndboot还可以把开发者的自定义内核替换掉当前内存中的内核。
+也就是说bootloader还是正常进行引导，但是在加载android系统的时候进行hack，放入自定义的recovery和kernel，重新加载完毕之后再进入android系统。虽然这样可以达到同样的效果，但是完整的解锁bootloader才能正常操作boot和recovery分区，不会造成系统不稳定。
+
+<2>Fastboot
+fastboot 主要是用来与bootloader的USB通讯的PC命令行工具。他一般主要也用来向bootloader传送刷机文件进行文件分区重烧。因此在使用时，必须有一个PC机并且USB线要始终联着。所以这种方式称为线刷。
+最关键的就是用fastboot需要bootloader支持，如果bootloader只是引导内核，而不负责交互，那么fastboot是无法运行的，所以不是每一家公司产品都支的这个功能的。
+如果需要使用fastboot，必须打断正常的bootloader过程，让bootloader进入支持fastboot的模式，然后用电脑端的fatboot.exe进行交互才可以操作。
+这个过程是发生在bootloader的阶段二（也就是开机加电启动过程中），如果发现按键有特殊的组合，比如nexus5的双音量键和开机键，就会进入fastboot模式。这里要说的是，内核还没有加载，所以更谈不上多进程任务调度之类的概念，机器只是在顺序执行一条条的指令。
+所以fastboot可以理解为实现了一个简单的通信协议，接收命令并更新镜像文件，其他什么的干不了。
+fastboot模式其实是调用spl进行刷机的，所以如果刷spl坏了，fastboot模式应该也进不了，也就是砖了。SPL英文全称是Second Program Loader,“第二次装系统”，就是负责装载操作系统到RAM中。
+
+<4>Recovery
+和fastboot相同，还是在bootloader的第二阶段，如果又发现有特殊的按键组合，比如nexus 5的音量下和开机键，则会进入recovery模式。
+分析recovery.img镜像文件就会发现，它里面包含了一个kernel以及一个可执行程序recovery，以及一些初始化文件。从某种意义来说，这就是一个小型操作系统，和正常启动进入的系统的kernel是一样的，只是init及之后干的事情不同。
+虽然recovery中也独立的包含了内核，但是一般boot和recovery的内核是同一个，区别在于recovery里面的ramdisk会有更多recovery需要使用的程序和数据。
+这里的kernel和我们常说的linux内核还是有差异的，linux内核是包括kernel以及调度器内存管理等除显示界面外完整系统。而recovery中的kernel只是指内核init进程启动前的那一段逻辑，并不是完整的linux内核。
+在recovery模式下，会加载了部分文件系统，所以才可以读sdcard中的update.zip进行刷机，当然，也可以清除cache和用户数据。
+因为recovery包含了一个基本的内核，并且加载了文件系统，原理上来讲，是可以作为开发环境和生成环境的。但是一般作为恢复模式进行一些文件和分区操作。
+
+<5>ADB
+ADB的全称为Android Debug Bridge，就是起到调试桥的作用。Android设备(如手机)连接PC时所需要的驱动程序，一般Android设备连接WinXP是无需安装驱动的。
+通过adb我们可以通过DDMS来调试Android程序，说白了就是debug工具。
+ADB是android sdk里的一个工具, 用这个工具可以直接操作管理android模拟器或者真实的andriod设备. 它的主要功能有:
+	运行设备的shell(命令行)
+	管理模拟器或设备的端口映射
+	计算机和设备之间上传/下载文件
+	将本地apk软件安装至模拟器或android设备
+	ADB是一个 客户端-服务器端 程序
+	客户端是你的电脑，用来操作手机
+	服务器端是android设备。
+要使用ADB，必须安装手机在电脑端的驱动，这样就是电脑与android 设备的通信的客户端驱动程序。
+
+
+
 （0）红米note3高配全网通使用：
 1 首先进入fastboot使用官方的线刷包进行完整的系统安装和重置；
 2 然后再次进入fastboot进行官方解锁，这样就可以开启root权限，并且可以为后续的system分区读写做准备；
@@ -186,7 +273,7 @@ arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
 Copyright (C) 2013 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-表示已经安装成功。
+表示已经安装成功。并且这样安装的交叉编译器已经添加到环境变量中，不再需要用户设置。
 参考文档：
 http://www.ha97.com/5649.html
 https://pkgs.org/centos-7/epel-x86_64/gcc-arm-linux-gnu-4.8.1-5.2.el7.1.x86_64.rpm.html
@@ -225,6 +312,7 @@ cp ../bootimg-tools/mkbootimg/unmkbootimg .
 cp ../bootimg-tools/cpio/mkbootfs .
 cd ..
 这样就在bootimg-tools文件夹中生成了构建boot镜像的可执行文件。
+（这儿编译cpio/mkbootfs.c文件的时候报错，但是整个流程中并没有使用到mkbootfs来构建boot时文件系统，而是直接使用了已有打包boot.img中解压出来的文件系统）
 
 准备编译环境设置脚本：
 nano run_this_android.sh
@@ -237,14 +325,17 @@ export CROSS_COMPILE=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 export ARCH=arm
 export SUBARCH=arm
 # 设置boot.img生成工具
-export PATH=$PATH:$(pwd)/andorid_boot_tools_bin
+export PATH=$PATH:$(pwd)/android_boot_tools
 }
 然后设置为可执行，然后再当前终端中生效：
 chmod +x run_this_android.sh
 source run_this_android.sh
 
+交叉编译器的选择：
+目前使用的是来自 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/ 的交叉编译器，而不是上面小节中的 https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 因为就算是修改了权限，还是有问题，这个留给以后解决。
+
 设置交叉编译器的权限（这一步非常关键）：
-从官方下载下来的工具的权限是有问题的，所以一定要对交叉编译器目录进行整体的权限设置：
+因为是从windows下代理下载官方的构建工具，所以权限是有问题的，所以一定要对交叉编译器目录进行整体的权限设置：
 chmod -R +x arm-eabi-4.7/
 然后对其中的bin目录设置为755权限：
 chmod -R 755 bin/*
@@ -451,7 +542,6 @@ fastboot reboot
 测试一下自己编译的内核有没有正常运行吧。
 
 
-
 <2>HMN3pro内核编译：
 从xda上的HM3PRO板块找到android 6的可用的内核（也就是CM13），找到：
 http://forum.xda-developers.com/redmi-note-3/development/kernel-infected-kernel-r1-t3422554
@@ -482,7 +572,35 @@ cp android/config/default.cfg ../../.config
 make defconfig
 
 
-
+<3>关于第三方内核包的解析：
+如果设备开源了，或者泄露了内核代码，那么内核高手就可以根据这些已经开放出来的内核代码进行修改和定制，形成各种各样的第三方内核包。一般而言，最后给用户的是一个zip包，用来支持卡刷升级。现在以hmn3pro为例，选取第三方内核包Radon-V2.1-Kenzo.zip为例进行说明。
+整个zip包的结构为：
+Radon-V2.1-Kenzo.zip
+│
+├─META-INF
+│  │  CERT.RSA
+│  │  CERT.SF
+│  │  MANIFEST.MF
+│  │  
+│  └─com
+│      └─google
+│          └─android
+│                  update-binary
+│                  updater-script
+│                  updater-script~
+│                  
+├─system
+│  └─lib
+│      └─modules
+│              wlan.ko
+│              
+└─tools
+        dt.img
+        flash_kernel.sh
+        Image
+        mkbootimg
+        unpackbootimg
+要分析这个包的具体结构，需要明确的一点就是这个zip包是供recovery来刷入的，所以一定符合recovery的要求（官方和第三方都是一个标准）。
 
 
 <3>构造文件系统：
