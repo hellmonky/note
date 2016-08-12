@@ -349,16 +349,20 @@ yum remove kernel
 
 16 LVM空间调整：
 系统在使用的过程中，随着使用磁盘空间会变话，这个时候需要动态扩展目录，这儿使用减少home增加root的方式：
-把/home内容备份，然后将/home文件系统所在的逻辑卷删除，扩大/root文件系统，新建/home：
-tar cvf /tmp/home.tar /home #备份/home
-umount /home #卸载/home，如果无法卸载，先终止使用/home文件系统的进程
-lvremove /dev/centos/home #删除/home所在的lv
-lvextend -L +50G /dev/centos/root #扩展/root所在的lv，增加50G
-xfs_growfs /dev/centos/root #扩展/root文件系统
-lvcreate -L 56G -n home centos #重新创建home lv
-mkfs.xfs /dev/centos/home #创建文件系统
-mount /dev/centos/home /home #挂载
-df -h
+把/home内容备份，然后将/home文件系统所在的逻辑卷删除，扩大/root文件系统，新建/home，具体过程如下：
+首先，备份/home分区内容到缓存中：
+tar cvf /tmp/home.tar /home
+<2>卸载/home，如果无法卸载，先终止使用/home文件系统的进程：
+umount /home
+这儿需要注意：如果是root用户登入，则无法用root权限移除/root分区。
+<3>接下来，删除/home所在的lv：
+lvremove /dev/centos/home
+<4>扩展/root所在的lv，这儿以增加50G为例，具体可以查看当前新增加的硬盘：
+lvextend -L +50G /dev/centos/root
+<5>扩展/root文件系统
+xfs_growfs /dev/centos/root
+<6>重新创建home lv：
+lvcreate -L 56G -n home centos
 需要注意的是，在使用lvcreate重新生成home磁盘的时候会出现：
 Volume group "centos" has insufficient free space (4482 extents): 4483 required.
 这样的错误，问题在于空间不够，先查看当前的剩余空间：
@@ -390,8 +394,15 @@ vgdisplay
 计算：4482×4Mib/1024=17.5078125G，大概等于17.5G，修改命令为：
 lvcreate -L 56G -n home centos
 回显：Logical volume "home" created. 表示生成成功。
-最后恢复home中的内容：
+<7>创建/home分区的文件系统，选择centos默认的xfs文件系统：
+mkfs.xfs /dev/centos/home
+<8>挂载新建的分区到/home路径下：
+mount /dev/centos/home /home
+<9>检查当前的硬盘信息：
+df -h
+<10>最后恢复home中的内容：
 tar -xvf /tmp/home.tar -C /home
+
 PS:最好的方式就是生成两块硬盘，其中一个挂载为home，其余的挂载为系统硬盘。这样以后扩展LVM的分区时候更加方便，可以整块加入。
 
 
