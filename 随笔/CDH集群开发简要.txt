@@ -337,6 +337,64 @@ http://wlog.cn/soft/git-ssh-server-for-debian.html
 http://www.open-open.com/lib/view/open1328069988843.html
 http://www.cnblogs.com/dudu/archive/2012/12/09/linux-apache-git.html
 
+14 安装图形界面：
+使用centos的过程中，需要进行代码工作的时候，需要使用IDE，进而需要图形界面
+
+15 删除旧内核：
+使用一段时间之后，随着官方升级，内核版本也在更新，查看当前已经安装的内核：
+rpm -qa | grep kernel
+这个时候可以删除旧有内核来减少空间的使用，使用命令如下：
+yum remove kernel
+这个命令会删除非当前使用的内核，并做好清理工作。
+
+16 LVM空间调整：
+系统在使用的过程中，随着使用磁盘空间会变话，这个时候需要动态扩展目录，这儿使用减少home增加root的方式：
+把/home内容备份，然后将/home文件系统所在的逻辑卷删除，扩大/root文件系统，新建/home：
+tar cvf /tmp/home.tar /home #备份/home
+umount /home #卸载/home，如果无法卸载，先终止使用/home文件系统的进程
+lvremove /dev/centos/home #删除/home所在的lv
+lvextend -L +50G /dev/centos/root #扩展/root所在的lv，增加50G
+xfs_growfs /dev/centos/root #扩展/root文件系统
+lvcreate -L 56G -n home centos #重新创建home lv
+mkfs.xfs /dev/centos/home #创建文件系统
+mount /dev/centos/home /home #挂载
+df -h
+需要注意的是，在使用lvcreate重新生成home磁盘的时候会出现：
+Volume group "centos" has insufficient free space (4482 extents): 4483 required.
+这样的错误，问题在于空间不够，先查看当前的剩余空间：
+vgdisplay 
+显示：
+{
+  --- Volume group ---
+  VG Name               centos
+  System ID             
+  Format                lvm2
+  Metadata Areas        1
+  Metadata Sequence No  6
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                2
+  Open LV               2
+  Max PV                0
+  Cur PV                1
+  Act PV                1
+  VG Size               119.51 GiB
+  PE Size               4.00 MiB
+  Total PE              30594
+  Alloc PE / Size       26112 / 102.00 GiB
+  Free  PE / Size       4482 / 17.51 GiB
+  VG UUID               P7hNLc-epst-AV2l-Wlcm-53iB-2BCs-fU6c6z
+}
+也就是只有 4482×4Mib/1024可用，无法扩展4483×4Mib/1024。
+计算：4482×4Mib/1024=17.5078125G，大概等于17.5G，修改命令为：
+lvcreate -L 56G -n home centos
+回显：Logical volume "home" created. 表示生成成功。
+最后恢复home中的内容：
+tar -xvf /tmp/home.tar -C /home
+PS:最好的方式就是生成两块硬盘，其中一个挂载为home，其余的挂载为系统硬盘。这样以后扩展LVM的分区时候更加方便，可以整块加入。
+
+
 
 
 
@@ -1292,9 +1350,7 @@ du [-abcDhHklmsSx] [-L <符号连接>][-X <文件>][--block-size][--exclude=<目
 –version 显示版本信息。
 
 
-关于centos7中落后内核的删除：
-yum remove kernel
-这个命令会删除非当前使用的内核，并做好清理工作。
+
 
 
 

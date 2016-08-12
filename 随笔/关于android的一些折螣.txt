@@ -533,6 +533,7 @@ cp ../msm/arch/arm/boot/zImage-dtb kernel_new
 然后开始用这个新的内核进行打包：
 mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
 这样新的可以直接刷入的boot_new.img就成功制作好了。
+通过上述分析，可以知道android所使用的内核格式是Linux标准的zImage，根文件系统采用ramdisk格式。这两者在Android下是直接合并在一起取名为boot.img,会放在一个独立分区当中。一般而言，这个分区会独立存在，称为boot分区。
 
 最后刷入新的内核进行开机测试：
 adb start-server
@@ -601,6 +602,191 @@ Radon-V2.1-Kenzo.zip
         mkbootimg
         unpackbootimg
 要分析这个包的具体结构，需要明确的一点就是这个zip包是供recovery来刷入的，所以一定符合recovery的要求（官方和第三方都是一个标准）。
+下面就针对目录和文件说明功能：
+(a)META-INF目录，这个目录存放关于这个刷机包的元信息，主要包含以下内容：
+ CERT.RSA:(签名文件相关,保存公匙和加密算法) 
+ CERT.SF:(签名文件相关,保存私匙,CERT代表签名者) 
+ MAINFEST.MF:(这个manifest文件定义了与包的组成结构相关的数据) 
+ com/google/android/update-binary:(一个脚本解释器，能够识别updater-script中描述的操作) 
+ com/google/android/updater-script:(脚本文件，具体描述了更新过程) 
+ com/google/android/metadata:(描述设备信息及环境变量的元数据)
+其中最关键的就是com/google/android/updater-script这个脚本，定义了刷机中的操作。
+(b)system目录，这个目录的内容在升级后会放在系统的system分区。主要用来更新系统的一些应用或则应用会用到的一些库等等。
+可以从上面的内容看出，这个库主要包含了一个内核驱动文件。也就是说更新这个内核的时候，同时更新了一个wifi的内核驱动模块。
+(c)tools目录是一个自建目录，也就是说这个目录不会被自动释放，他的设置和com/google/android/updater-script密切相关。
+接下来根据updater-script的内容来分析下整个内核zip包的行为，首先这个脚本的格式为edify，edify有两个主要的文件。这些文件可以在.zip文件内的META-INF/com/google/android文件夹中找到。它们是：
+update-binary -- 当用户选择刷入.zip（通常是在恢复模式中）时所执行的二进制解释器。
+updater-script -- 安装脚本，它是一个文本文件。
+所以整个事件有了眉目，这个zip包包含了特殊的目录结构，并且可以被recovery解压缩识别，然后完成功能的主要核心部件是edify的两个文件，包含一个解释器和一个脚本，这个脚本控制了整个zip包的执行内容，并且顺序执行。
+关于脚本，它包含了基本的函数来调用实现功能和展示，简单介绍为：
+{
+1、mount
+语法：
+mount(type, location, mount_point);
+说明：
+type="MTD" location="<partition>" 挂载yaffs2文件系统分区；
+type="vfat" location="/dev/block/<whatever>" 挂载设备。
+例如：
+mount("MTD", "system", "/system");挂载system分区，设置返回指针"/system”
+mount("vfat", "/dev/block/mmcblk1p2", "/system");
+挂载/dev/block/mmcblk1p2，返回指针"/system”
+2、Unmount
+语法：
+unmount(mount_point);
+说明：
+mount_point是mount所设置产生的指针。其作用与挂载相对应，卸载分区或设备。此函数与mount配套使用。
+例如：
+unmount("/system");
+卸载/system分区
+3、Format
+语法：
+format(type, location);
+说明：
+type="MTD" location=partition（分区），格式化location参数所代表的分区。
+例如：
+format("MTD", "system");格式化system分区
+4、Delete
+语法：
+delete(<path>);
+说明：
+删除文件<path>
+例如：
+delete("/data/zipalign.log");删除文件/data/zipalign.log
+5、delete_recursive
+语法：
+delete_recursive(<path>);
+说明：
+删除文件夹<path>
+例如：
+delete_recursive("/data/dalvik-cache");删除文件夹/data/dalvik-cache
+6、show_progress
+语法：
+show_progress(<fraction>,<duration>);
+说明：
+为下面进行的程序操作显示进度条，进度条会根据<duration>进行前进<fraction>
+例如：
+show_progress(0.1, 10);show_progress下面的操作可能进行10s，完成后进度条前进0.1（也就是10%）
+7、package_extract_dir
+语法：
+package_extract_dir(package_path, destination_path);
+说明：
+释放文件夹package_path至destination_path
+例如：
+package_extract_dir("system", "/system");释放ROM包里system文件夹下所有文件和子文件夹至/system
+8、package_extract_file
+语法：
+package_extract_file(package_path, destination_path);
+说明：
+解压package_path文件至destination_path
+例如：
+package_extract_dir("my.zip", "/system");解压ROM包里的my.zip文件至/system
+9、Symlink
+语法：
+symlink(<target>, <src1>, <src2>,...);
+说明：
+建立指向target符号链接src1，src2，……
+例如：
+symlink("toolbox", "/system/bin/ps");建立指向toolbox的符号链接/system/bin/ps
+10、set_perm
+语法：
+set_perm(<uid>, <gid>,<mode>, <path>);
+说明：
+设置<path>文件的用户为uid，用户组为gid，权限为mode
+例如：
+set_perm(1002, 1002, 0440, "/system/etc/dbus.conf");设置文件/system/etc/dbus.conf的所有者为1002，所属用户组为1002，权限为：所有者有读权限，所属用户组有读权限，其他无任何权限。
+11、set_perm_recursive
+语法：
+set_perm_recursive(<uid>,<gid>,<dir-mode>,<file-mode>,<path>);
+说明：
+设置文件夹和文件夹内文件的权限
+例如：
+set_perm_recursive(1000, 1000, 0771, 0644, "/data/app");设置/data/app的所有者和所属用户组为1000，app文件夹的权限是：所有者和所属组拥有全部权限，其他有执行权限；app文件夹下的文件权限是：所有者有读写权限，所属组有读权限，其他有读权限。
+12、ui_print
+语法：
+ui_print("str");
+说明：
+屏幕打印输出"str"
+例如：
+ui_print("It's ready!");屏幕打印It’s ready!
+13、run_program
+语法：
+run_program(<path>);
+说明：
+运行<path>脚本
+例如：
+run_program("/sbin/busybox","mount","/system")；
+14、write_raw_image
+语法：
+write_raw_image(<path>, partition);
+说明：
+写入<path>至partition分区
+例如：
+write_raw_image("/tmp/boot.img", "boot")将yaffs2格式的boot包直接写入boot分区
+15、assert
+语法：
+assert(<sub1>,<sub2>,<sub3>);
+说明：
+如果执行sub1不返回错误则执行sub2，如果sub2不返回错误则执行sub3一次类推。
+例如：
+assert(package_extract_file("boot.img", "/tmp/boot.img"),
+write_raw_image("/tmp/boot.img", "boot"),
+delete("/tmp/boot.img"));执行package_extract_file，如果不返回错误则执行write_raw_image，如果write_raw_image不出错则执行delete[1] 
+}
+根据这个基本内容，分析当前的脚本含义（除去用户端输出）：
+{
+ui_print(" ");
+ui_print("===================================");
+# 解压缩tools文件夹到内存文件系统的/tmp目录下
+package_extract_dir("tools", "/tmp");
+ui_print(" ");
+ui_print("Extracting Files");
+# 设置/tmp/mkbootimg文件的用户为0，用户组为0，权限为0777；也就是说用户为root，组为root，权限0777表示有读和写以及执行的权限
+set_perm(0, 0, 0777, "/tmp/mkbootimg");
+set_perm(0, 0, 0777, "/tmp/unpackbootimg");
+set_perm(0, 0, 0777, "/tmp/flash_kernel.sh");
+# 运行/tmp/flash_kernel.sh脚本
+run_program("/tmp/flash_kernel.sh");
+ui_print(" ");
+ui_print("Flashing Radon Kernel");
+# 删除内存文件系统中的文件
+delete("/tmp/boot.img");
+delete("/tmp/mkbootimg");
+delete("/tmp/unpackbootimg");
+delete("/tmp/flash_kernel.sh");
+# 挂载位于/dev/block/bootdevice/by-name/system的ext4文件系统EMMC分区，返回到/system路径下
+mount("ext4", "EMMC", "/dev/block/bootdevice/by-name/system", "/system");
+ui_print(" ");
+ui_print("Installing kernel modules");
+ui_print(" ");
+# 将当前的system路径解压到/system路径下，会完整的释放整个文件目录的路径中
+package_extract_dir("system", "/system");
+# 解除/system路径下的文件系统挂载
+unmount("/system");
+ui_print("Done, Enjoy Radon Power !");
+ui_print(" ");
+ui_print("===================================");
+ui_print(" ");
+}
+这样就展示了完整的刷机过程，其中调用了一个最为关键的脚本，就是位于/tools/flash_kernel.sh，现在继续看看这个脚本的内容：
+{
+cd /tmp/
+/sbin/busybox dd if=/dev/block/bootdevice/by-name/boot of=./boot.img
+./unpackbootimg -i /tmp/boot.img
+./mkbootimg --kernel /tmp/Image --ramdisk /tmp/boot.img-ramdisk.gz --cmdline "console=ttyHSL0,115200,n8 androidboot.console=ttyHSL0 androidboot.hardware=qcom msm_rtb.filter=0x237 ehci-hcd.park=3 androidboot.bootdevice=7824900.sdhci lpm_levels.sleep_disabled=1 earlyprintk"  --base 0x80000000 --pagesize 2048 --ramdisk_offset 0x02000000 --tags_offset 0x01e00000 --dt /tmp/dt.img -o /tmp/newboot.img
+/sbin/busybox dd if=/tmp/newboot.img of=/dev/block/bootdevice/by-name/boot
+}
+总共5条命令，现在分析如下：
+第一条：进入到当前文件系统的/tmp目录下；
+第二条：执行/sbin/busybox下的dd命令，指定输入文件为：/dev/block/bootdevice/by-name/boot，输出文件为：当前路径下的boot.img。也就是说保存当前系统的boot分区到当前文件夹下的boot.img文件中；
+第三条：使用当前路径下的unpackbootimg命令，用-i参数解开/tmp/boot.img文件。也就是将原始boot分区的内容解压，会解压出以下内容：
+	boot.img-zImage (内核文件）
+	boot.img-ramdisk.gz (根文件系统打包文件）
+	boot.img-cmdline (mkbootimg cmdline参数)
+	boot.img-pagesize (mkbootimg pagesize参数)
+	boot.img-base (mkbootimg base参数)
+最主要的就是zImage和ramdisk文件了。
+第四条：使用当前路径下的mkbootimg命令来打包新的内核，并且指定了新的内核文件为/tmp/Image，而根文件系统还是从原来boot.img中解压出来的boot.img-ramdisk.gz文件，最后输出为/tmp/newboot.img。这里有一个点，是android4之后出现的，那就是"--dt /tmp/dt.img"这个参数，
+第五条：
 
 
 <3>构造文件系统：
@@ -652,5 +838,61 @@ NAME="eno16777736"
 UUID="26484f0f-fa3e-4cc1-a570-69204c000434"
 DEVICE="eno16777736"
 ONBOOT="yes"
+
+
+（）下载android源代码：
+国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码，并且android的源代码只能在linux系统中编译，使用虚拟机来解决这个问题。
+具体过程如下；
+<1>下载repo工具：android使用这个工具来完成源代码的管理，这个文件是一个脚本，使用git来下载源代码，所以系统中必须安装git
+这儿在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
+mkdir /root/source/bin
+PATH=/root/source/bin:$PATH
+curl https://storage.googleapis.com/git-repo-downloads/repo > /root/source/bin/repo
+chmod a+x ~/bin/repo
+<2>修改repo中的下载源为清华大学下载源:
+编辑/root/source/bin/repo，将REPO_URL 一行替换成下面的：
+{
+REPO_URL = 'https://gerrit-google.tuna.tsinghua.edu.cn/git-repo'
+}
+<3>选择特定的Android版本，如果是Nexus系列，你可以从关于手机中的版本号（build number）中从列表中找到对应的版本。也可以访问官方网站找到对应的版本：
+https://source.android.com/source/build-numbers.html#source-code-tags-and-builds
+这儿选取nexus 5的源代码包，分支为：android-6.0.1_r60，所以下载代码为：
+mkdir androidSource
+cd androidSource
+repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.1_r60
+<4>同步下载源码树：
+repo sync -j4
+其中，-j4表示并发数为4，清华镜像只支持最大并发数4。
+下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
+<5>准备编译环境：
+用envsetup.sh（它在源代码根目录/build下面）脚本初始化环境，注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
+source build/envsetup.sh
+<6>选择编译目标：
+用lunch命令选择编译目标.额外的配置可以用参数传递。例如：
+lunch aosp_arm-eng
+其中参数aosp_arm-eng，指的是一个适用于模拟器的完整编译版本,带编译的版本。如果直接使用lunch命令不带参数，系统会弹出选项卡，让你选择对应的版本。所有的编译目标的格式都是:BUILD-BUILDTYPE，BUILD指的是指定特性的结合。其中BUILDTYPE是下面列出的其中一个：
+	Buildtype		用途
+	user			有限的权限；适合一般用户
+	userdebug		类似user模式，但有root权限和debug能力，适合debug
+	eng				带有额外的debug工具的开发配置。
+这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
+<7>开始编译：
+make -j4
+很简单，就直接make好了。
+等待编译完成后，会产生一些txt、img文件，例如：android-info.txt、cache.imgramdisk-recovery.img、recovery.img、userdata.img、boot.img、ramdisk.img 、system.img。这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。
+具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
+也可以用源代码根目录下输入 find . -name system.img查找具体的路径在哪里。
+<8>刷机测试：
+编译完毕之后，生成的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
+将手机切换到fastboot模式，然后再命令行中切换到刚刚生成img文件的目录下，使用如下命令烧录固件：
+fastboot flashall -w
+其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
+这个脚本和官方线刷包中的zip包中flash-all.bat的内容功能相同，就是用来将指定的镜像写入到指定的分区中。这儿使用flashall来简化写法。
+写入完毕之后使用：
+fastboot reboot
+重启进入系统。
+如果一切顺利，你已经用上了自己根据官方开源编译出来的完整android系统。恭喜！
+
+
 
 
