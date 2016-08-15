@@ -855,7 +855,7 @@ sudo yum install zip
 sudo yum install unzip
 综合一条命令搞定：
 yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
-
+而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
 <1>下载repo工具：
 国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
 android开源使用repo来完成源代码的管理，这个repo文件是一个python脚本，并且使用git来下载源代码，所以系统中必须安装git和python。现在在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
@@ -882,6 +882,7 @@ repo sync -j4
 下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
 <5>下载官方提供的驱动包：
 根据官方网站：https://developers.google.com/android/nexus/drivers 给出的android设备对应android版本来下载对应的AOSP驱动包。这儿选择：Nexus 5 (GSM/LTE) binaries for Android 6.0.1 (MOB30Y)，然后添加进入源代码中：
+进入android源代码目录，下载驱动代码包：
 cd source
 # Broadcom for NFC, Bluetooth, Wi-Fi
 wget https://dl.google.com/dl/android/aosp/broadcom-hammerhead-mob30y-d12b1bea.tgz
@@ -889,10 +890,10 @@ wget https://dl.google.com/dl/android/aosp/broadcom-hammerhead-mob30y-d12b1bea.t
 wget https://dl.google.com/dl/android/aosp/lge-hammerhead-mob30y-546d280a.tgz
 # Qualcomm for Graphics, GSM, Camera, GPS, Sensors, Media, DSP, USB
 wget https://dl.google.com/dl/android/aosp/qcom-hammerhead-mob30y-d90ee87e.tgz
-
-然后解压：
-
-
+然后解压进入驱动目录：
+ls *.tgz |xargs -n1 tar -zxvf
+for i in extract*; do sed -n '/tail/p' $i | sed "s/\$0/$i/" | sh; done
+PS：增加驱动代码包非常重要，如果不加入这个，可以用来进行模拟器启动，但是刷入实体机的时候因为驱动的缺失导致无法开机。
 <6>准备编译环境：
 用envsetup.sh（它在源代码根目录/build下面）脚本初始化环境，注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
 source build/envsetup.sh
@@ -935,34 +936,30 @@ make -j4 >> compiler.log
 等待编译完成后，会产生如下重要文件：
 {
 android-info.txt
-cache.imgramdisk-recovery.img
-recovery.img
-userdata.img
 boot.img
+cache.img
 ramdisk.img
+recovery.img
 system.img
+userdata.img
 }
-{
--rw-r--r--. 1 root root   9377792 8月  14 00:11 boot.img
--rw-r--r--. 1 root root  13668740 8月  14 00:11 cache.img
--rw-r--r--. 1 root root    922534 8月  14 00:11 ramdisk.img
--rw-r--r--. 1 root root   1800301 8月  14 00:11 ramdisk-recovery.img
--rw-r--r--. 1 root root  10256384 8月  14 00:11 recovery.img
--rw-r--r--. 1 root root 367251612 8月  14 00:11 system.img
--rw-r--r--. 1 root root 141044692 8月  14 00:11 userdata.img
-}
-这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。
-具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
+这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
 也可以用源代码根目录下输入 find . -name system.img查找具体的路径在哪里。
 <9>刷机测试：
-编译完毕之后，生成的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
-将手机切换到fastboot模式，然后再命令行中切换到刚刚生成img文件的目录下，使用如下命令烧录固件：
-fastboot flashall -w
-其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
-这个脚本和官方线刷包中的zip包中flash-all.bat的内容功能相同，就是用来将指定的镜像写入到指定的分区中。这儿使用flashall来简化写法。
-写入完毕之后使用：
+编译完毕之后，<8>中列出的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
+由于本人是在服务器上进行编译的，然后再本机进行刷机测试，故采用打包的方式进行刷机。将上述文件打包为zip格式，然后编辑脚本：flash-all.bat
+{
+@ECHO OFF
+:: 其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
+fastboot -w update images.zip
 fastboot reboot
-重启进入系统。
+echo Press any key to exit...
+pause >nul
+exit
+}
+将手机切换到fastboot模式，使用这个脚本更新系统：
+flash-all.bat
+稍等片刻，刷入完毕之后就自动重启进入系统。
 如果一切顺利，你已经用上了自己根据官方开源编译出来的完整android系统。恭喜！
 <10>源代码的备份：
 由于android系统源代码非常大，并且每次下载都非常缓慢，建议一下下载之后打包存储，将本机下载的源代码包上传到服务器备份：
