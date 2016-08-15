@@ -3,9 +3,11 @@ CDH 5.7.1 安装教程：
 搭建环境：centos7_x64,CDH5.7.1安装包
 
 （0）centos7 minimal安装配置：
-0 官方rpm包下载：
+0 安装准备：
+官方rpm包下载地址：
 http://mirror.centos.org/centos/7/extras/x86_64/Packages/
 http://mirror.centos.org/centos/7/os/x86_64/Packages/
+安装系统的时候注意自定义硬盘使用空间分配，否则后续扩容很麻烦。
 
 1 启用网络：
 首先使用root登录服务器，输入

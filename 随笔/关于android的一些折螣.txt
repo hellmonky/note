@@ -840,15 +840,31 @@ DEVICE="eno16777736"
 ONBOOT="yes"
 
 
-（）下载android源代码：
-国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码，并且android的源代码只能在linux系统中编译，使用虚拟机来解决这个问题。
-具体过程如下；
-<1>下载repo工具：android使用这个工具来完成源代码的管理，这个文件是一个脚本，使用git来下载源代码，所以系统中必须安装git
-这儿在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
+（）在centos7下编译android源代码(AOSP源代码)：
+<0>基础环境设置：
+# fetch source
+sudo yum install git
+sudo yum install wget
+# to compile
+sudo yum install java-1.7.0-openjdk
+sudo yum install java-1.7.0-openjdk-devel
+sudo yum install glibc.i686
+sudo yum install libstdc++.i686
+sudo yum install bison
+sudo yum install zip
+sudo yum install unzip
+综合一条命令搞定：
+yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
+
+<1>下载repo工具：
+国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
+android开源使用repo来完成源代码的管理，这个repo文件是一个python脚本，并且使用git来下载源代码，所以系统中必须安装git和python。现在在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
 mkdir /root/source/bin
 PATH=/root/source/bin:$PATH
 curl https://storage.googleapis.com/git-repo-downloads/repo > /root/source/bin/repo
-chmod a+x ~/bin/repo
+chmod a+x /root/source/binrepo
+或者使用相同的数字权限：
+chmod 777 /root/source/binrepo
 <2>修改repo中的下载源为清华大学下载源:
 编辑/root/source/bin/repo，将REPO_URL 一行替换成下面的：
 {
@@ -864,10 +880,23 @@ repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.
 repo sync -j4
 其中，-j4表示并发数为4，清华镜像只支持最大并发数4。
 下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
-<5>准备编译环境：
+<5>下载官方提供的驱动包：
+根据官方网站：https://developers.google.com/android/nexus/drivers 给出的android设备对应android版本来下载对应的AOSP驱动包。这儿选择：Nexus 5 (GSM/LTE) binaries for Android 6.0.1 (MOB30Y)，然后添加进入源代码中：
+cd source
+# Broadcom for NFC, Bluetooth, Wi-Fi
+wget https://dl.google.com/dl/android/aosp/broadcom-hammerhead-mob30y-d12b1bea.tgz
+# LG for Camera, Sensors, Audio
+wget https://dl.google.com/dl/android/aosp/lge-hammerhead-mob30y-546d280a.tgz
+# Qualcomm for Graphics, GSM, Camera, GPS, Sensors, Media, DSP, USB
+wget https://dl.google.com/dl/android/aosp/qcom-hammerhead-mob30y-d90ee87e.tgz
+
+然后解压：
+
+
+<6>准备编译环境：
 用envsetup.sh（它在源代码根目录/build下面）脚本初始化环境，注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
 source build/envsetup.sh
-<6>选择编译目标：
+<7>选择编译目标：
 用lunch命令选择编译目标.额外的配置可以用参数传递。例如：
 lunch aosp_arm-eng
 其中参数aosp_arm-eng，指的是一个适用于模拟器的完整编译版本,带编译的版本。如果直接使用lunch命令不带参数，系统会弹出选项卡，让你选择对应的版本。所有的编译目标的格式都是:BUILD-BUILDTYPE，BUILD指的是指定特性的结合。其中BUILDTYPE是下面列出的其中一个：
@@ -876,13 +905,56 @@ lunch aosp_arm-eng
 	userdebug		类似user模式，但有root权限和debug能力，适合debug
 	eng				带有额外的debug工具的开发配置。
 这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
-<7>开始编译：
-make -j4
-很简单，就直接make好了。
-等待编译完成后，会产生一些txt、img文件，例如：android-info.txt、cache.imgramdisk-recovery.img、recovery.img、userdata.img、boot.img、ramdisk.img 、system.img。这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。
+lunch aosp_hammerhead-userdebug
+或者输入lunch，然后选择19，出现的结果为：
+{
+============================================
+PLATFORM_VERSION_CODENAME=REL
+PLATFORM_VERSION=6.0.1
+TARGET_PRODUCT=aosp_hammerhead
+TARGET_BUILD_VARIANT=userdebug
+TARGET_BUILD_TYPE=release
+TARGET_BUILD_APPS=
+TARGET_ARCH=arm
+TARGET_ARCH_VARIANT=armv7-a-neon
+TARGET_CPU_VARIANT=krait
+TARGET_2ND_ARCH=
+TARGET_2ND_ARCH_VARIANT=
+TARGET_2ND_CPU_VARIANT=
+HOST_ARCH=x86_64
+HOST_OS=linux
+HOST_OS_EXTRA=Linux-3.10.0-327.28.2.el7.x86_64-x86_64-with-centos-7.2.1511-Core
+HOST_BUILD_TYPE=release
+BUILD_ID=MOB30Y
+OUT_DIR=out
+=============================================
+}
+<8>开始编译：
+make -j4 >> compiler.log
+很简单，就直接make好了，然后将日志写入到文件中，方便查看记录和排查错误。
+等待编译完成后，会产生如下重要文件：
+{
+android-info.txt
+cache.imgramdisk-recovery.img
+recovery.img
+userdata.img
+boot.img
+ramdisk.img
+system.img
+}
+{
+-rw-r--r--. 1 root root   9377792 8月  14 00:11 boot.img
+-rw-r--r--. 1 root root  13668740 8月  14 00:11 cache.img
+-rw-r--r--. 1 root root    922534 8月  14 00:11 ramdisk.img
+-rw-r--r--. 1 root root   1800301 8月  14 00:11 ramdisk-recovery.img
+-rw-r--r--. 1 root root  10256384 8月  14 00:11 recovery.img
+-rw-r--r--. 1 root root 367251612 8月  14 00:11 system.img
+-rw-r--r--. 1 root root 141044692 8月  14 00:11 userdata.img
+}
+这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。
 具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
 也可以用源代码根目录下输入 find . -name system.img查找具体的路径在哪里。
-<8>刷机测试：
+<9>刷机测试：
 编译完毕之后，生成的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
 将手机切换到fastboot模式，然后再命令行中切换到刚刚生成img文件的目录下，使用如下命令烧录固件：
 fastboot flashall -w
@@ -892,6 +964,40 @@ fastboot flashall -w
 fastboot reboot
 重启进入系统。
 如果一切顺利，你已经用上了自己根据官方开源编译出来的完整android系统。恭喜！
+<10>源代码的备份：
+由于android系统源代码非常大，并且每次下载都非常缓慢，建议一下下载之后打包存储，将本机下载的源代码包上传到服务器备份：
+scp -r /home/wentao/android/source root@192.168.1.100:/home/local_disk/
+将会把本地的source文件夹上传到服务器的local_disk路径下。
+可以通过命令：
+du -h --max-depth=1 文件夹
+查看当前文件夹的大小，来进行上传监控。
+或者使用tar+ssh的方式，可以直接备份到异地，减少在本地生成备份包，及通过内部网络传输来降低tar+gzip打包时对磁盘的IO压力。
+(a)tar本地调用gzip打包压缩，然后用ssh传输到远程服务器，在远程服务器通过dd of的方式创建文件：
+tar zcvf - /home/wentao/android/source | ssh root@192.168.1.100 "dd of=/home/local_disk/source2.tar.gz"
+在远程服务器通过cat >的方式创建文件：
+tar zcvf - /home/wentao/android/source | ssh root@192.168.1.100 "cat > /home/local_disk/source.tar.gz"
+对比测试，发现使用dd命令要快一点。
+(b)也可以本地服务器进行打包，再到异地服务器进行压缩:
+tar cvf - /home/wentao/android/source | ssh root@192.168.1.100 "gzip -1 > /home/local_disk/source.tar.gz"
+(c)需要从远程服务器中直接解压压缩包到本地为：
+ssh root@192.168.1.100 "cat /home/local_disk/nexus5.tar.gz" | tar zxvf -
+(d)本地打包压缩传输到异地解压:
+tar -czf - /home/wentao/android/source | ssh root@192.168.0.100 "cd /mail;tar -zxf -"
+
+
+（）编译TWRP：
+作为刷机必须使用的恢复系统分区，recovery有着非常重要的作用。目前针对触摸屏最著名的开源的recovery项目为TWRP，官方网站为：https://twrp.me/，并且提供了开源的github地址：https://github.com/TeamWin/Team-Win-Recovery-Project
+<0>系统准备：
+yum install bison build-essential curl flex git gnupg gperf libesd0-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk2.8-dev libxml2 libxml2-utils lzop pngcrush schedtool squashfs-tools xsltproc zip zlib1g-dev g++-multilib gcc-multilib lib32ncurses5-dev lib32readline-gplv2-dev lib32z1-dev
+<1>设备对应的源代码获取：
+因为目前维护人员的减少，很多设备的twrp被放在其他项目中维护，从hammerhead的官方下载网页：https://twrp.me/devices/lgnexus5.html ，得到目前最新的版本维护人员为：Dees_Troy，并且得到维护的代码树地址：
+https://github.com/omnirom/android_device_lge_hammerhead
+那么我们的源代码获取就从这儿来。
+下载最新的源代码，记得选取分支为android 6.0版本：
+git clone https://github.com/omnirom/android_device_lge_hammerhead.git
+git checkout 
+
+
 
 
 
