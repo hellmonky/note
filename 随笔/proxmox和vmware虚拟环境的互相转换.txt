@@ -1,0 +1,25 @@
+proxmox和vmware虚拟环境的互相转换：
+因为服务器使用proxmox做虚拟集群环境，自己使用vmware做本地单机虚拟化，需要针对这两者之间的虚拟化进行转换。根据proxmox的官方文档：
+http://pve.proxmox.com/wiki/Migration_of_servers_to_Proxmox_VE?
+现在记录过程如下：
+
+（1）从vmware到proxmox：
+<1>转换vmware的分离硬盘位单个独立硬盘：
+使用vmware提供的工具vmware-vdiskmanager，输入分离硬盘的第一个虚拟硬盘名称，然后输出为一个完整的vmdk文件：
+"C:\Program Files\VMware\VMware Server\vmware-vdiskmanager" -r centos7_adbuild_01.vmdk -t 0 centos7_adbuild.vmdk
+<2>在proxmo中创建一个新的虚拟机，不要开机，并记住这个虚拟机的VMID；
+<3>拷贝完整的vmdk到新创建的proxmox虚拟机的路径下：/var/lib/vz/images/VMID；
+<4>在proxmox命令行下转换vmdk文件为qemu format文件：
+qemu-img convert -f vmdk centos7_adbuild.vmdk -O qcow2 vm-302-disk-1.qcow2
+<5>替换之前新建proxmox虚拟机的硬盘：
+这个时候将新生成的qcow2文件名称更换为之前新建虚拟机的名称，然后将之间的硬盘文件删除。
+<6>启动proxmox虚拟机：
+这个时候应该可以正常启动虚拟机了，为了方便操作，需要对网络进行设置：
+删除之前的ifcfg-eX文件，然后新建虚拟机默认的网卡设置文件，然后按照其他虚拟机进行设置。
+<7>连接SSH，进行管理和操作：
+网络设置完毕之后就可以使用SSH进行虚拟机的管理和操作了。
+
+（2）从proxmox到vmware虚拟机：
+
+
+

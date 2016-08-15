@@ -1323,6 +1323,47 @@ ERROR
 
 
 
+（25）日志系统：
+开发系统的过程中，日志的重要性还未凸显，但是一旦需要部署，那么日志就是分析程序运行状况的最好入口。设计完整系统的时候，日志模块需要尽早设计，尽早使用，在程序开发过程中不断完善和调整。这个主题将涉及java常用的日志组建log4j，并且结合大数据相关的kafka消息来实现一个完整的日志系统。
+
+
+
+
+
+<1>配置项目中的log4j：
+使用Kafka自带的Log4jAppender，在Log4j配置文件中进行相应的配置，即可完成将Log4j产生的日志实时发送至Kafka中。建立log4j.properties，内容如下：
+{
+## 配置log4j的kafka级别
+log4j.rootLogger=INFO,console,KAFKA
+ 
+## appender KAFKA
+log4j.appender.KAFKA=kafka.producer.KafkaLog4jAppender
+# 配置kafka处理log4j的主题名称
+log4j.appender.KAFKA.topic=dataSongLog
+log4j.appender.KAFKA.brokerList=brokerNode1:9091,brokerNode2:9092
+log4j.appender.KAFKA.compressionType=none
+log4j.appender.KAFKA.syncSend=true
+log4j.appender.KAFKA.layout=org.apache.log4j.PatternLayout
+log4j.appender.KAFKA.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss} %-5p %c{1}:%L %% - %m%n
+ 
+## appender console
+log4j.appender.console=org.apache.log4j.ConsoleAppender
+log4j.appender.console.target=System.err
+log4j.appender.console.layout=org.apache.log4j.PatternLayout
+log4j.appender.console.layout.ConversionPattern=%d (%t) [%p - %l] %m%n
+}
+<2>编写log4j类：
+用于提供全局的log4j的实例。最主要的代码为：
+{
+private static Logger logger = Logger.getLogger(XXXX.class);
+}
+其中XXXX.class表示当前这个类的名称。
+<3>编写处理log4j的kafka消费者类：
+需要继承kafka.producer.KafkaLog4jAppender
+
+org.apache.hadoop.metrics.jvm.EventCounter is deprecated. Please use org.apache.hadoop.log.metrics.EventCounter in all the log4j.properties files.
+
+<4>使用log4j记录：
 
 
 

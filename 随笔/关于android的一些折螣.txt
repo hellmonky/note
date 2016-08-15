@@ -894,6 +894,7 @@ wget https://dl.google.com/dl/android/aosp/qcom-hammerhead-mob30y-d90ee87e.tgz
 ls *.tgz |xargs -n1 tar -zxvf
 for i in extract*; do sed -n '/tail/p' $i | sed "s/\$0/$i/" | sh; done
 PS：增加驱动代码包非常重要，如果不加入这个，可以用来进行模拟器启动，但是刷入实体机的时候因为驱动的缺失导致无法开机。
+这三个压缩包都只包含了一个.sh脚本，但是在这个脚本中则是二进制的驱动，使用这个脚本来动态生成驱动。这个也就是linux主线为什么要去除android内核的缘故吧。封闭和开放。
 <6>准备编译环境：
 用envsetup.sh（它在源代码根目录/build下面）脚本初始化环境，注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
 source build/envsetup.sh
@@ -984,15 +985,61 @@ tar -czf - /home/wentao/android/source | ssh root@192.168.0.100 "cd /mail;tar -z
 
 （）编译TWRP：
 作为刷机必须使用的恢复系统分区，recovery有着非常重要的作用。目前针对触摸屏最著名的开源的recovery项目为TWRP，官方网站为：https://twrp.me/，并且提供了开源的github地址：https://github.com/TeamWin/Team-Win-Recovery-Project
+官方给出了编译教程：http://forum.xda-developers.com/showthread.php?p=32965365#post32965365
+对于编译recovery，比较特殊的是它是和整个android源代码包结合在一起的，需要使用类似于AOSP项目一样的完整代码，然后进行编译。目前hammerhead的TWRP维护者建议使用omni来编译整个recovery。
 <0>系统准备：
-yum install bison build-essential curl flex git gnupg gperf libesd0-dev liblz4-tool libncurses5-dev libsdl1.2-dev libwxgtk2.8-dev libxml2 libxml2-utils lzop pngcrush schedtool squashfs-tools xsltproc zip zlib1g-dev g++-multilib gcc-multilib lib32ncurses5-dev lib32readline-gplv2-dev lib32z1-dev
+和之前的AOSP项目相同的基础环境准备；然后使用google的官方repo，并且添加到系统环境变量中：
+PATH=/home/wentao/android/bin:$PATH
+<1>下载omni的源代码：
+选取最新的android-6.0分支：
+repo init -u git://github.com/omnirom/android.git -b android-6.0
+然后同步下载代码：
+repo sync
+<2>编译：
+因为omni自带twrp的recovery，所以只需要lunch对应的版本，然后针对recovery编译就行。
+
+废弃：
+{
 <1>设备对应的源代码获取：
 因为目前维护人员的减少，很多设备的twrp被放在其他项目中维护，从hammerhead的官方下载网页：https://twrp.me/devices/lgnexus5.html ，得到目前最新的版本维护人员为：Dees_Troy，并且得到维护的代码树地址：
 https://github.com/omnirom/android_device_lge_hammerhead
 那么我们的源代码获取就从这儿来。
 下载最新的源代码，记得选取分支为android 6.0版本：
 git clone https://github.com/omnirom/android_device_lge_hammerhead.git
-git checkout 
+单独下载的代码量很小，只有15M左右。
+<2>修改配置文件：BoardConfig.mk
+这个文件一般放在：devices/manufacturer/codename，对应于hammerhead就是：devices/lge/hammerhead/BoardConfig.mk。上述下下载的git源代码，则直接放置在根路径下。一般我们自定义的修正放在这个文件的最后，并且进行标注。
+<3>扩展RECOVERY.FSTAB：
+在twrp2.5及以上版本支持recovery.fstab来增强TWRP's backup/restore能力。但是需要注意的是，目前twrp所支持的fstab格式版本。
+<4>加入修改过的源代码包到AOSP源代码中：
+然后使用之前的开发环境进行编译：
+source build/envsetup.sh
+lunch 19
+然后选择只编译recovery：
+make -j4 recoveryimage
+make recoveryimage -j8
+找到生成的镜像，然后刷机：
+
+（）适配TWRP还未官方支持的设备：
+https://github.com/Gaojiquan/android_bootable_recovery/wiki/%E4%B8%80%E6%AD%A5%E6%AD%A5%E6%95%99%E4%BD%A0%E5%A6%82%E4%BD%95%E6%BA%90%E7%A0%81%E7%BC%96%E8%AF%91Recovery
+http://tieba.baidu.com/p/3196418541
+http://www.romjd.com/jiaocheng/content/9336
+}
+
+注意：关于android底层的编译和测试阶段结束，现在的关键在于总体上对整个流程进行把握，而不是陷入recovery等细节中，所以这部分内容暂时搁置，现在主要学习两个方面：
+	<1>linux内核基础知识，关键在于驱动方面，并且和android针对linux内核中驱动部分的修改；
+	<2>android framework的整体架构，充分理解底层定制的c库，jvm定制版的性能，已经程序开发。
+根据上述内容，下面的主要内容集中在：
+	<1>linux的内核驱动：
+	<2>android整体架构：
+	<3>android定制jvm特性，art相关的虚拟环境：
+	<4>android程序开发流程：
+	<5>android并行程序开发：
+
+
+
+
+
 
 
 
