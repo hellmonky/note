@@ -95,6 +95,7 @@ ADB是android sdk里的一个工具, 用这个工具可以直接操作管理andr
 4 刷入第三方recovery：进入fastboot，然后输入：fastboot flash recovery recovery.img，成功后进入recovery进行基本操作，例如备份；
 5 重新进入fastboot进行解锁，然后进入recovery刷入第三方rom，因为第三方rom会改变system的内容，所以需要重新解锁。
 到这儿就完成了整个刷机过程。第三方固件需要注意底层不同会带来不同的问题，需要谨慎。
+6 这个坑爹的机器，官方线刷居然不能完整恢复，如果5.1底层和6.0底层切换造成的基带丢失只能寄希望于recovery对EFS分区的备份，否则只能返厂刷机；官方固件刷一次锁一次boot，而且解锁boot需要联网小米查数据库，真心折腾。
 
 （1）在自己安装busybox之后手动删除/system/xbin的所有内容，然后无法获取app的root之后的恢复方法：
 <1>关于root的一些基本概念：
@@ -127,7 +128,7 @@ If you want to disable root for yourself in adb, you can just compile as 'user' 
 2. 在安卓系统之上，利用安卓本身的Linux内核、服务和应用程序来运行Linux桌面。基本的原理都是chroot。但在使用图形界面这一块，有些不同：
 2.1 用的最多的是VNC，在Linux系统里运行一个VNC服务器，然后用安卓下的VNC客户端连接就可以了。但是这种方法在配置一般的手机或平板上运行不流畅。
 2.2 也可以使用Xserver应用（还没有Wayland或Mir），这比起VNC的速度比较慢的协议来说，效率要高一些，但是目前的Xserver基本不实用：http://blog.sina.com.cn/s/blog_59cf67260101bvjf.html。
-2.3. 关掉安卓服务，直接运行原生的Xorg，在这基础之上运行Linux桌面。 
+2.3. 关掉安卓服务，直接运行原生的Xorg，在这基础之上运行Linux桌面。
 运行原生的Xorg有以下好处：
 a. 比VNC：流畅。我的全志A10单核1.0GHz的机器，基本上有我原来那个赛扬的老机器用Windows XP的流畅度了。
 b. 比TF卡：方便。不用重启机器，按各种按钮，就能切换到各种Linux桌面。
@@ -166,9 +167,9 @@ wget http://jaist.dl.sourceforge.net/project/wqy/wqy-microhei/0.2.0-beta/wqy-mic
 tar -xvf wqy-microhei-0.2.0-beta.tar.gz -C /home/wentao
 sudo mv wqy-microhei /usr/share/fonts/
 sudo chmod 555 /usr/share/fonts/wqy-microhei/*
-cd /usr/share/fonts/wqy-microhei/ 
-sudo mkfontscale 
-sudo mkfontdir 
+cd /usr/share/fonts/wqy-microhei/
+sudo mkfontscale
+sudo mkfontdir
 sudo fc-cache -fv
 这样进入vnc之后就可以看到中文了。
 <2>安装基本的docker支持：
@@ -211,7 +212,152 @@ yum install -y gcc g++ kernel-devel make git
 参考文档：http://www.diogogmt.com/2015/09/19/installing-build-essentials-on-centos-7-and-ubuntu-14-03/
 
 <1>设置系统代理：
-开发android，那么代理必不可少，可以使用系统代理来进行设置：
+开发android，那么代理必不可少。使用ss可以比较稳定的解决问题。并且CentOS 7 开始默认使用Systemd作为开启启动脚本的管理工具。所以整个安装如下：
+首先安装ss：
+#安装 python setup tools
+yum install python-setuptools
+#安装pip
+easy_install pip
+#升级 pip
+pip install --upgrade pip
+#安装 shadowsocks
+pip install shadowsocks
+然后创建 shadowsocks 服务, 随系统启动：
+nano /usr/lib/systemd/system/shadowsocks.service
+写入如下内容：
+{
+[Unit]
+Description=Shadowsocks Server
+Documentation=https://github.com/shadowsocks/shadowsocks
+After=network.target remote-fs.target nss-lookup.target
+
+[Service]
+Type=forking
+#设置启动时的配置文件,根据自己的需求改。这儿使用：/usr/shadowsocks.json作为要读入的配置文件
+ExecStart=/usr/bin/sslocal -c /usr/shadowsocks.json -d start
+ExecReload=/bin/kill -HUP $MAINPID
+ExecStop=/usr/bin/sslocal -d stop
+
+[Install]
+WantedBy=multi-user.target
+}
+PS：注意这儿是sslocal，而不是ssserver，表示服务器。
+添加配置文件:
+#改为上一步中的路径, 确保各级目录存在
+nano /usr/shadowsocks.json
+写入配置内容（包含大括号，是一个json串）:
+{
+  "server": "0.0.0.0",
+  "server_port": "8388",
+  "password": "uzon57jd0v869t7w",
+  "method": "aes-256-cfb"
+}
+保存后退出，然后启动服务：
+systemctl enable shadowsocks
+systemctl start shadowsocks
+为了检查 shadowsocks 服务是否已成功启动，可以执行以下命令查看服务的状态：
+systemctl status shadowsocks -l
+如果回显：
+{
+● shadowsocks.service - Shadowsocks Server
+   Loaded: loaded (/usr/lib/systemd/system/shadowsocks.service; enabled; vendor preset: disabled)
+   Active: inactive (dead) since 二 2016-08-16 04:36:37 CST; 31s ago
+     Docs: https://github.com/shadowsocks/shadowsocks
+  Process: 13444 ExecStop=/usr/bin/ssserver -d stop (code=exited, status=0/SUCCESS)
+  Process: 13430 ExecStart=/usr/bin/ssserver -c /usr/shadowsocks.json -d start (code=exited, status=0/SUCCESS)
+
+8月 16 04:36:37 localhost.localdomain systemd[1]: Starting Shadowsocks Server...
+8月 16 04:36:37 localhost.localdomain ssserver[13430]: INFO: loading config from /usr/shadowsocks.json
+8月 16 04:36:37 localhost.localdomain ssserver[13430]: 2016-08-16 04:36:37 INFO     loading libcrypto from libcrypto.so.10
+8月 16 04:36:37 localhost.localdomain ssserver[13444]: 2016-08-16 04:36:37 ERROR    not running
+8月 16 04:36:37 localhost.localdomain systemd[1]: Started Shadowsocks Server.
+}
+表示已经启动成功了。
+如果失败，有可能是防火墙的缘故，8989是默认端口，需要按照自己购买的ss端口进行设置：
+首先安装防火墙：
+yum install firewalld
+然后设置：
+firewall-cmd --permanent --add-port=8989/tcp
+firewall-cmd --reload
+由于 Shadowsocks 使用的是 SOCKS5 协议，必须把 SOCKS5 请求转化为 HTTP 协议请求，墙内服务器的其他软件才能使用该代理。
+
+安装privoxy做转换：
+yum -y install privoxy
+编辑Privoxy配置文件，将SOCKS5协议转化为HTTP协议：
+nano /etc/privoxy/config
+添加以下内容（这最后面确实有个英文句号，不要遗漏）：
+{
+forward-socks5 / 127.0.0.1:1080 .
+}
+设置Privoxy随系统自动启动：
+systemctl enable privoxy
+启动Privoxy：
+systemctl start privoxy
+查看Privoxy状态：
+systemctl status privoxy
+如果有 running 和 active 字样，说明成功运行。
+
+安装polipo做转换：polipo是一个轻量级的缓存web代理程序。
+yum install polipo
+打开配置文件
+nano /etc/polipo/config
+设置ParentProxy为Shadowsocks，通常情况下本机shadowsocks的地址如下：
+{
+# Uncomment this if you want to use a parent SOCKS proxy:
+socksParentProxy = "localhost:1080"
+socksProxyType = socks5
+}
+设置日志输出文件：
+{
+logFile=/var/log/polipo
+logLevel=4
+}
+
+如果上述两个程序都无法安装，建议使用第三方源：
+yum install epel-release
+参考：http://www.cnblogs.com/edward2013/p/5021308.html
+这样就可以直接安装上面两个软件了。
+
+如果还不放心，可以下载软件的源代码包自己编译安装。privoxy官方网站：http://www.privoxy.org/sf-download-mirror/Sources/
+找到最新的稳定版，然后编译后安装。
+wget http://www.privoxy.org/sf-download-mirror/Sources/3.0.24%20%28stable%29/privoxy-3.0.24-stable-src.tar.gz
+编译需要的工具安装：
+yum install w3m lynx links
+然后解压缩：
+tar xf privoxy-3.0.24-stable-src.tar.gz
+autoheader && autoconf
+./configure
+make && make install
+然后根据安装位置修改配置文件完成配置。
+
+如果需要整个系统访问外网，可以使用VPN来做整个系统的代理：
+安装软件包
+yum install pptp pptp-setup
+初始化一个VPN的连接通道：myvpn
+pptpsetup --create ss --server xxx.xxx.xxx.xxx --username xxx --password xxx --encrypt --start
+这个命令会在/etc/ppp/peers目录下面，会生成一个叫ss的文件，并且在/etc/ppp目录下面，用户名和密码会写在chap-secrets文件中：
+回显：
+{
+Using interface ppp0
+Connect: ppp0 <--> /dev/pts/1
+CHAP authentication succeeded
+MPPE 128-bit stateless compression enabled
+local  IP address 192.168.0.136
+remote IP address 192.168.0.1
+}
+开启/关闭VPN：添加 pon、poff 到/usr/sbin下
+cp /usr/share/doc/ppp-2.4.5/scripts/pon /usr/sbin
+cp /usr/share/doc/ppp-2.4.5/scripts/poff /usr/sbin
+chmod +x /usr/sbin/pon /usr/sbin/poff
+这样就可以通过pon/poff <tunnel> 来启停VPN连接
+开启VPN
+pon ss
+关闭VPN
+pon ss
+删除vpn连接通道：myvpn
+pptpsetup --delete ss
+
+
 
 
 <1>android内核与GUN/linux内核的区别：
@@ -226,15 +372,15 @@ http://tech.it168.com/a2011/0725/1222/000001222793.shtml
 传统的linux系统中的程序基本都依赖于GNU C Library (glibc)，google自己打造了一个C的运行时库，称为Bionic Library (bionic)。
 因为google的官方Toolchain也是基于Bionic Libc而并非glibc的。这使得使用或移植其他Toolchain来用于Android要比较麻烦：在Google公布用于Android的官方Toolchain之前，多数的Android爱好者使用的Toolchain是在http://www.codesourcery.com/gnu_toolchains/arm/download.html 下载的一个通用的Toolchain，它用来编译和移植Android 的Linux内核是可行的，因为内核并不需要C库，但是开发Android的应用程序时，直接采用或者移植其他的Toolchain都比较麻烦，其他Toolchain编译的应用程序只能采用静态编译的方式才能运行于Android模拟器中，这显然是实际开发中所不能接受的方式。目前尚没有看到说明成功移植其他交叉编译器来编译Android应用程序的资料。
 与glibc相比，Bionic Libc有如下一些特点：
-- 采用BSD License，而不是glibc的GPL License； 
-- 大小只有大约200k，比glibc差不多小一半，且比glibc更快； 
-- 实现了一个更小、更快的pthread； 
-- 提供了一些Android所需要的重要函数，如”getprop”, “LOGI”等； 
-- 不完全支持POSIX标准，比如C++ exceptions，wide chars等； 
-- 不提供libthread_db 和 libm的实现 
+- 采用BSD License，而不是glibc的GPL License；
+- 大小只有大约200k，比glibc差不多小一半，且比glibc更快；
+- 实现了一个更小、更快的pthread；
+- 提供了一些Android所需要的重要函数，如”getprop”, “LOGI”等；
+- 不完全支持POSIX标准，比如C++ exceptions，wide chars等；
+- 不提供libthread_db 和 libm的实现
 另外，Android中所用的其他一些二进制工具也比较特殊：
-- 加载动态库时使用的是/system/bin/linker而不是常用的/lib/ld.so; 
-- prelink工具不是常用的prelink而是apriori，其源代码位于” <your_android>/build/tools/apriori” 
+- 加载动态库时使用的是/system/bin/linker而不是常用的/lib/ld.so;
+- prelink工具不是常用的prelink而是apriori，其源代码位于” <your_android>/build/tools/apriori”
 - strip工具也没有采用常用的strip，即“<your_android>/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin”目录下的arm-eabi-strip，而是位于<your_android>/out/host/linux-x86/bin/的soslim工具。
 Bionic的官方git地址为：
 https://android.googlesource.com/platform/bionic/
@@ -289,6 +435,7 @@ git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/
 安装方法同上。
 <4>第三方修改的工具链：
 和上面类似，需要手动安装并且添加到环境变量中去。关键就是选取的第三方工具链的来源。
+PS:最后选取<3>方法的4.7版本交叉编译器。
 
 2 内核代码编译：
 作为linux系统的核心，内核就是根本，之前的linuxDeploy也是利用了已经提供支持的内核才得以跑起来。
@@ -582,19 +729,19 @@ Radon-V2.1-Kenzo.zip
 │  │  CERT.RSA
 │  │  CERT.SF
 │  │  MANIFEST.MF
-│  │  
+│  │
 │  └─com
 │      └─google
 │          └─android
 │                  update-binary
 │                  updater-script
 │                  updater-script~
-│                  
+│
 ├─system
 │  └─lib
 │      └─modules
 │              wlan.ko
-│              
+│
 └─tools
         dt.img
         flash_kernel.sh
@@ -604,11 +751,11 @@ Radon-V2.1-Kenzo.zip
 要分析这个包的具体结构，需要明确的一点就是这个zip包是供recovery来刷入的，所以一定符合recovery的要求（官方和第三方都是一个标准）。
 下面就针对目录和文件说明功能：
 (a)META-INF目录，这个目录存放关于这个刷机包的元信息，主要包含以下内容：
- CERT.RSA:(签名文件相关,保存公匙和加密算法) 
- CERT.SF:(签名文件相关,保存私匙,CERT代表签名者) 
- MAINFEST.MF:(这个manifest文件定义了与包的组成结构相关的数据) 
- com/google/android/update-binary:(一个脚本解释器，能够识别updater-script中描述的操作) 
- com/google/android/updater-script:(脚本文件，具体描述了更新过程) 
+ CERT.RSA:(签名文件相关,保存公匙和加密算法)
+ CERT.SF:(签名文件相关,保存私匙,CERT代表签名者)
+ MAINFEST.MF:(这个manifest文件定义了与包的组成结构相关的数据)
+ com/google/android/update-binary:(一个脚本解释器，能够识别updater-script中描述的操作)
+ com/google/android/updater-script:(脚本文件，具体描述了更新过程)
  com/google/android/metadata:(描述设备信息及环境变量的元数据)
 其中最关键的就是com/google/android/updater-script这个脚本，定义了刷机中的操作。
 (b)system目录，这个目录的内容在升级后会放在系统的system分区。主要用来更新系统的一些应用或则应用会用到的一些库等等。
@@ -730,7 +877,7 @@ assert(<sub1>,<sub2>,<sub3>);
 例如：
 assert(package_extract_file("boot.img", "/tmp/boot.img"),
 write_raw_image("/tmp/boot.img", "boot"),
-delete("/tmp/boot.img"));执行package_extract_file，如果不返回错误则执行write_raw_image，如果write_raw_image不出错则执行delete[1] 
+delete("/tmp/boot.img"));执行package_extract_file，如果不返回错误则执行write_raw_image，如果write_raw_image不出错则执行delete[1]
 }
 根据这个基本内容，分析当前的脚本含义（除去用户端输出）：
 {
@@ -988,7 +1135,10 @@ tar -czf - /home/wentao/android/source | ssh root@192.168.0.100 "cd /mail;tar -z
 官方给出了编译教程：http://forum.xda-developers.com/showthread.php?p=32965365#post32965365
 对于编译recovery，比较特殊的是它是和整个android源代码包结合在一起的，需要使用类似于AOSP项目一样的完整代码，然后进行编译。目前hammerhead的TWRP维护者建议使用omni来编译整个recovery。
 <0>系统准备：
-和之前的AOSP项目相同的基础环境准备；然后使用google的官方repo，并且添加到系统环境变量中：
+首先设置代理：话说下载AOSP代码使用清华的repo都是可以的，就是这个omni不行！
+export http_proxy="127.0.0.1:1080"
+export https__proxy="127.0.0.1:1080"
+然后和之前的AOSP项目相同的基础环境准备；然后使用google的官方repo，并且添加到系统环境变量中：
 PATH=/home/wentao/android/bin:$PATH
 <1>下载omni的源代码：
 选取最新的android-6.0分支：
@@ -1037,12 +1187,78 @@ http://www.romjd.com/jiaocheng/content/9336
 	<5>android并行程序开发：
 
 
+（）android内核的驱动模块：
+和GUN/linux不同，android虽然使用了标准linux内核，但是再次基础上做出了非常多的修改。其中最终让android从linux树上除去的部分就在于驱动模块。
+android一方面使用了linux内核中大量关于内核驱动的代码，又通过修改内核，实现了HAL层，让自己的内核驱动在用户空间实现闭源，然后用HAL层在内核执行这些闭源驱动来保护硬件厂商的利益。
+这样android就支持了两级硬件驱动：GUN/Linux的内核硬件驱动模式（内核源代码），android的HAL硬件驱动模式（用户空间）。
+但是厂家（特指IC原厂）如果考虑到驱动移植问题（或者旧有驱动port的问题），针对linux的驱动最好还是放置在内核代码中，不然就只能在android中使用。但是有的厂家不这么干，例如高通，博通等。
+如果厂家要将自己的硬件驱动代码放在用户空间中，那么他需要这么做：
+<1>首先，在android的内核驱动中新增一个硬件驱动程序；
+<2>然后，在用户空间中为该硬件添加一个硬件抽象层模块；
+<3>接着，在应用程序框架中添加一个硬件访问服务；
+<4>最后，开发一个应用程序来访问<3>中的硬件访问服务。
+其中：
+<1>的作用在于为在Linux中只保留硬件与所需要寄存器的操作代码（一般而言为寄存器的基本读写函数），然后硬件和这些寄存器之间的数据传递就通过HAL进行，隔绝了硬件操作寄存器的详细代码实现；
+<2>的目的是进行硬件设备对<1>中资源的操作的实现，也就是厂商不愿意开源的硬件操作细节代码，最终这部分代码被编译为二进制文件供外部调用；
+<3>编写好了硬件驱动操作模块，还需要在framework中添加硬件访问接口，最后每一个硬件都有一个独立的硬件访问模块（对应于一个.so文件）；
+<4>实现一个典型的硬件访问应用，例如屏幕绘制，CPU跑分等的程序开发，这部分主要依赖于framework中的硬件接口，和底层实现完全分离。
+所以最关键的就是<2>的HAL层的实现了，他起到一个隔离作用，并且方便厂商开发私有驱动。
+总结如下：
+HAL架构比较简单，其基本原理就是在Android系统中使用用户空间的程序库（.so文件）调用位于内核空间的Linux 驱动（一般通过设备文件访问，位于/dev目录下）实现完整的驱动功能。然后给Android应用程序（APK 文件）提供统一的HAL硬件访问接口，供APK调用硬件实现功能。
+
+更为详细具体来说，legency驱动方法可以不需要Android源代码单独进行编译，完成一个基本legency驱动需要：
+<1>写LINUX驱动
+<1>写LINUX应用测试程序
+<1>写HAL驱动代码，调用linux native接口控制硬件。
+<1>写JNI接口，用来包装第二步写的应用（要用NDK来编译）生成一个.SO文件，相当于CE下的DLL
+<1>写JAVA程序,专门写一个类包含.SO文件，然后在JAVA里调用.SO里的函数。例子，可以看NDK里面的Sample文件夹，里面有一些例子
+对于使用硬件服务方式编写驱动，好处是比较灵活给上层调用，硬件隔离，需要Android源码配合编译，一般编写方式如下：
+<1>linux 字符设备驱动的编写(kernel/drivers/char/chr_dev/)
+<1>linux 字符设备驱动的验证程序(openplatform/android/externl/chr_dev/)
+<1>硬件抽象层(hal)子程序编写(android/hardware/libhardware/moudles/chr_dev/ 及android/hardware/libhardware/include/)
+<1>jni 程序编写(android/framework/base/services/jni/)
+<1>aidl 编写(android/framework/base/core/java/android/os/)
+<1>aidl 接口具体实现(android/framework/base/services/java/com/android/server/)
+<1>字符设备文件权限设置 (android/system/core/rootdir/ueventd.rc)
+<1>字符设备ko文件，自动加载设置(android/openplatform/project/common/kk_4.4_overlay/rootfs/sbin/init.rc)
 
 
+（）关于android的HAL层分析：
+Android Hal层（即 Hardware Abstraction Layer）是Google开发的Android系统里上层应用对底层硬件操作屏蔽的一个软件层次，说直白点，就是上层应用不必关心底层硬件具体是如何工作的，只需要调用底层提供的统一接口即可，这种设计思想广泛的存在于当前的软件的架构设计里。
+通过这个层次给整个android framework提供了一个统一的java访问硬件的接口，这个接口底层通过JNI调用本地so文件的形式来实现实际硬件的操作。
+<1>Android Hal架构分为两种：
+①旧的架构module：
+Module架构
+     Android用户应用程序或者框架层代码由JAVA实现，Java运行在Dalvik虚拟机中，没有办法直接访问底层硬件，只能通过调用so本地库代码实现，在so本地代码里有对底层硬件操作的代码。应用层或者框架层Java代码，通过JNI技术调用C或C++写的so库代码，在so库代码中调用底层驱动，从而实现上层应用操作底层硬件的目的。实现硬件操作的so库为module。
+     这种设计架构虽然满足了Java应用访问硬件的需要，但是，使得我们的代码上下层次间的耦合太高，用户程序或者框架代码必须要去加载module库，如果底层硬件有变化，module要从新编译，上层也要做相应变化，另外，如果多个应用程序同时访问硬件，都去加载module，同一module被多个进程映射多次，会有代码的重入问题。
+②新的架构module stub：
+     新的代码架构使用的是module stub方式.Stub是存根或者桩的意思，其实说白了，就是指一个对象代表的意思。上层应用层或者框架层代码加载so库代码，so库代码我们称之为module，在Hal层注册了每个硬件对象的存根stub，当上层需要访问硬件的时候，就从当前注册的硬件对象stub里查找，找到之后stub会向上层module提供该硬件对象的operations interface（操作接口），该操作接口就保存在module中，上层应用或框架层再通过这个module操作接口来访问硬件。
+这两种结构的对比：
+    在Module架构中，本地代码由so库实现，上层直接将so库映射到进程空间，会有代码重入及设备多次打开的问题。新的Stub框架虽然也要加载module库，但是这个module已经不包含操作底层硬件驱动的功能了，它里面保存的只是底层stub提供的操作接口，底层stub扮演了“接口提供者”的角色，当stub第一次被使用时加载到内存，后续再使用时仅返回硬件对象操作接口，不会存在设备多次打开的问题，并且由于多进程访问时返回的只是函数指针，代码并没有重入。
+<2>module stub代码分析：
+Hal Stub的框架比较简单，三个结构体、两个常量、一个函数，简称321架构，它的定义在：
+../hardware/libhardware/include/hardware/hardware.h
+../hardware/libhardware/hardware.c
+这两个文件中。
+三个重要的结构体，其包含在hardware.h中，具体代码为：
+```c
+/**
+ *每一个硬件都通过hw_module_t来描述，我们称之为一个硬件对象。你可以去"继承"这个hw_module_t
+ *然后扩展自己的属性，硬件对象必须定义为一个固定的名字HMI,即:Hardware Module Information的简写
+ *每个硬件对象里都封装了一个函数指针open用于打开硬件，我们理解为硬件对象的open方法，open调用后
+ *返回这个硬件对应的操作接口集合
+**/
+typedef struct hw_module_t
 
+/**
+ *硬件对象的open方法描述结构体，它里面只有一个元素:open函数指针
+**/
+typedef struct hw_module_methods_t
 
-
-
-
-
-
+/**
+ *硬件对象hw_module_t的open方法返回该硬件的Operation interface，它由hw_device_t结构体来描述
+ *我们称之为该硬件的操作接口
+**/
+typedef struct hw_device_t
+```
+上述三个结构体之间关系紧密，每个硬件对象都由hw_module_t来描述，只要我们拿到了这个硬件对象，就可以调用它的open方法，返回这个硬件对象的硬件操作接口，然后就可以通过这些硬件操作接口来间接操作硬件。只不过，open方法被hw_module_methods_t结构封装了一次，硬件操作接口被hw_device_t封装了一次而已。
