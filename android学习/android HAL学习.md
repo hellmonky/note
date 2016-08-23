@@ -3,6 +3,8 @@
 android虽然作为基于linux的一种发行版，但是其设计之初就和linux的开源设定不同，作为一个开放的商业应用环境，android从linux中获取了所有构想，除去驱动框架，所以这部分主要学习和分析一下android最为不同的部分。
 本文主要分为两个大的部分：android内核的驱动模块，android的HAL层抽象分析。从这两个部分来结合linux的驱动规范一起看看两者的差别和细节。
 
+ Android的硬件抽象层，简单来说，就是对Linux内核驱动程序的封装，向上提供接口，屏蔽低层的实现细节。也就是说，把对硬件的支持分成了两层，一层放在用户空间（User Space），一层放在内核空间（Kernel Space），其中，硬件抽象层运行在用户空间，而Linux内核驱动程序运行在内核空间。为什么要这样安排呢？把硬件抽象层和内核驱动整合在一起放在内核空间不可行吗？从技术实现的角度来看，是可以的，然而从商业的角度来看，把对硬件的支持逻辑都放在内核空间，可能会损害厂家的利益。我们知道，Linux内核源代码版权遵循GNU License，而Android源代码版权遵循Apache License，前者在发布产品时，必须公布源代码，而后者无须发布源代码。如果把对硬件支持的所有代码都放在Linux驱动层，那就意味着发布时要公开驱动程序的源代码，而公开源代码就意味着把硬件的相关参数和实现都公开了，在手机市场竞争激烈的今天，这对厂家来说，损害是非常大的。因此，Android才会想到把对硬件的支持分成硬件抽象层和内核驱动层，内核驱动层只提供简单的访问硬件逻辑，例如读写硬件寄存器的通道，至于从硬件中读到了什么值或者写了什么值到硬件中的逻辑，都放在硬件抽象层中去了，这样就可以把商业秘密隐藏起来了。也正是由于这个分层的原因，Android被踢出了Linux内核主线代码树中。大家想想，Android放在内核空间的驱动程序对硬件的支持是不完整的，把Linux内核移植到别的机器上去时，由于缺乏硬件抽象层的支持，硬件就完全不能用了，这也是为什么说Android是开放系统而不是开源系统的原因。
+
 ## 1 android内核的驱动模块：
 和GUN/linux不同，android虽然使用了标准linux内核，但是再次基础上做出了非常多的修改。其中最终让android从linux树上除去的部分就在于驱动模块。
 android一方面使用了linux内核中大量关于内核驱动的代码，又通过修改内核，实现了HAL层，让自己的内核驱动在用户空间实现闭源，然后用HAL层在内核执行这些闭源驱动来保护硬件厂商的利益。
@@ -40,6 +42,7 @@ HAL架构比较简单，其基本原理就是在Android系统中使用用户空�
 
 
 ## 2 关于android的HAL层分析：
+在理解了android的内核驱动之后，就需要看高于他的HAL层了。
 Android Hal层（即 Hardware Abstraction Layer）是Google开发的Android系统里上层应用对底层硬件操作屏蔽的一个软件层次，说直白点，就是上层应用不必关心底层硬件具体是如何工作的，只需要调用底层提供的统一接口即可，这种设计思想广泛的存在于当前的软件的架构设计里。
 通过这个层次给整个android framework提供了一个统一的java访问硬件的接口，这个接口底层通过JNI调用本地so文件的形式来实现实际硬件的操作。
 <1>Android Hal架构分为两种：
@@ -78,3 +81,31 @@ typedef struct hw_module_methods_t
 typedef struct hw_device_t
 ```
 上述三个结构体之间关系紧密，每个硬件对象都由hw_module_t来描述，只要我们拿到了这个硬件对象，就可以调用它的open方法，返回这个硬件对象的硬件操作接口，然后就可以通过这些硬件操作接口来间接操作硬件。只不过，open方法被hw_module_methods_t结构封装了一次，硬件操作接口被hw_device_t封装了一次而已。
+两个符号常量和一个函数，包含在hardware.c中，具体代码为：
+```c
+//HAL Stub对象固定的名字  
+#define HAL_MODULE_INFO_SYM         HMI  
+
+/**
+ * Name of the hal_module_info as a string
+ */
+#define HAL_MODULE_INFO_SYM_AS_STR  "HMI"  
+
+/**
+ * Get the module info associated with a module by id.
+ *
+ * @return: 0 == success, <0 == error and *module == NULL
+ */  
+ //通过硬件名来获得硬件HAL Stub对象  
+int hw_get_module(const char *id, const struct hw_module_t **module);
+```
+
+参考文档：
+https://www.zhihu.com/question/27101035
+http://blog.csdn.net/luoshengyang/article/details/6567257
+http://blog.csdn.net/u010177751/article/category/2466379
+http://www.cnblogs.com/lcw/p/3335505.html
+http://www.cnblogs.com/lcw/p/3402770.html
+
+http://www.cnblogs.com/geneil/archive/2011/12/03/2272869.html
+http://www.cnblogs.com/hnrainll/archive/2011/06/18/2084227.html
