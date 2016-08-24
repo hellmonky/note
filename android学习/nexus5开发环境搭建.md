@@ -603,8 +603,10 @@ out/host/linux-x86/bin/llvm-tblgen: error while loading shared libraries: libncu
 需要完整编译一次AOSP，如果你make成功之后，发现在../out/host/linux-x86/framework目录下没有生成这个文件，那么可以自己手动编译：
 mmma development/tools/idegen/
 这之后就会生成idegen.jar。
+
 2. 执行idegen.sh：
-../development/tools/idegen/idegen.sh
+在AOSP源码根目录执行下面的命令：
+development/tools/idegen/idegen.sh
 耐心等待，过一会就会在根目录下生成两个文件，android.iml和android.ipr，这就是我们需要的。
 
 ### 3.3 使用Intellij/Android Studio打开工程文件：
