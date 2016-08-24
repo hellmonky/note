@@ -353,6 +353,7 @@ chmod -R 755 bin/*
 我们
 nano run_this_android.sh
 内容如下：
+
 '''shell
 # 设置交叉编译器位置
 export CC=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
@@ -361,6 +362,7 @@ export CROSS_COMPILE=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 export ARCH=arm
 export SUBARCH=arm
 '''
+
 然后设置为可执行，然后再当前终端中生效：
 chmod +x run_this_android.sh
 source run_this_android.sh
@@ -372,6 +374,7 @@ adb pull /proc/config.gz
 如果没有这个配置文件，就使用当前内核代码中的工具，生成一个默认配置（亲儿子系列独有）：
 make hammerhead_defconfig
 回显：
+
 '''shell
   HOSTCC  scripts/basic/fixdep
   HOSTCC  scripts/kconfig/conf.o
@@ -384,24 +387,29 @@ make hammerhead_defconfig
 # configuration written to .config
 #
 '''
+
 生成了.config文件，然后生成编译需要的配置文件：
 make menuconfig
 如果有需要修改的就保存后退出。
 然后开始编译，并且把编译过程写入compile.log文件中：
 make -j4 >> compile.log
 当出现：
+
 '''shell
 OBJCOPY arch/arm/boot/zImage
 Kernel: arch/arm/boot/zImage is ready
 CAT     arch/arm/boot/zImage-dtb
 Kernel: arch/arm/boot/zImage-dtb is ready
 '''
+
 表示编译内核成功结束。
 
 #### 2.2.5 打包编译的内核文件：
 1. 打包工具编译安装：
 因为交叉编译之后的内核文件zImage不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
 下载boot.img打包程序：
+
+'''shell
 git clone https://github.com/pbatard/bootimg-tools.git
 cd bootimg-tools/
 make
@@ -414,6 +422,8 @@ cp ../bootimg-tools/mkbootimg/mkbootimg .
 cp ../bootimg-tools/mkbootimg/unmkbootimg .
 cp ../bootimg-tools/cpio/mkbootfs .
 cd ..
+'''
+
 这样就在bootimg-tools文件夹中生成了构建boot镜像的可执行文件。
 （这儿编译cpio/mkbootfs.c文件的时候报错，但是整个流程中并没有使用到mkbootfs来构建boot时文件系统，而是直接使用了已有打包boot.img中解压出来的文件系统）
 
@@ -424,31 +434,42 @@ mkdir image
 cd image
 unmkbootimg -i boot.img
 回显：
-{
+
+'''shell
 kernel written to 'kernel' (8331496 bytes)
 ramdisk written to 'ramdisk.cpio.gz' (498796 bytes)
 	To rebuild this boot image, you can use the command:
     mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel --ramdisk ramdisk.cpio.gz -o boot_img/boot.img
-}
+'''
+
 然后原来的boot.img解压出：kernel和ramdisk.cpio.gz 两个文件。
 然后用我们自己编译的进行替换：
 cp ../msm/arch/arm/boot/zImage-dtb kernel_new
 然后开始用这个新的内核进行打包：
+'''shell
 mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
+'''
+
 这样新的可以直接刷入的boot_new.img就成功制作好了。
 通过上述分析，可以知道android所使用的内核格式是Linux标准的zImage，根文件系统采用ramdisk格式。这两者在Android下是直接合并在一起取名为boot.img,会放在一个独立分区当中。一般而言，这个分区会独立存在，称为boot分区。
 
 最后刷入新的内核进行开机测试：
+
+'''shell
 adb start-server
 adb reboot bootloader
 fastboot flash boot boot_new.img
 fastboot reboot
+'''
+
 测试一下自己编译的内核有没有正常运行吧。
 
 
 ### 2.3 下载编译AOSP的framework源代码：
 #### 2.3.1 下载AOSP的framework代码：
 1. 基础环境设置：
+
+'''shell
 # fetch source
 sudo yum install git
 sudo yum install wget
@@ -460,8 +481,12 @@ sudo yum install libstdc++.i686
 sudo yum install bison
 sudo yum install zip
 sudo yum install unzip
+'''
+
 综合一条命令搞定：
+'''shell
 yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
+'''
 而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
 2. 下载repo工具：
 国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
