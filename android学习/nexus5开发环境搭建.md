@@ -23,7 +23,7 @@ pip install shadowsocks
 nano /usr/lib/systemd/system/shadowsocks.service
 
 6. 写入如下内容：
-'''shell
+```shell
 [Unit]
 Description=Shadowsocks Server
 Documentation=https://github.com/shadowsocks/shadowsocks
@@ -38,28 +38,28 @@ ExecStop=/usr/bin/ssserver -d stop
 
 [Install]
 WantedBy=multi-user.target
-'''
+```
 其中ssserver表示启动的是ss的服务端，目的是为其他计算机提供代理服务。
 
 7. 添加配置文件:
 改为上一步中的路径, 确保各级目录存在：
 nano /usr/shadowsocks.json
 写入配置内容（包含大括号，是一个json串）:
-'''shell
+```shell
   "server": "0.0.0.0",
   "server_port": "8388",
   "password": "uzon57jd0v869t7w",
   "method": "aes-256-cfb"
-'''
+```
 需要注意的是这儿的server内容为0，表示为本机IP。保存后退出，然后启动服务：
 systemctl enable shadowsocks
 systemctl start shadowsocks
 为了检查 shadowsocks 服务是否已成功启动，可以执行以下命令查看服务的状态：
 systemctl status shadowsocks -l
 如果回显：
-'''shell
+```shell
 
-'''
+```
 表示已经启动成功了。
 
 
@@ -73,9 +73,9 @@ yum -y install privoxy
 编辑Privoxy配置文件，将SOCKS5协议转化为HTTP协议：
 nano /etc/privoxy/config
 添加以下内容（这最后面确实有个英文句号，不要遗漏）：
-'''shell
+```shell
 forward-socks5 / 127.0.0.1:1080 .
-'''
+```
 设置Privoxy随系统自动启动：
 systemctl enable privoxy
 启动Privoxy：
@@ -89,16 +89,16 @@ yum install polipo
 打开配置文件
 nano /etc/polipo/config
 设置ParentProxy为Shadowsocks，通常情况下本机shadowsocks的地址如下：
-'''shell
+```shell
 # Uncomment this if you want to use a parent SOCKS proxy:
 socksParentProxy = "localhost:1080"
 socksProxyType = socks5
-'''
+```
 设置日志输出文件：
-'''shell
+```shell
 logFile=/var/log/polipo
 logLevel=4
-'''
+```
 
 3. 如果上述两个程序都无法安装，建议使用第三方源：
 yum install epel-release
@@ -127,13 +127,13 @@ yum install pptp pptp-setup
 pptpsetup --create ss --server xxx.xxx.xxx.xxx --username xxx --password xxx --encrypt --start
 这个命令会在/etc/ppp/peers目录下面，会生成一个叫ss的文件，并且在/etc/ppp目录下面，用户名和密码会写在chap-secrets文件中：
 回显：
-'''shell
+```shell
 Using interface ppp0
 Connect: ppp0 <--> /dev/pts/1
 CHAP authentication succeeded
 MPPE 128-bit stateless compression enabled
 local  IP address 192.168.0.136
-'''
+```
 开启/关闭VPN：添加 pon、poff 到/usr/sbin下
 cp /usr/share/doc/ppp-2.4.5/scripts/pon /usr/sbin
 cp /usr/share/doc/ppp-2.4.5/scripts/poff /usr/sbin
@@ -173,12 +173,12 @@ yum -y install gcc-arm-linux-gnu
 检查是否安装成功：
 arm-linux-gnu-gcc --version
 回显：
-'''shell
+```shell
 arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
 Copyright (C) 2013 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-'''
+```
 表示已经安装成功。并且这样安装的交叉编译器已经添加到环境变量中，不再需要用户设置。
 
 2. 从googleNDK获取开发工具：
@@ -211,7 +211,7 @@ git pull
 然后查看当前代码树的分支：
 git branch -r
 显示结果为：
-'''shell
+```shell
 origin/HEAD -> origin/master
   origin/android-msm-2.6.35
   origin/android-msm-3.9-usb-and-mmc-hacks
@@ -331,7 +331,7 @@ origin/HEAD -> origin/master
   origin/android-msm-sturgeon-3.10-n-preview-2-wear-release
   origin/android-msm-wren-3.10-marshmallow-mr1-wear-release
   origin/master
-'''
+```
 检出需要编译的分支，这儿选取最新的分支：
 git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
 （顺便问下，nexus 5 是不是上不去3.10内核了？）
@@ -354,14 +354,14 @@ chmod -R 755 bin/*
 nano run_this_android.sh
 内容如下：
 
-'''shell
+```shell
 # 设置交叉编译器位置
 export CC=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 export CROSS_COMPILE=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 # 设置编译内核架构
 export ARCH=arm
 export SUBARCH=arm
-'''
+```
 
 然后设置为可执行，然后再当前终端中生效：
 chmod +x run_this_android.sh
@@ -375,7 +375,7 @@ adb pull /proc/config.gz
 make hammerhead_defconfig
 回显：
 
-'''shell
+```shell
   HOSTCC  scripts/basic/fixdep
   HOSTCC  scripts/kconfig/conf.o
   SHIPPED scripts/kconfig/zconf.tab.c
@@ -386,7 +386,7 @@ make hammerhead_defconfig
 #
 # configuration written to .config
 #
-'''
+```
 
 生成了.config文件，然后生成编译需要的配置文件：
 make menuconfig
@@ -395,12 +395,12 @@ make menuconfig
 make -j4 >> compile.log
 当出现：
 
-'''shell
+```shell
 OBJCOPY arch/arm/boot/zImage
 Kernel: arch/arm/boot/zImage is ready
 CAT     arch/arm/boot/zImage-dtb
 Kernel: arch/arm/boot/zImage-dtb is ready
-'''
+```
 
 表示编译内核成功结束。
 
@@ -409,7 +409,7 @@ Kernel: arch/arm/boot/zImage-dtb is ready
 因为交叉编译之后的内核文件zImage不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
 下载boot.img打包程序：
 
-'''shell
+```shell
 git clone https://github.com/pbatard/bootimg-tools.git
 cd bootimg-tools/
 make
@@ -422,7 +422,7 @@ cp ../bootimg-tools/mkbootimg/mkbootimg .
 cp ../bootimg-tools/mkbootimg/unmkbootimg .
 cp ../bootimg-tools/cpio/mkbootfs .
 cd ..
-'''
+```
 
 这样就在bootimg-tools文件夹中生成了构建boot镜像的可执行文件。
 （这儿编译cpio/mkbootfs.c文件的时候报错，但是整个流程中并没有使用到mkbootfs来构建boot时文件系统，而是直接使用了已有打包boot.img中解压出来的文件系统）
@@ -435,32 +435,32 @@ cd image
 unmkbootimg -i boot.img
 回显：
 
-'''shell
+```shell
 kernel written to 'kernel' (8331496 bytes)
 ramdisk written to 'ramdisk.cpio.gz' (498796 bytes)
 	To rebuild this boot image, you can use the command:
     mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel --ramdisk ramdisk.cpio.gz -o boot_img/boot.img
-'''
+```
 
 然后原来的boot.img解压出：kernel和ramdisk.cpio.gz 两个文件。
 然后用我们自己编译的进行替换：
 cp ../msm/arch/arm/boot/zImage-dtb kernel_new
 然后开始用这个新的内核进行打包：
-'''shell
+```shell
 mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
-'''
+```
 
 这样新的可以直接刷入的boot_new.img就成功制作好了。
 通过上述分析，可以知道android所使用的内核格式是Linux标准的zImage，根文件系统采用ramdisk格式。这两者在Android下是直接合并在一起取名为boot.img,会放在一个独立分区当中。一般而言，这个分区会独立存在，称为boot分区。
 
 最后刷入新的内核进行开机测试：
 
-'''shell
+```shell
 adb start-server
 adb reboot bootloader
 fastboot flash boot boot_new.img
 fastboot reboot
-'''
+```
 
 测试一下自己编译的内核有没有正常运行吧。
 
@@ -469,7 +469,7 @@ fastboot reboot
 #### 2.3.1 下载AOSP的framework代码：
 1. 基础环境设置：
 
-'''shell
+```shell
 # fetch source
 sudo yum install git
 sudo yum install wget
@@ -481,12 +481,12 @@ sudo yum install libstdc++.i686
 sudo yum install bison
 sudo yum install zip
 sudo yum install unzip
-'''
+```
 
 综合一条命令搞定：
-'''shell
+```shell
 yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
-'''
+```
 而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
 2. 下载repo工具：
 国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
@@ -543,7 +543,7 @@ lunch aosp_arm-eng
 这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
 lunch aosp_hammerhead-userdebug
 或者输入lunch，然后选择19，出现的结果为：
-'''shell
+```shell
 ============================================
 PLATFORM_VERSION_CODENAME=REL
 PLATFORM_VERSION=6.0.1
@@ -564,12 +564,12 @@ HOST_BUILD_TYPE=release
 BUILD_ID=MOB30Y
 OUT_DIR=out
 =============================================
-'''
+```
 3. 开始编译：
 make -j4 >> compile.log
 很简单，就直接make好了，然后将日志写入到文件中，方便查看记录和排查错误。
 等待编译完成后，会产生如下重要文件：
-'''shell
+```shell
 android-info.txt
 boot.img
 cache.img
@@ -577,13 +577,13 @@ ramdisk.img
 recovery.img
 system.img
 userdata.img
-'''
+```
 这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
 也可以用源代码根目录下输入 find . -name system.img查找具体的路径在哪里。
 4. 刷机测试：
 编译完毕之后，列出的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
 由于本人是在服务器上进行编译的，然后再本机进行刷机测试，故采用打包的方式进行刷机。将上述文件打包为zip格式，然后编辑脚本：flash-all.bat
-'''shell
+```shell
 @ECHO OFF
 :: 其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
 fastboot -w update images.zip
@@ -591,7 +591,7 @@ fastboot reboot
 echo Press any key to exit...
 pause >nul
 exit
-'''
+```
 将手机切换到fastboot模式，使用这个脚本更新系统：
 flash-all.bat
 稍等片刻，刷入完毕之后就自动重启进入系统。
