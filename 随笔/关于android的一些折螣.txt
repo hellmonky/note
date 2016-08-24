@@ -1186,6 +1186,8 @@ http://www.romjd.com/jiaocheng/content/9336
 	<4>android程序开发流程：
 	<5>android并行程序开发：
 
+	
+（）搭建framework源代码开发IDE环境：
 为了实现上面的目标，需要我们搭建完整的AOSP开发环境，上述章节中我们已经可以完整的编译整个代码了，但是查找和修改代码还是很不方便。如果有IDE支持就会方便很多。
 我们使用Android Studio来完成对AOSP源代码的查看和修改：
 <0>安装Android Studio：
@@ -1200,11 +1202,12 @@ make sdk
 ../out/host/linux-x86/sdk/目录下面，是一个zip文件包。
 <1>完整编译一次AOSP，这样做的目的是为了生成idegen工具需要使用到的jar包 – idegen.jar。
 如果你make成功之后，发现在../out/host/linux-x86/framework目录下没有生成这个文件，那么可以自己手动编译：
-cd ../tools/idegen/
+cd ../development/tools/idegen/
 mm
+mmma development/tools/idegen/
 这之后就会生成idegen.jar。
 <2>执行idegen.sh：
-../tools/idegen/idegen.sh
+../development/tools/idegen/idegen.sh
 耐心等待，过一会就会在根目录下生成两个文件，android.iml和android.ipr，这就是我们需要的。
 <3>使用Intellij/Android Studio打开工程文件：
 打开Intellij和Android Studio，File->open->android.ipr，或者Andoird Stuido， Open an existing Android Studio project -> android.ipr所在目录, 之后就是漫长的等待，需要花很久的时间建立索引。
