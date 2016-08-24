@@ -7,18 +7,18 @@
 ### 1.1 设置ss代理服务器：
 需要一个可以直接访问google的服务器，然后上面安装ss服务端为我们提供代理服务，这一步如果已经购买了搭建好的ss或者vpn可以忽略：
 首先安装ss：
-#安装 python setup tools
+1. 安装 python setup tools
 yum install python-setuptools
-#安装pip
+2. 安装pip
 easy_install pip
-#升级 pip
+3. 升级 pip
 pip install --upgrade pip
-#安装 shadowsocks
+4. 安装 shadowsocks
 pip install shadowsocks
-然后创建 shadowsocks 服务, 随系统启动：
+5. 然后创建 shadowsocks 服务, 随系统启动：
 nano /usr/lib/systemd/system/shadowsocks.service
-写入如下内容：
-{
+6. 写入如下内容：
+'''shell
 [Unit]
 Description=Shadowsocks Server
 Documentation=https://github.com/shadowsocks/shadowsocks
@@ -33,10 +33,10 @@ ExecStop=/usr/bin/ssserver -d stop
 
 [Install]
 WantedBy=multi-user.target
-}
+'''
 其中ssserver表示启动的是ss的服务端，目的是为其他计算机提供代理服务。
 添加配置文件:
-#改为上一步中的路径, 确保各级目录存在
+7. 改为上一步中的路径, 确保各级目录存在：
 nano /usr/shadowsocks.json
 写入配置内容（包含大括号，是一个json串）:
 {
@@ -579,7 +579,7 @@ unzip解压缩到/usr/local/bin目录下，然后进入解压目录的bin目录�
 make sdk
 生成的结果放在：
 ../out/host/linux-x86/sdk/目录下面，是一个zip文件包。
-然后解压到目标路径，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。、
+然后解压到目标路径，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。
 注意：这个步骤中需要执行安装：
 yum install zlib.i686
 否则报错：
