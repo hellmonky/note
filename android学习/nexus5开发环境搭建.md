@@ -518,7 +518,7 @@ lunch aosp_arm-eng
 这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
 lunch aosp_hammerhead-userdebug
 或者输入lunch，然后选择19，出现的结果为：
-{
+'''shell
 ============================================
 PLATFORM_VERSION_CODENAME=REL
 PLATFORM_VERSION=6.0.1
@@ -539,12 +539,12 @@ HOST_BUILD_TYPE=release
 BUILD_ID=MOB30Y
 OUT_DIR=out
 =============================================
-}
+'''
 3. 开始编译：
 make -j4 >> compile.log
 很简单，就直接make好了，然后将日志写入到文件中，方便查看记录和排查错误。
 等待编译完成后，会产生如下重要文件：
-{
+'''shell
 android-info.txt
 boot.img
 cache.img
@@ -552,13 +552,13 @@ ramdisk.img
 recovery.img
 system.img
 userdata.img
-}
+'''
 这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
 也可以用源代码根目录下输入 find . -name system.img查找具体的路径在哪里。
 4. 刷机测试：
 编译完毕之后，列出的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
 由于本人是在服务器上进行编译的，然后再本机进行刷机测试，故采用打包的方式进行刷机。将上述文件打包为zip格式，然后编辑脚本：flash-all.bat
-{
+'''shell
 @ECHO OFF
 :: 其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
 fastboot -w update images.zip
@@ -566,7 +566,7 @@ fastboot reboot
 echo Press any key to exit...
 pause >nul
 exit
-}
+'''
 将手机切换到fastboot模式，使用这个脚本更新系统：
 flash-all.bat
 稍等片刻，刷入完毕之后就自动重启进入系统。
