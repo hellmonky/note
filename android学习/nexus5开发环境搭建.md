@@ -6,17 +6,22 @@
 ## 1 基本系统环境设置：
 ### 1.1 设置ss代理服务器：
 需要一个可以直接访问google的服务器，然后上面安装ss服务端为我们提供代理服务，这一步如果已经购买了搭建好的ss或者vpn可以忽略：
-首先安装ss：
-1. 安装 python setup tools
+#### 1.1.1 首先安装ss：
+1. 安装 python setup tools：
 yum install python-setuptools
+
 2. 安装pip
 easy_install pip
+
 3. 升级 pip
 pip install --upgrade pip
+
 4. 安装 shadowsocks
 pip install shadowsocks
+
 5. 然后创建 shadowsocks 服务, 随系统启动：
 nano /usr/lib/systemd/system/shadowsocks.service
+
 6. 写入如下内容：
 '''shell
 [Unit]
@@ -26,7 +31,7 @@ After=network.target remote-fs.target nss-lookup.target
 
 [Service]
 Type=forking
-#设置启动时的配置文件,根据自己的需求改。这儿使用：/usr/shadowsocks.json作为要读入的配置文件
+# 设置启动时的配置文件,根据自己的需求改。这儿使用：/usr/shadowsocks.json作为要读入的配置文件
 ExecStart=/usr/bin/ssserver -c /usr/shadowsocks.json -d start
 ExecReload=/bin/kill -HUP $MAINPID
 ExecStop=/usr/bin/ssserver -d stop
@@ -35,8 +40,9 @@ ExecStop=/usr/bin/ssserver -d stop
 WantedBy=multi-user.target
 '''
 其中ssserver表示启动的是ss的服务端，目的是为其他计算机提供代理服务。
-添加配置文件:
-7. 改为上一步中的路径, 确保各级目录存在：
+
+7. 添加配置文件:
+改为上一步中的路径, 确保各级目录存在：
 nano /usr/shadowsocks.json
 写入配置内容（包含大括号，是一个json串）:
 {
