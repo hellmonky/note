@@ -45,20 +45,21 @@ WantedBy=multi-user.target
 改为上一步中的路径, 确保各级目录存在：
 nano /usr/shadowsocks.json
 写入配置内容（包含大括号，是一个json串）:
-{
+'''shell
   "server": "0.0.0.0",
   "server_port": "8388",
   "password": "uzon57jd0v869t7w",
   "method": "aes-256-cfb"
-}
+'''
 需要注意的是这儿的server内容为0，表示为本机IP。保存后退出，然后启动服务：
 systemctl enable shadowsocks
 systemctl start shadowsocks
 为了检查 shadowsocks 服务是否已成功启动，可以执行以下命令查看服务的状态：
 systemctl status shadowsocks -l
 如果回显：
-{
-}
+'''shell
+
+'''
 表示已经启动成功了。
 
 
@@ -72,9 +73,9 @@ yum -y install privoxy
 编辑Privoxy配置文件，将SOCKS5协议转化为HTTP协议：
 nano /etc/privoxy/config
 添加以下内容（这最后面确实有个英文句号，不要遗漏）：
-{
+'''shell
 forward-socks5 / 127.0.0.1:1080 .
-}
+'''
 设置Privoxy随系统自动启动：
 systemctl enable privoxy
 启动Privoxy：
@@ -88,16 +89,16 @@ yum install polipo
 打开配置文件
 nano /etc/polipo/config
 设置ParentProxy为Shadowsocks，通常情况下本机shadowsocks的地址如下：
-{
+'''shell
 # Uncomment this if you want to use a parent SOCKS proxy:
 socksParentProxy = "localhost:1080"
 socksProxyType = socks5
-}
+'''
 设置日志输出文件：
-{
+'''shell
 logFile=/var/log/polipo
 logLevel=4
-}
+'''
 
 3. 如果上述两个程序都无法安装，建议使用第三方源：
 yum install epel-release
@@ -126,14 +127,13 @@ yum install pptp pptp-setup
 pptpsetup --create ss --server xxx.xxx.xxx.xxx --username xxx --password xxx --encrypt --start
 这个命令会在/etc/ppp/peers目录下面，会生成一个叫ss的文件，并且在/etc/ppp目录下面，用户名和密码会写在chap-secrets文件中：
 回显：
-{
+'''shell
 Using interface ppp0
 Connect: ppp0 <--> /dev/pts/1
 CHAP authentication succeeded
 MPPE 128-bit stateless compression enabled
 local  IP address 192.168.0.136
-remote IP address 192.168.0.1
-}
+'''
 开启/关闭VPN：添加 pon、poff 到/usr/sbin下
 cp /usr/share/doc/ppp-2.4.5/scripts/pon /usr/sbin
 cp /usr/share/doc/ppp-2.4.5/scripts/poff /usr/sbin
@@ -173,10 +173,12 @@ yum -y install gcc-arm-linux-gnu
 检查是否安装成功：
 arm-linux-gnu-gcc --version
 回显：
+'''shell
 arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
 Copyright (C) 2013 Free Software Foundation, Inc.
 This is free software; see the source for copying conditions.  There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+'''
 表示已经安装成功。并且这样安装的交叉编译器已经添加到环境变量中，不再需要用户设置。
 
 2. 从googleNDK获取开发工具：
@@ -209,7 +211,7 @@ git pull
 然后查看当前代码树的分支：
 git branch -r
 显示结果为：
-{
+'''shell
 origin/HEAD -> origin/master
   origin/android-msm-2.6.35
   origin/android-msm-3.9-usb-and-mmc-hacks
@@ -329,7 +331,7 @@ origin/HEAD -> origin/master
   origin/android-msm-sturgeon-3.10-n-preview-2-wear-release
   origin/android-msm-wren-3.10-marshmallow-mr1-wear-release
   origin/master
-}
+'''
 检出需要编译的分支，这儿选取最新的分支：
 git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
 （顺便问下，nexus 5 是不是上不去3.10内核了？）
@@ -351,14 +353,14 @@ chmod -R 755 bin/*
 我们
 nano run_this_android.sh
 内容如下：
-{
+'''shell
 # 设置交叉编译器位置
 export CC=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 export CROSS_COMPILE=$(pwd)/arm-eabi-4.7/bin/arm-eabi-
 # 设置编译内核架构
 export ARCH=arm
 export SUBARCH=arm
-}
+'''
 然后设置为可执行，然后再当前终端中生效：
 chmod +x run_this_android.sh
 source run_this_android.sh
@@ -370,7 +372,7 @@ adb pull /proc/config.gz
 如果没有这个配置文件，就使用当前内核代码中的工具，生成一个默认配置（亲儿子系列独有）：
 make hammerhead_defconfig
 回显：
-{
+'''shell
   HOSTCC  scripts/basic/fixdep
   HOSTCC  scripts/kconfig/conf.o
   SHIPPED scripts/kconfig/zconf.tab.c
@@ -381,24 +383,24 @@ make hammerhead_defconfig
 #
 # configuration written to .config
 #
-}
+'''
 生成了.config文件，然后生成编译需要的配置文件：
 make menuconfig
 如果有需要修改的就保存后退出。
 然后开始编译，并且把编译过程写入compile.log文件中：
 make -j4 >> compile.log
 当出现：
-{
+'''shell
 OBJCOPY arch/arm/boot/zImage
 Kernel: arch/arm/boot/zImage is ready
 CAT     arch/arm/boot/zImage-dtb
 Kernel: arch/arm/boot/zImage-dtb is ready
-}
+'''
 表示编译内核成功结束。
 
 #### 2.2.5 打包编译的内核文件：
 1. 打包工具编译安装：
-因为交叉编译之后的内核文件不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
+因为交叉编译之后的内核文件zImage不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
 下载boot.img打包程序：
 git clone https://github.com/pbatard/bootimg-tools.git
 cd bootimg-tools/
@@ -416,7 +418,7 @@ cd ..
 （这儿编译cpio/mkbootfs.c文件的时候报错，但是整个流程中并没有使用到mkbootfs来构建boot时文件系统，而是直接使用了已有打包boot.img中解压出来的文件系统）
 
 2. 打包内核为img文件：
-接下来就需要根据编译成功的结果制作可以写入的内核镜像了。
+接下来就需要根据编译成功的zImage来制作可以写入的内核镜像文件了。
 首先从原来的boot.img入手，将这个旧的镜像用unmkbootimg分解：
 mkdir image
 cd image
@@ -586,10 +588,15 @@ make sdk
 生成的结果放在：
 ../out/host/linux-x86/sdk/目录下面，是一个zip文件包。
 然后解压到目标路径，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。
-注意：这个步骤中需要执行安装：
+注意：
+这个步骤中需要执行安装：
 yum install zlib.i686
 否则报错：
 out/host/linux-x86/bin/aapt: error while loading shared libraries: libz.so.1: cannot open shared object file: No such file or directory
+安装：
+yum -y install ncurses-libs.i686
+否则报错：
+out/host/linux-x86/bin/llvm-tblgen: error while loading shared libraries: libncurses.so.5: cannot open shared object file: No such file or directory
 
 ### 3.2 从AOSP中生成idegen.jar文件：
 1. 生成idegen工具需要使用到的jar包 – idegen.jar
