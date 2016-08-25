@@ -1128,6 +1128,20 @@ tar cvf - /home/wentao/android/source | ssh root@192.168.1.100 "gzip -1 > /home/
 ssh root@192.168.1.100 "cat /home/local_disk/nexus5.tar.gz" | tar zxvf -
 (d)本地打包压缩传输到异地解压:
 tar -czf - /home/wentao/android/source | ssh root@192.168.0.100 "cd /mail;tar -zxf -"
+(e)使用rsync命令，将repo下载代码除去.repo文件夹拷贝到新的文件夹用于编译测试：
+rsync 本来是文件同步备份的工具，相对于普通的 cp 命令，rsync 在控制方面就强多了，而且 rsync 对遍历目录也支持，有 --exclude 参数可以忽略指定的文件或文件夹。
+mkdir hammerhead
+然后使用rsync命令进行拷贝，而不是采用cp命令：
+rsync -vaP --exclude=".repo" /home/android/aosp/ /home/android/hammerhead
+(f)使用find结合cpio命令完成更为强大的过滤复制：
+用过 find 的童鞋都知道，find 对文件的过滤那是非常强大的，配合 cpio 来进行目录的遍历拷贝就可以实现过滤指定的文件或文件夹，当然也可以做到只备份特定的文件或文件夹，你可以用 find 的各种过滤参数达到拷贝哪天的文件，拷贝近期更改的文件等特殊效果，而且 find 支持正则表达式，这种方式想比第一种使用 rsync 跳过文件的方式更加灵活，因此非常推荐使用此方式进行目录拷贝。
+cd dir1
+find . -regextype posix-egrep -mindepth 1 ! -regex './(dev|tmp)($|/.*)' ! -name Makefile -a ! -name .svn | cpio -admvp /home/dir2
+命令解释：
+find 的 -regextype 参数指定正则表达式类型，posix-egrep 为 egrep 用的扩展正则表达式，-mindepth 使 find 的输出中不包括目录本身，-regex 参数指定过滤的文件的正则表达式，-regex 前面的感叹号表示跳过，'./(dev|tmp)($|/.*)' 这个正则表达式即表示跳过目录中的第一层 dev 和 tmp 目录以及下面所有的文件和文件夹，最后两个 -name 指定要跳过文件名为 Makefile 和 .svn 的文件，这样在备份版本库的时候非常有用。
+cpio 命令将 find 的输出文件列表依次拷贝到 /home/dir2 目标目录中，-a 表示不更新文件的访问时间，-d 指定自动创建目录，-m 指定保留文件的修改时间，-p 指定 cpio 工作在 Copy-pass 模式，这是专门用来拷贝目录树的一种模式。
+ps:总体上aosp代码量非常大，不建议反复这样折腾，最好稳定一个代码库进行处理，不然对于硬盘和网络都是一种负担。如果要选择复制文件夹，建议使用rsync命令，因为会有效验过程，保证文件正确的复制，并且第一次同步之后可以增量同步。
+
 
 
 （）编译TWRP：

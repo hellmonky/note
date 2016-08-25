@@ -3,10 +3,13 @@
 开发环境：centos7_X64 gnome桌面版
 本文集中了以nexus5为例的AOSP项目完整编译开发过程，用于整体学习。
 
+
 ## 1 基本系统环境设置：
 ### 1.1 设置ss代理服务器：
 需要一个可以直接访问google的服务器，然后上面安装ss服务端为我们提供代理服务，这一步如果已经购买了搭建好的ss或者vpn可以忽略：
+
 #### 1.1.1 首先安装ss：
+
 1. 安装 python setup tools：
 ```shell
 yum install python-setuptools
@@ -730,7 +733,18 @@ unzip解压缩到/usr/local/bin目录下，然后进入解压目录的bin目录�
 
 2. 编译安装android SDK来支持开发：
 可以通过编译AOSP代码来生成SDK，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。
-在AOSP源代码目录下输入命令：
+需要注意的是，下载AOSP源代码的时候需要注明参数来确保可以编译生成SDK：
+```shell
+repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.1_r60 -g all, -notdefault,tools
+repo sync -j4
+```
+其中参数“-g all, -notdefault,tools”，表示下载完整的AOSP源代码。
+并且需要重新设定编译目标：
+```shell
+lunch sdk-eng
+```
+否则无法正确编译SDK。
+最后在AOSP源代码目录下输入命令：
 ```shell
 make sdk
 ```
