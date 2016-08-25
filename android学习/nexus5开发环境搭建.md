@@ -192,79 +192,25 @@ pptpsetup --delete ss
 ```
 
 
-## 2 下载部署kernel和AOSP源代码：
-作为整个android的底层，内核提供了对整体硬件的控制和性能的限制，很多开源硬件运行用户自定义内核来达到某些特殊需求，作为基本的geek，编译和定制内核是必须的。现在进入android内核的编译环节，这部分最大的不同在于交叉编译器的使用。
+## 2 下载部署AOSP和kernel源代码：
 
-### 2.1 初始环境设置和工具链安装：
-因为android也是属于linux内核的一种，只需要编译内核而不需要依赖别的组件，所以对toolchain(NDK)的选择上宽松得多。大体来讲有这样几种可能性：自己编译arm-eabi的gcc toolchain，使用Sourcery的toolchain，使用Google提供的NDK构建toolchain，或者使用第三方（比如crystax）修改过的NDK。
+AOSP作为整个google针对android的开源项目，包含了所有相关的功能模块和代码，通过AOSP可以完整的进行android的应用开发。
+但是从源代码树下载下来的最新Android源代码，是不包括内核代码的，也就是Android源代码工程默认不包含Linux Kernel代码，而是使用预先编译好的内核，这个预编译内核一般位于：
+```shell
+../device/<vendor>/<name>
+```
+目录下，例如：nexus5所使用的内核就位于：
+```shell
+../device/lge/hammerhead-kernel
+```
+目录中的zImage文件。
+并且kernel作为整个android的底层，提供了对整体硬件的控制和性能的限制，很多开源硬件运行用户自定义内核来达到某些特殊需求，所以能够编译和定制内核是必须的。
+本节主要分为两个部分针对AOSP工程代码和google所维护的linux kernel代码进行编译测试，为后续的开发和学习打下基础。
 
-#### 2.1.1 系统初始环境设置：
-首先系统必须安装有基本的编译环境：
-```shell
-yum -y install gcc make git
-```
-#### 2.1.2 工具链安装：
-在x86上编译arm架构的内核需要安装交叉编译环境，所以首先需要安装交叉编译环境。
-1. 使用EPEL源安装交叉编译器：
-```shell
-rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
-rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
-```
-检查是否安装成功：
-```shell
-yum repolist
-```
-查看某个包的详细信息：
-```shell
-yum --enablerepo=epel info htop
-```
-列出epel源的所有包列表：
-```shell
-yum --disablerepo="*" --enablerepo="epel" list available | less
-```
-然后安装交叉编译器：
-```shell
-yum -y install gcc-arm-linux-gnu
-```
-检查是否安装成功：
-```shell
-arm-linux-gnu-gcc --version
-```
-回显：
-```shell
-arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
-Copyright (C) 2013 Free Software Foundation, Inc.
-This is free software; see the source for copying conditions.  There is NO
-warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-```
-表示已经安装成功。并且这样安装的交叉编译器已经添加到环境变量中，不再需要用户设置。
-
-2. 从googleNDK获取开发工具：
-编译android相关的内容，最好使用google提供的工具链，包括编译内核，可以减少不必要的麻烦。可以根据[官方下载地址](https://developer.android.com/ndk/downloads/index.html)进行工具下载。
-例如下载：android-ndk-r12b-linux-x86_64.zip
-下载之后根据当前的系统，在压缩包的toolchains目录下选择对应的包，解压到某一个目录中，然后将这个目录添加到系统环境变量中。
-```shell
-$export PATH=$PATH:/myandroid/androidsrc/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin
-```
-
-3. 从google官方工具库获取：
-从[官方维护网站](https://android.googlesource.com/platform/prebuilts/gcc/)，下载对应版本的工具链，然后安装：
-```shell
-git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9
-```
-安装方法同上。
-
-4. 第三方修改的工具链：
-和上面类似，网络上有很多人根据最新的GCC代码修改出来的预编译好的交叉编译器，下载之后需要手动安装并且添加到环境变量中去。
-关键就是选取的第三方工具链的来源。
-
-PS:最后选取<3>方法的4.7版本交叉编译器。
-
-
-### 2.2 下载编译AOSP的framework源代码：
+### 2.1 下载编译AOSP的framework源代码：
 AOSP源代码包含了android相关的所有工具和代码，通过编译这部分代码能够满足android开发的大部分内容。
 > 不包含第三方适配，关于适配需要参考cyanogenmod.com
-而且从源代码树下载下来的最新Android源代码，是不包括内核代码的，也就是Android源代码工程默认不包含Linux Kernel代码，而是使用预先编译好的内核，这个预编译内核一般位于：../device/<vendor>/<name>目录下，例如：../device/lge/hammerhead-kernel目录，为一个zImage文件。
+> 而且
 
 #### 2.2.1 下载AOSP的framework代码：
 1. 基础环境设置：
@@ -285,7 +231,8 @@ sudo yum install unzip
 ```shell
 yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
 ```
-而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
+这儿选取的openJDK版本应该参考google官方给出的建议进行选取。
+> 注意：由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误，建议使用实体机或者服务器虚拟机进行编译。
 
 2. 下载repo工具：
 国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
@@ -435,9 +382,74 @@ flash-all.bat
 
 
 ### 2.3 下载编译AOSP的kernel源代码：
-因为2.2节中下载的AOSP代码不包含内核代码，所以需要独立从google下载他修改和维护的内核代码进行编译。
+因为2.2节中下载的AOSP代码不包含内核代码，所以需要独立从google下载他修改和维护的内核代码进行编译。本节主要进行官方维护内核的编译测试。
 
-#### 2.3.1 下载AOSP的开源kernel代码：
+#### 2.3.1 内核编译工具的安装设置：
+因为android内核也是属于linux内核的一种，只需要编译内核而不需要依赖别的组件，所以对toolchain(NDK)的选择上宽松得多。大体来讲有这样几种可能性：自己编译arm-eabi的gcc toolchain，使用Sourcery的toolchain，使用Google提供的NDK构建toolchain，或者使用第三方（比如crystax）修改过的NDK。
+
+##### 2.3.1.1 系统初始环境设置：
+首先系统必须安装有基本的编译环境：
+```shell
+yum -y install gcc make git
+```
+##### 2.3.1.2 工具链安装：
+在x86上编译arm架构的内核需要安装交叉编译环境，所以首先需要安装交叉编译环境。
+1. 使用EPEL源安装交叉编译器：
+```shell
+rpm -ivh http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-7.noarch.rpm
+rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+```
+检查是否安装成功：
+```shell
+yum repolist
+```
+查看某个包的详细信息：
+```shell
+yum --enablerepo=epel info htop
+```
+列出epel源的所有包列表：
+```shell
+yum --disablerepo="*" --enablerepo="epel" list available | less
+```
+然后安装交叉编译器：
+```shell
+yum -y install gcc-arm-linux-gnu
+```
+检查是否安装成功：
+```shell
+arm-linux-gnu-gcc --version
+```
+回显：
+```shell
+arm-linux-gnu-gcc (GCC) 4.8.1 20130717 (Red Hat 4.8.1-5)
+Copyright (C) 2013 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+```
+表示已经安装成功。并且这样安装的交叉编译器已经添加到环境变量中，不再需要用户设置。
+
+2. 从googleNDK获取开发工具：
+编译android相关的内容，最好使用google提供的工具链，包括编译内核，可以减少不必要的麻烦。可以根据[官方下载地址](https://developer.android.com/ndk/downloads/index.html)进行工具下载。
+例如下载：android-ndk-r12b-linux-x86_64.zip
+下载之后根据当前的系统，在压缩包的toolchains目录下选择对应的包，解压到某一个目录中，然后将这个目录添加到系统环境变量中。
+```shell
+$export PATH=$PATH:/myandroid/androidsrc/prebuilt/linux-x86/toolchain/arm-eabi-4.2.1/bin
+```
+
+3. 从google官方工具库获取：
+从[官方维护网站](https://android.googlesource.com/platform/prebuilts/gcc/)，下载对应版本的工具链，然后安装：
+```shell
+git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9
+```
+安装方法同上。
+
+4. 第三方修改的工具链：
+和上面类似，网络上有很多人根据最新的GCC代码修改出来的预编译好的交叉编译器，下载之后需要手动安装并且添加到环境变量中去。
+关键就是选取的第三方工具链的来源。
+
+> 最后选取<3>方法的4.7版本交叉编译器作为编译内核的工具。
+
+#### 2.3.2 下载AOSP的开源kernel代码：
 在AOSP的官方内核代码页面找到代码同步目录：
 http://source.android.com/source/building-kernels.html#figuring-out-which-kernel-to-build
 选择：
@@ -585,7 +597,7 @@ git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
 ```
 这个时候目录下除了.git文件夹，多出来完整的代码了。
 
-#### 2.3.2 选择交叉编译器：
+#### 2.3.3 选择交叉编译器：
 1. 选择4.7版本的交叉编译器：
 目前使用的是来自[这儿]( https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/ )的交叉编译器，而不是上面小节中的[这个]( https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 )交叉编译器，因为就算是修改了权限，还是有问题。
 不同版本的交叉编译器无法正确编译，这个问题留给以后解决，GCC的优化也会带来内核效率的提升，因为内核也是可执行程序。
@@ -602,7 +614,7 @@ chmod -R 755 bin/*
 之前没有这样设置，会有各种编译的权限问题，并且造成无法写入的错误，所以如果编译的时候遇到写入权限问题，先看看工具是否具有正确的权限。
 
 
-#### 2.2.3 设置编译环境：
+#### 2.3.4 设置编译环境：
 我们可以通过编写一个shell脚本来简化每次编译都需要进行的环境变量设置：
 ```shell
 nano run_this_android.sh
@@ -622,7 +634,7 @@ chmod +x run_this_android.sh
 source run_this_android.sh
 ```
 
-#### 2.3.4 编译内核：
+#### 2.3.5 编译内核：
 按理来说，编译device对应的内核，最好从当前使用的内核中拷贝出配置文件，然后进行修改，这个最为保险。
 一般而言当前使用的内核配置可以用adb来拷贝出来：
 ```shell
@@ -663,7 +675,7 @@ Kernel: arch/arm/boot/zImage-dtb is ready
 ```
 表示编译内核成功结束。
 
-#### 2.3.5 打包编译的内核文件：
+#### 2.3.6 打包编译的内核文件：
 1. 打包工具编译安装：
 因为交叉编译之后的内核文件zImage不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
 下载boot.img打包程序：
@@ -719,8 +731,6 @@ fastboot flash boot boot_new.img
 fastboot reboot
 ```
 测试一下自己编译的内核有没有正常运行吧。
-
-
 
 
 
