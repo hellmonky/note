@@ -210,7 +210,6 @@ AOSP作为整个google针对android的开源项目，包含了所有相关的功
 ### 2.1 下载编译AOSP的framework源代码：
 AOSP源代码包含了android相关的所有工具和代码，通过编译这部分代码能够满足android开发的大部分内容。
 > 不包含第三方适配，关于适配需要参考cyanogenmod.com
-> 而且
 
 #### 2.2.1 下载AOSP的framework代码：
 1. 基础环境设置：
@@ -716,6 +715,7 @@ ramdisk written to 'ramdisk.cpio.gz' (498796 bytes)
 ```shell
 cp ../msm/arch/arm/boot/zImage-dtb kernel_new
 ```
+> 注意：这儿使用的是zImage-dtb镜像，表示使用了dtb的驱动，否则之前下载的闭源驱动不会被包含。
 然后开始用这个新的内核进行打包：
 ```shell
 mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
