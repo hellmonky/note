@@ -716,6 +716,7 @@ ramdisk written to 'ramdisk.cpio.gz' (498796 bytes)
 cp ../msm/arch/arm/boot/zImage-dtb kernel_new
 ```
 > 注意：这儿使用的是zImage-dtb镜像，表示使用了dtb的驱动，否则之前下载的闭源驱动不会被包含。
+
 然后开始用这个新的内核进行打包：
 ```shell
 mkbootimg --base 0 --pagesize 2048 --kernel_offset 0x00008000 --ramdisk_offset 0x02900000 --second_offset 0x00f00000 --tags_offset 0x02700000 --cmdline 'console=ttyHSL0,115200,n8 androidboot.hardware=hammerhead  user_debug=31 maxcpus=2 msm_watchdog_v2.enable=1' --kernel kernel_new --ramdisk ramdisk.cpio.gz -o boot_new.img
