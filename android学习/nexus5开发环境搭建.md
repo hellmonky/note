@@ -260,8 +260,184 @@ git clone https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/
 
 PS:最后选取<3>方法的4.7版本交叉编译器。
 
-### 2.2 下载编译AOSP的kernel源代码：
-#### 2.2.1 下载AOSP的开源kernel代码：
+
+### 2.2 下载编译AOSP的framework源代码：
+AOSP源代码包含了android相关的所有工具和代码，通过编译这部分代码能够满足android开发的大部分内容。
+> 不包含第三方适配，关于适配需要参考cyanogenmod.com
+而且从源代码树下载下来的最新Android源代码，是不包括内核代码的，也就是Android源代码工程默认不包含Linux Kernel代码，而是使用预先编译好的内核，这个预编译内核一般位于：../device/<vendor>/<name>目录下，例如：../device/lge/hammerhead-kernel目录，为一个zImage文件。
+
+#### 2.2.1 下载AOSP的framework代码：
+1. 基础环境设置：
+```shell
+# fetch source
+sudo yum install git
+sudo yum install wget
+# to compile
+sudo yum install java-1.7.0-openjdk
+sudo yum install java-1.7.0-openjdk-devel
+sudo yum install glibc.i686
+sudo yum install libstdc++.i686
+sudo yum install bison
+sudo yum install zip
+sudo yum install unzip
+```
+综合一条命令搞定：
+```shell
+yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
+```
+而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
+
+2. 下载repo工具：
+国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
+android开源使用repo来完成源代码的管理，这个repo文件是一个python脚本，并且使用git来下载源代码，所以系统中必须安装git和python。现在在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
+```shell
+mkdir /root/source/bin
+PATH=/root/source/bin:$PATH
+curl https://storage.googleapis.com/git-repo-downloads/repo > /root/source/bin/repo
+chmod a+x /root/source/binrepo
+```
+或者使用相同的数字权限：
+```shell
+chmod 777 /root/source/binrepo
+```
+
+3. 修改repo中的下载源为清华大学下载源:
+编辑/root/source/bin/repo，将REPO_URL 一行替换成下面的：
+```shell
+REPO_URL = 'https://gerrit-google.tuna.tsinghua.edu.cn/git-repo'
+```
+
+4. 选择特定的Android版本，如果是Nexus系列，你可以从关于手机中的版本号（build number）中从列表中找到对应的版本。也可以访问官方网站找到[对应的版本](https://source.android.com/source/build-numbers.html#source-code-tags-and-builds)，这儿选取nexus 5的源代码包，分支为：android-6.0.1_r60，所以下载代码为：
+```shell
+mkdir androidSource
+cd androidSource
+repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.1_r60
+```
+
+5. 同步下载源码树：
+```shell
+repo sync -j4
+```
+>其中，-j4表示并发数为4，清华镜像只支持最大并发数4。
+
+下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
+
+6. 下载官方提供的驱动包：
+根据[官方网站](https://developers.google.com/android/nexus/drivers) 给出的android设备对应android版本来下载对应的AOSP驱动包。
+这儿选择：Nexus 5 (GSM/LTE) binaries for Android 6.0.1 (MOB30Y)，然后添加进入源代码中。进入android源代码目录，下载驱动代码包：
+```shell
+cd source
+# Broadcom for NFC, Bluetooth, Wi-Fi
+wget https://dl.google.com/dl/android/aosp/broadcom-hammerhead-mob30y-d12b1bea.tgz
+# LG for Camera, Sensors, Audio
+wget https://dl.google.com/dl/android/aosp/lge-hammerhead-mob30y-546d280a.tgz
+# Qualcomm for Graphics, GSM, Camera, GPS, Sensors, Media, DSP, USB
+wget https://dl.google.com/dl/android/aosp/qcom-hammerhead-mob30y-d90ee87e.tgz
+```
+然后解压进入驱动目录：
+```shell
+ls *.tgz |xargs -n1 tar -zxvf
+for i in extract*; do sed -n '/tail/p' $i | sed "s/\$0/$i/" | sh; done
+```
+>增加驱动代码包非常重要，如果不加入这个，可以用来进行模拟器启动，但是刷入实体机的时候因为驱动的缺失导致无法开机。
+
+这三个压缩包都只包含了一个.sh脚本，但是在这个脚本中则是二进制的驱动，使用这个脚本来动态生成驱动。这个也就是linux主线为什么要去除android内核的缘故吧。封闭和开放。
+
+
+#### 2.2.2 准备AOSP编译环境：
+1. 使用AOSP源代码目录下的../build/envsetup.sh脚本初始化环境：
+注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
+```shell
+source build/envsetup.sh
+```
+
+2. 选择编译目标：
+用lunch命令选择编译目标.额外的配置可以用参数传递。例如：
+```shell
+lunch aosp_arm-eng
+```
+其中参数aosp_arm-eng，指的是一个适用于模拟器的完整编译版本,带编译的版本。如果直接使用lunch命令不带参数，系统会弹出选项卡，让你选择对应的版本。
+所有的编译目标的格式都是:BUILD-BUILDTYPE，BUILD指的是指定特性的结合。其中BUILDTYPE是下面列出的其中一个：
+```shell
+	Buildtype		用途
+	user			有限的权限；适合一般用户
+	userdebug		类似user模式，但有root权限和debug能力，适合debug
+	eng				带有额外的debug工具的开发配置。
+```
+这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
+```shell
+lunch aosp_hammerhead-userdebug
+```
+或者输入lunch，然后选择19，出现的结果为：
+```shell
+============================================
+PLATFORM_VERSION_CODENAME=REL
+PLATFORM_VERSION=6.0.1
+TARGET_PRODUCT=aosp_hammerhead
+TARGET_BUILD_VARIANT=userdebug
+TARGET_BUILD_TYPE=release
+TARGET_BUILD_APPS=
+TARGET_ARCH=arm
+TARGET_ARCH_VARIANT=armv7-a-neon
+TARGET_CPU_VARIANT=krait
+TARGET_2ND_ARCH=
+TARGET_2ND_ARCH_VARIANT=
+TARGET_2ND_CPU_VARIANT=
+HOST_ARCH=x86_64
+HOST_OS=linux
+HOST_OS_EXTRA=Linux-3.10.0-327.28.2.el7.x86_64-x86_64-with-centos-7.2.1511-Core
+HOST_BUILD_TYPE=release
+BUILD_ID=MOB30Y
+OUT_DIR=out
+=============================================
+```
+
+3. 开始编译：
+```shell
+make -j4 >> compile.log
+```
+很简单，就直接make好了，然后将日志写入到文件中，方便查看记录和排查错误。
+等待编译完成后，会产生如下重要文件：
+```shell
+android-info.txt
+boot.img
+cache.img
+ramdisk.img
+recovery.img
+system.img
+userdata.img
+```
+这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
+也可以用源代码根目录下输入：
+```shell
+find . -name system.img
+```
+查找具体的路径在哪里。
+
+4. 刷机测试：
+编译完毕之后，列出的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
+由于本人是在服务器上进行编译的，然后再本机进行刷机测试，故采用打包的方式进行刷机。将上述文件打包为zip格式，然后编辑脚本：flash-all.bat
+```shell
+@ECHO OFF
+:: 其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
+fastboot -w update images.zip
+fastboot reboot
+echo Press any key to exit...
+pause >nul
+exit
+```
+将手机切换到fastboot模式，使用这个脚本更新系统：
+```shell
+flash-all.bat
+```
+稍等片刻，刷入完毕之后就自动重启进入系统。
+如果一切顺利，你已经用上了自己根据官方开源编译出来的完整android系统。恭喜！
+
+
+### 2.3 下载编译AOSP的kernel源代码：
+因为2.2节中下载的AOSP代码不包含内核代码，所以需要独立从google下载他修改和维护的内核代码进行编译。
+
+#### 2.3.1 下载AOSP的开源kernel代码：
 在AOSP的官方内核代码页面找到代码同步目录：
 http://source.android.com/source/building-kernels.html#figuring-out-which-kernel-to-build
 选择：
@@ -409,7 +585,7 @@ git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
 ```
 这个时候目录下除了.git文件夹，多出来完整的代码了。
 
-#### 2.2.2 选择交叉编译器：
+#### 2.3.2 选择交叉编译器：
 1. 选择4.7版本的交叉编译器：
 目前使用的是来自[这儿]( https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-eabi-4.7/ )的交叉编译器，而不是上面小节中的[这个]( https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 )交叉编译器，因为就算是修改了权限，还是有问题。
 不同版本的交叉编译器无法正确编译，这个问题留给以后解决，GCC的优化也会带来内核效率的提升，因为内核也是可执行程序。
@@ -446,7 +622,7 @@ chmod +x run_this_android.sh
 source run_this_android.sh
 ```
 
-#### 2.2.4 编译内核：
+#### 2.3.4 编译内核：
 按理来说，编译device对应的内核，最好从当前使用的内核中拷贝出配置文件，然后进行修改，这个最为保险。
 一般而言当前使用的内核配置可以用adb来拷贝出来：
 ```shell
@@ -487,7 +663,7 @@ Kernel: arch/arm/boot/zImage-dtb is ready
 ```
 表示编译内核成功结束。
 
-#### 2.2.5 打包编译的内核文件：
+#### 2.3.5 打包编译的内核文件：
 1. 打包工具编译安装：
 因为交叉编译之后的内核文件zImage不能直接作为img文件刷入手机，所以需要打包内核文件进行处理。
 下载boot.img打包程序：
@@ -545,176 +721,7 @@ fastboot reboot
 测试一下自己编译的内核有没有正常运行吧。
 
 
-### 2.3 下载编译AOSP的framework源代码：
-AOSP源代码包含了android相关的所有工具和代码，通过编译这部分代码能够满足android开发的大部分内容。
-> 不包含第三方适配，关于适配需要参考cyanogenmod.com
 
-#### 2.3.1 下载AOSP的framework代码：
-1. 基础环境设置：
-```shell
-# fetch source
-sudo yum install git
-sudo yum install wget
-# to compile
-sudo yum install java-1.7.0-openjdk
-sudo yum install java-1.7.0-openjdk-devel
-sudo yum install glibc.i686
-sudo yum install libstdc++.i686
-sudo yum install bison
-sudo yum install zip
-sudo yum install unzip
-```
-综合一条命令搞定：
-```shell
-yum -y install git wget java-1.7.0-openjdk java-1.7.0-openjdk-devel glibc.i686 libstdc++.i686 bison zip unzip
-```
-而且由于源代码编译需要的资源过多，建议使用8G内存的pc，否则会导致jvm内存不足错误。建议使用实体机或者服务器虚拟机进行编译。
-
-2. 下载repo工具：
-国内因为被墙的原因，无法直接访问google服务器，所以需要照国内的代理源来下载android的源代码。
-android开源使用repo来完成源代码的管理，这个repo文件是一个python脚本，并且使用git来下载源代码，所以系统中必须安装git和python。现在在root目录下建立source文件夹包含所有内容，包含bin目录和androidSource目录。
-```shell
-mkdir /root/source/bin
-PATH=/root/source/bin:$PATH
-curl https://storage.googleapis.com/git-repo-downloads/repo > /root/source/bin/repo
-chmod a+x /root/source/binrepo
-```
-或者使用相同的数字权限：
-```shell
-chmod 777 /root/source/binrepo
-```
-
-3. 修改repo中的下载源为清华大学下载源:
-编辑/root/source/bin/repo，将REPO_URL 一行替换成下面的：
-```shell
-REPO_URL = 'https://gerrit-google.tuna.tsinghua.edu.cn/git-repo'
-```
-
-4. 选择特定的Android版本，如果是Nexus系列，你可以从关于手机中的版本号（build number）中从列表中找到对应的版本。也可以访问官方网站找到[对应的版本](https://source.android.com/source/build-numbers.html#source-code-tags-and-builds)，这儿选取nexus 5的源代码包，分支为：android-6.0.1_r60，所以下载代码为：
-```shell
-mkdir androidSource
-cd androidSource
-repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.1_r60
-```
-
-5. 同步下载源码树：
-```shell
-repo sync -j4
-```
->其中，-j4表示并发数为4，清华镜像只支持最大并发数4。
-
-下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
-
-6. 下载官方提供的驱动包：
-根据[官方网站](https://developers.google.com/android/nexus/drivers) 给出的android设备对应android版本来下载对应的AOSP驱动包。
-这儿选择：Nexus 5 (GSM/LTE) binaries for Android 6.0.1 (MOB30Y)，然后添加进入源代码中。进入android源代码目录，下载驱动代码包：
-```shell
-cd source
-# Broadcom for NFC, Bluetooth, Wi-Fi
-wget https://dl.google.com/dl/android/aosp/broadcom-hammerhead-mob30y-d12b1bea.tgz
-# LG for Camera, Sensors, Audio
-wget https://dl.google.com/dl/android/aosp/lge-hammerhead-mob30y-546d280a.tgz
-# Qualcomm for Graphics, GSM, Camera, GPS, Sensors, Media, DSP, USB
-wget https://dl.google.com/dl/android/aosp/qcom-hammerhead-mob30y-d90ee87e.tgz
-```
-然后解压进入驱动目录：
-```shell
-ls *.tgz |xargs -n1 tar -zxvf
-for i in extract*; do sed -n '/tail/p' $i | sed "s/\$0/$i/" | sh; done
-```
->增加驱动代码包非常重要，如果不加入这个，可以用来进行模拟器启动，但是刷入实体机的时候因为驱动的缺失导致无法开机。
-
-这三个压缩包都只包含了一个.sh脚本，但是在这个脚本中则是二进制的驱动，使用这个脚本来动态生成驱动。这个也就是linux主线为什么要去除android内核的缘故吧。封闭和开放。
-
-
-#### 2.3.2 准备AOSP编译环境：
-1. 使用AOSP源代码目录下的../build/envsetup.sh脚本初始化环境：
-注意后面的lunch命令等都跟这一步有没有执行有关。如果没有执行后面会提示找不到lunch命令。
-```shell
-source build/envsetup.sh
-```
-
-2. 选择编译目标：
-用lunch命令选择编译目标.额外的配置可以用参数传递。例如：
-```shell
-lunch aosp_arm-eng
-```
-其中参数aosp_arm-eng，指的是一个适用于模拟器的完整编译版本,带编译的版本。如果直接使用lunch命令不带参数，系统会弹出选项卡，让你选择对应的版本。
-所有的编译目标的格式都是:BUILD-BUILDTYPE，BUILD指的是指定特性的结合。其中BUILDTYPE是下面列出的其中一个：
-```shell
-	Buildtype		用途
-	user			有限的权限；适合一般用户
-	userdebug		类似user模式，但有root权限和debug能力，适合debug
-	eng				带有额外的debug工具的开发配置。
-```
-这儿因为选取的是nexus 5，所以代号为hammerhead，对应的编译选项为：
-```shell
-lunch aosp_hammerhead-userdebug
-```
-或者输入lunch，然后选择19，出现的结果为：
-```shell
-============================================
-PLATFORM_VERSION_CODENAME=REL
-PLATFORM_VERSION=6.0.1
-TARGET_PRODUCT=aosp_hammerhead
-TARGET_BUILD_VARIANT=userdebug
-TARGET_BUILD_TYPE=release
-TARGET_BUILD_APPS=
-TARGET_ARCH=arm
-TARGET_ARCH_VARIANT=armv7-a-neon
-TARGET_CPU_VARIANT=krait
-TARGET_2ND_ARCH=
-TARGET_2ND_ARCH_VARIANT=
-TARGET_2ND_CPU_VARIANT=
-HOST_ARCH=x86_64
-HOST_OS=linux
-HOST_OS_EXTRA=Linux-3.10.0-327.28.2.el7.x86_64-x86_64-with-centos-7.2.1511-Core
-HOST_BUILD_TYPE=release
-BUILD_ID=MOB30Y
-OUT_DIR=out
-=============================================
-```
-
-3. 开始编译：
-```shell
-make -j4 >> compile.log
-```
-很简单，就直接make好了，然后将日志写入到文件中，方便查看记录和排查错误。
-等待编译完成后，会产生如下重要文件：
-```shell
-android-info.txt
-boot.img
-cache.img
-ramdisk.img
-recovery.img
-system.img
-userdata.img
-```
-这些文件跟后面烧录的过程有关，非常重要。一般他们在源代码路径下的out文件夹中。具体来说就是在：源代码根目录/out/debug/target/product/hammerhead/目录下。
-也可以用源代码根目录下输入：
-```shell
-find . -name system.img
-```
-查找具体的路径在哪里。
-
-4. 刷机测试：
-编译完毕之后，列出的img文件就是我们需要的最终结果了，现在需要将这些生成的镜像烧录到手机上实测是否可以正确运行。
-由于本人是在服务器上进行编译的，然后再本机进行刷机测试，故采用打包的方式进行刷机。将上述文件打包为zip格式，然后编辑脚本：flash-all.bat
-```shell
-@ECHO OFF
-:: 其中-w 选项清空设备上的/data分区，在第一次烧录的时候很有必要，但其他时候就不是必须的。
-fastboot -w update images.zip
-fastboot reboot
-echo Press any key to exit...
-pause >nul
-exit
-```
-将手机切换到fastboot模式，使用这个脚本更新系统：
-```shell
-flash-all.bat
-```
-稍等片刻，刷入完毕之后就自动重启进入系统。
-如果一切顺利，你已经用上了自己根据官方开源编译出来的完整android系统。恭喜！
 
 
 ## 3 搭建framework源代码开发IDE环境：
