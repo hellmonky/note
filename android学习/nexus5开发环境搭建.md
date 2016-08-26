@@ -484,7 +484,7 @@ git clone git://mirrors.ustc.edu.cn/aosp/kernel/msm.git
 git clone https://aosp.tuna.tsinghua.edu.cn/kernel/msm.git
 ```
 
-下载完成后并没有看到代码，因为源码被打包在objects/pack目录下的.pack文件中，还需根据分支不同生成最终代码。所以我们需要查看当前代码树的分支：
+下载完成后并没有看到代码，因为源码被打包在../git/objects/pack目录下的.pack文件中，还需根据分支不同生成最终代码。所以我们需要查看当前代码树的分支：
 ```shell
 git branch -r
 ```
