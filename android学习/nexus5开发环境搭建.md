@@ -268,6 +268,18 @@ repo sync -j4
 
 下载完源代码大约需要35G的空间，清华大学的源速度还不错，自测下载速度可以达到3M/s,大约3小时下载完。如果为了节约空间的话，那么可以删除下载好的源代码目录下的.repo文件夹，但是这样就失去了同步的能力。
 
+> 因为下载源代码对于服务器也是一种巨大的消耗，清华源给出了月同步代码包来减少压力，通过下载提供的[月代码包](https://mirrors.tuna.tsinghua.edu.cn/aosp-monthly/aosp-latest.tar)，然后同步的方式减少下载压力：
+```shell
+# 下载初始化包
+wget https://mirrors.tuna.tsinghua.edu.cn/aosp-monthly/aosp-latest.tar
+# 解压得到的 AOSP 工程目录
+tar xf aosp-latest.tar
+cd AOSP
+# 只有一个隐藏的 .repo 目录，正常同步一遍即可得到完整目录
+repo sync 
+# 或 repo sync -l 仅checkout代码
+```
+
 6. 下载官方提供的驱动包：
 根据[官方网站](https://developers.google.com/android/nexus/drivers) 给出的android设备对应android版本来下载对应的AOSP驱动包。
 这儿选择：Nexus 5 (GSM/LTE) binaries for Android 6.0.1 (MOB30Y)，然后添加进入源代码中。进入android源代码目录，下载驱动代码包：
@@ -472,7 +484,7 @@ git clone git://mirrors.ustc.edu.cn/aosp/kernel/msm.git
 git clone https://aosp.tuna.tsinghua.edu.cn/kernel/msm.git
 ```
 
-然后查看当前代码树的分支：
+下载完成后并没有看到代码，因为源码被打包在objects/pack目录下的.pack文件中，还需根据分支不同生成最终代码。所以我们需要查看当前代码树的分支：
 ```shell
 git branch -r
 ```
@@ -598,7 +610,7 @@ origin/HEAD -> origin/master
   origin/android-msm-wren-3.10-marshmallow-mr1-wear-release
   origin/master
 ```
-检出需要编译的分支，这儿选取最新的分支：
+然后根据具体需求来checkout想要编译的分支。这儿选取nexus 5的最新的分支：
 ```shell
 git checkout origin/android-msm-hammerhead-3.4-marshmallow-mr2
 ```
