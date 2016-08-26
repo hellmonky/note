@@ -771,23 +771,25 @@ unzip解压缩到/usr/local/bin目录下，然后进入解压目录的bin目录�
 
 2. 编译安装android SDK来支持开发：
 可以通过编译AOSP代码来生成SDK，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。
-需要注意的是，下载AOSP源代码的时候需要注明参数来确保可以编译生成SDK：
-```shell
-repo init -u https://aosp.tuna.tsinghua.edu.cn/platform/manifest -b android-6.0.1_r60 -g all, -notdefault,tools
-repo sync -j4
-```
-其中参数“-g all, -notdefault,tools”，表示下载完整的AOSP源代码。
-并且需要重新设定编译目标：
+但是和之前编译framework不同，需要重新设定编译目标：
 ```shell
 lunch sdk-eng
 ```
 否则无法正确编译SDK。
-最后在AOSP源代码目录下输入命令：
+然后在AOSP源代码目录下输入命令：
 ```shell
 make sdk
 ```
-生成的结果放在：
-../out/host/linux-x86/sdk/目录下面，是一个zip文件包。
+经过很长世间的编译，最终生成的结果放在：
+```shell
+../out/host/linux-x86/sdk/sdk/
+```
+目录下面，是一个zip文件包。
+```shell
+drwxrwx---. 11 root root      4096 8月  26 12:39 android-sdk_eng.root_linux-x86
+-rw-r--r--.  1 root root 331780375 8月  26 12:48 android-sdk_eng.root_linux-x86.zip
+-rw-r--r--.  1 root root    170921 8月  26 12:45 sdk_deps.mk
+```
 然后解压到目标路径，然后在android studio中导入这个自己编译生成的SDK来进行应用开发。
 >注意：
 这个步骤中需要执行安装：
