@@ -67,11 +67,9 @@ Linux将上述所有的通信方式继承下来。由于Unix版本的多样性�
 > 6.套接口（Socket）：更为一般的进程间通信机制，可用于不同机器之间的进程间通信。起初是由Unix系统的BSD分支开发出来的，但现在一般可以移植到其它类Unix系统上：Linux和System V的变种都支持套接字。
 
 
-## 2  google新增的进程间通信内核模块binder：
+## 2  进程间通信：
 
-google针对移动应用的特点提出了特殊的进程间通信要求，并且对GUN/Linux内核进行了修改，新增了 *binder* 模块，定制后的linux内核代码由google进行维护，可以通过 *[官方网站](https://android.googlesource.com/kernel)* 来查看具体的提交内容。
-新增代码的实现位于../drivers/staging/android/binder.c，依赖于文件../drivers/staging/android/binder.h。一般来说编译之后的内核中的 /dev/binder 就是 binder 的设备文件，可以使用 *adb shell* 进入当前手机，查看/dev/文件夹下的内容找到binder设备文件。
-然后在 android framework 中通过这个驱动在 native 层包装了一套 C/S 架构的框架出来，最后在 java 对应也封装了一层供 android 上层app调用完成应用程序之间的通信。
+这节来回顾一下linux内核中进程间通信相关的基本知识，然后分析一下google为什么会再实现一个IPC模块binder的出发点。
 
 ### 2.1 进程间通信的总体思路：
 按照上一节的分析，进程间通信的总体过程为：
@@ -93,4 +91,26 @@ linux内核作为一个分布式维护的开源内核，提供了良好的扩展
 > avoiding copies by having the kernel copy from the writer into a ring buffer in the reader's address space directly (allocating space if necessary)
 > managing the lifespan of proxied remoted userspace objects that can be shared and passed between processes (upon which the userspace binder library builds its remote reference counting model)
 
-也就是说，之前提供的IPC方式并没有
+总体来说，对比linux内核所提供的IPC方式，新的binder提供了如下的特点：
+-  在移动设备上，Binder的传输效率和可操作性很好。
+-  Binder机制能够很好地实现Client-Server架构。
+-  Binder机制的安全性高。
+   -  传统方式对于通信双方的身份并没有做出严格的验证，只有在上层协议上进行架设；
+   -  比如Socket通信ip地址是客户端手动填入的，都可以进行伪造；
+   -  而Binder机制从协议本身就支持对通信双方做身份校检，因而大大提升了安全性。
+
+google针对移动应用的特点提出了特殊的进程间通信要求，并且对GUN/Linux内核进行了修改，新增了 *binder* 模块，定制后的linux内核代码由google进行维护，可以通过 *[官方网站](https://android.googlesource.com/kernel)* 来查看具体的提交内容。
+新增代码的实现位于../drivers/staging/android/binder.c，依赖于文件../drivers/staging/android/binder.h。一般来说编译之后的内核中的 /dev/binder 就是 binder 的设备文件，可以使用 *adb shell* 进入当前手机，查看/dev/文件夹下的内容找到binder设备文件。
+然后在 android framework 中通过这个驱动在 native 层包装了一套 C/S 架构的框架出来，最后在 java 对应也封装了一层供 android 上层app调用完成应用程序之间的通信。
+
+> 再从android应用的角度来考虑为什么会实现一个IPC：
+```shell
+基于 binder 模块，android 建立了很多 manager services，不过我觉得倒是因为需要存在这些 maanger services 才需要 binder 进程间通信。这里说说为什么需要这些 manager services（我后面把这些称为：那一票 services）。因为设备的上的有些硬件（例如相机、传感器）一般一次只能一个访问，有些需要把一些数据混合在一起输出（SurfaceFlinger、AudioFlinger），这就需要一些管理，但是应用是不同的程序，它们并不知道其它人的情况，所以就需要一个 manager，而且这个 manager 是要能接受不同进程的。这就引出了 android binder 的最经典的场景—— android 那一票 services。
+同时由于有这一票 services 的 存在，那么又要有人来管它们，所以就有一个东西叫： ServiceManager 。这个东西本身也是基于 binder 通信的。
+```
+
+
+## 3 binder分析
+既然按整个android的应用都依赖于binder做底层通信机制，本节就主要分析一下binder的实现原理。
+
+### 3.1 
