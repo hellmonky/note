@@ -464,6 +464,10 @@ git clone https://android.googlesource.com/kernel/msm
 ```shell
 git pull
 ```
+> 或者使用国内的内核git服务器：
+git clone git://mirrors.ustc.edu.cn/aosp/kernel/msm.git
+git clone https://aosp.tuna.tsinghua.edu.cn/kernel/msm.git
+
 然后查看当前代码树的分支：
 ```shell
 git branch -r
