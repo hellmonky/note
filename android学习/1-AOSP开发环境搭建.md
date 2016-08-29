@@ -275,10 +275,13 @@ wget https://mirrors.tuna.tsinghua.edu.cn/aosp-monthly/aosp-latest.tar
 # 解压得到的 AOSP 工程目录
 tar xf aosp-latest.tar
 cd AOSP
+# 在环境变量中添加repo为可执行文件：
+PATH=/home/android/bin:$PATH
 # 只有一个隐藏的 .repo 目录，正常同步一遍即可得到完整目录
-repo sync 
+repo sync -j4
 # 或 repo sync -l 仅checkout代码
 ```
+这种方法可以非常好的减少代码同步带来的计算机和网络压力，推荐使用这种方法在国内完成android framework源代码的同步工作。
 
 6. 下载官方提供的驱动包：
 根据[官方网站](https://developers.google.com/android/nexus/drivers) 给出的android设备对应android版本来下载对应的AOSP驱动包。
@@ -775,7 +778,8 @@ unzip解压缩到/usr/local/bin目录下，然后进入解压目录的bin目录�
 ```shell
 lunch sdk-eng
 ```
-否则无法正确编译SDK。
+> 注意：这个lunch选项没有被列出来，但是可以通过这个命令指定，如果不是这个选项则无法正确编译SDK。
+
 然后在AOSP源代码目录下输入命令：
 ```shell
 make sdk
