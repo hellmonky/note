@@ -841,3 +841,15 @@ Open an existing Android Studio project -> android.ipr所在目录
 之后就是漫长的等待，需要花很久的时间建立索引。
 
 总体上：先进行AOSP代码的命令行编译，执行成功之后再安装android studio是一个不错的选择。可以说整个AOSP包含了所有相关的代码，生成的文件也能满足android开发的所有需求，再结合IDEA这个编辑器可以非常好的进行开发工作。剩下的事情就是结合linux内核知识RTFSC了。
+
+
+## 4 android kernel相关的深入探讨：
+自从android kernel被从linux kernel的主干上删除之后，google就在自己维护android基于的kernel代码，可以访问 [官方地址](https://android.googlesource.com/kernel/) 获取详细的信息。
+这个被google维护的内核代码树主要按照SOC的来源进行区分，因为不同的SOC的驱动由各自厂商维护提供。
+
+根据google针对kernel的[官方文档](https://source.android.com/devices/#Linux kernel)：
+> You can use any version of the kernel as long as it supports the required features (such as the binder driver). However, we recommend using the latest version of the Android kernel. 
+
+可以看出linux内核对于android的作用就是在确保基本特性的前提下，提供对于上层android framework的支持，并不是强调最新的代码同步了。并且由于HAL层的存在，linux中的驱动部分对于android来说作用不大，必须依赖于OEM厂商提供对应版本的驱动适配支持才能正常使用，这个也是为什么android内核版本陈旧的原因。
+google将所有OEM厂商提供的驱动维护在 [官方驱动支持页面](https://developers.google.com/android/nexus/drivers) 中，其中的驱动都是按照android的版本来进行区分的，这也是HAL带来的作用，因为驱动程序被移植到userspace中之后，就和android framework紧密绑定了，并且会在android kernel中增加基本的寄存器操作驱动。
+
