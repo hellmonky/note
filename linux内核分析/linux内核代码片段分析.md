@@ -1,8 +1,12 @@
-这个文章主要涉及了linux内核源代码中相关的代码片段，然后进行分析和梳理。
+# Linux内核代码片段分析：
 
- Linux 完全依靠 GCC 在新的体系结构上运行。Linux 还利用 GCC 中的特性（称为扩展）实现更多功能和优化。所以在查看linux源代码的时候会遇到非常多的GCC扩展情况，
+本文结合GCC针对ISO C的扩展，对于Linux内核中的典型代码片段进行分析和梳理。
 
-# 1 标准C语言的GCC扩展
+## 1 标准C语言的GCC扩展
+Linux 完全依靠 GCC 在新的体系结构上运行。Linux 还利用 GCC 中的特性（称为扩展）实现更多功能和优化。所以在查看linux源代码的时候会遇到非常多的GCC扩展情况。这一节主要介绍GCC对于ISO C的一些扩展。
+
+本节的主要内容参考了 [Linux 内核中的 GCC 特性](https://www.ibm.com/developerworks/cn/linux/l-gcc-hacks/) 这篇文章。
+
 GCC支持很多的C语言规范，具体的支持情况可以通过官方的对应版本文档进行查看。以4.8.5版本为例，[官方文档](https://gcc.gnu.org/onlinedocs/gcc-4.8.5/cpp/Invocation.html#Invocation)，中说明：
 ```shell
 -std=standard
@@ -49,7 +53,7 @@ GCC支持很多的C语言规范，具体的支持情况可以通过官方的对应版本文档进行查看。以4.8.
   
 本文结合linux源代码对常用的扩展结合进行分析。
 
-## 1.1 类型发现：
+### 1.1 类型发现：
 GCC允许通过变量的引用识别类型。这种操作支持泛型编程。使用typeof构建一个泛型宏：
 源代码位置： ./linux/include/linux/kernel.h
 ```gcc-c
@@ -66,8 +70,10 @@ GCC允许通过变量的引用识别类型。这种操作支持泛型编程。使用typeof构建一个泛型宏：
 comparison of distinct pointer types lacks a cast
 ```
 
-## 1.2 范围：
+### 1.2 范围：
 GCC 支持范围，在 C 语言的许多方面都可以使用范围。在复杂的条件结构中，通常依靠嵌套的if语句实现多条件的判断，使用GCC扩展的范围之后可以简化代码。
+
+#### 1.2.1 在switch/case语句中使用范围：
 例如在 switch/case 块中的 case 语句中使用范围。同事，使用 switch/case 也可以通过使用跳转表实现进行编译器优化。
 源代码位置： ./linux/drivers/scsi/sd.c
 ```gcc-c
@@ -87,3 +93,38 @@ static int sd_major(int major_idx)
 }
 ```
 其中"case 1 ... 7:"使用三个点来表示从1到7的整个范围，简化了逐一的条件判断。
+
+#### 1.2.2 使用范围进行初始化：
+除了在控制语句中使用范围指定整体，范围还可以应用在变量的初始化中来简化代码。
+源代码位置：
+./linux/arch/cris/arch-v32/kernel/smp.c
+```gcc-c
+/* Vector of locks used for various atomic operations */
+spinlock_t cris_atomic_locks[] = { [0 ... LOCK_COUNT - 1] = SPIN_LOCK_UNLOCKED};
+```
+在这个例子中，为 spinlock_t 创建一个大小为 LOCK_COUNT 的数组。数组的每个元素初始化为 SPIN_LOCK_UNLOCKED 值。
+范围还支持更复杂的初始化。例如，以下代码指定数组中几个子范围的初始值：
+```gcc-c
+int widths[] = { [0 ... 9] = 1, [10 ... 99] = 2, [100] = 3 };
+```
+
+### 1.3 零长度的数组：
+在 C 标准中，必须定义至少一个数组元素。这个需求往往会使代码设计复杂化。但是，GCC 支持零长度数组的概念，这对于结构定义尤其有用。这个概念与 ISO C99 中灵活的数组成员相似，但是使用不同的语法。
+
+
+
+
+
+## 2 Linux kernel经典代码分析：
+
+
+
+
+
+
+
+
+
+
+
+
