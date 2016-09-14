@@ -43,7 +43,9 @@ extra-include-dirs: C:\Program Files\Haskell Platform\8.0.1\mingw\include
 > Stack is a cross-platform build tool for Haskell that handles management of the toolchain (including the GHC compiler and MSYS2 on Windows), building and registering libraries, and more.
 
 #### 1.2.1 stack基本安装：
-根据给出的[下载页面](https://docs.haskellstack.org/en/stable/install_and_upgrade/#windows)，选择自己windows版本对应的应用程序下载安装。可以从官方维护的[github主页](https://github.com/commercialhaskell/stack)下载安装最新的发布版本。
+根据给出的[下载页面](https://docs.haskellstack.org/en/stable/install_and_upgrade/#windows)，选择自己windows版本对应的应用程序下载安装。可以从官方维护的[github主页](https://github.com/commercialhaskell/stack)下载代码来编译安装最新的发布版本。
+> 编译stack的内容不再介绍，本文更关注于使用haskell程序设计语言完成需要的功能开发
+
 根据[官方文档](https://docs.haskellstack.org/en/stable/install_and_upgrade/#path)，最好将stack放在stack自己下载可执行文件所放置的路径下，这样stack就可以自己更新自己了：
 ```shell
 %APPDATA%\local\bin
@@ -105,16 +107,30 @@ local-hpc-root: C:\Users\wenta\AppData\Roaming\stack\global-project\.stack-work\
 local-bin-path: C:\Users\wenta\AppData\Roaming\local\bin
 ghc-paths: C:\Users\wenta\AppData\Local\Programs\stack\x86_64-windows
 ```
+同时，可以方便的使用：
+```shell
+stack upgrade
+```
+命令来更新stack命令本身。这个命令会下载stack的源代码，然后编译安装到默认的路径下。
 
 #### 1.2.3 最终选择：
-对比[第一节](#### 1.2.1)和[第二节](#### 1.2.2)的安装过程，虽然haskell platform比较简单，但是需要自己使用cabal安装解决第三方包的依赖和运行环境的设置，反而stack比较方便，通过使用stack的命令可以方便的安装依赖、构建和编译工程。
-最终选择stack的方式进行安装haskell开发环境。
+关于这两个平台的选择，实质是不同构建思路的选择。haskell platform更为基础，并且支持提供cabal来管理第三方库；stack更类似于一个集成开发环境，一切开发活动都通过stack来进行代理处理。
 
+关于stack和cabal的对比分析，以及stack的出现的分析，Mathieu Boespflug的这篇文章：[Why is stack not cabal?](https://www.fpcomplete.com/blog/2015/06/why-is-stack-not-cabal) 讲解的非常详细。
+总体上说，围绕着一个程序开发语言构建的生态系统，随着逐步的发展都会遇到相似的问题，这个问题就是工具类之间的依赖问题。随着围绕这个程序设计语言开发的工具类的增多，工具类之间也行程了层级关系的相互依赖，但是各自开发带来的接口耦合，增加了整个生态系统的脆弱性，并且给用户使用带来了麻烦的依赖解决问题。而且库之间的依赖只是限制生态系统发展的最坏的一个方面而已。
+C遇到过的，C++和java也遇到了，并且提供了解决方式。那么在一个语言中遇到这个问题的时候，一种通用的构建工具就显得非常必要。类似于java中从maven进化到gradle，haskell也从cabal进化到stack。
+stack保证了依赖的一致性和运行的一致性，确保给用户提供了一个可依赖的，不变的开发环境。
+在stack中，所有的依赖版本被完整明确的保存在每个项目的stack.yaml文件中，项目之间进行依赖的隔离。给定相同的stack.yaml和操作系统环境，stack总是可以执行相同的编译计划。正是这种一致性，给开发人员带来了稳定的开发环境，给用户带来了稳定的生产环境。
+这种环境也同样给初学者提供了友好的开始过程，更能关注于语言的学习和开发，将依赖的问题交给专业的stack处理。
+
+并且在实际使用中，通过安装hlint来支持代码提示的过程，结合对比[第一节](#### 1.2.1)和[第二节](#### 1.2.2)的安装过程，虽然haskell platform比较简单，但是需要自己使用cabal安装解决第三方包的依赖和运行环境的设置，反而stack比较方便，通过使用stack的命令可以方便的安装依赖、构建和编译工程。
+最终选择stack的方式进行安装haskell开发环境。
 
 ## 2 使用stack构造haskell工程
 stack本身就是一个完整的haskll工程构建工具，我们开发haskell程序的时候可以使用stack构建基本工程结构，然后进行代码编写。本节主要介绍使用stack构建基本工程的步骤。
 
 ### 2.1 stack新建一个haskll工程：
+首先，我们使用stack创建一个工程，走通整个流程，然后在后续小节中进行仔细的分析。
 在命令行下，进入一个目录，然后使用如下命令新建一个hellworld工程目录：
 ```shell
 stack new hellworld
@@ -283,7 +299,11 @@ Registering hellworld-0.1.0.0...
 stack exec helloworld-exe hellmonky
 ```
 使用stack的exec命令来指定当前工程的可执行文件，这儿的名称为helloworld-exe，后面跟着这个程序运行所需要的参数。回车后如果程序执行正常，表示当前stack的编译完成正确。基本的使用stack构建haskell工程的步骤就完成了。
-总结下来，整个基本流程为：
+
+
+### 2.2 关于stack的进一步探索：
+在[上一小节](###2.1)中，从整体流程上说明了使用stack创建新的工程的完整流程，这一节对上述内容的细节进行展开讨论。
+首先，上一节的整体流程总结下来为：
 ```shell
 stack new my-project
 cd my-project
@@ -296,15 +316,31 @@ stack exec my-project-exe
 > stack setup 命令会下载必要的haskell编译器在一个独立的目录中（默认为：~/.stack），不会与任何系统级的安装过程干涉，只能在命令行中执行stack命令进行运行；
 > stack build 命令会按照最小的依赖构建当前工程；
 > stack exec my-project-exe 命令会在当前命令行中运行当前工程所构建的应用程序；
-> 
+> 如果你想使用stack安装当前的应用程序，可以执行stack install <package-name>命令。
 
-The stack setup will download the compiler if necessary in an isolated location (default ) that won't interfere with any system-level installations. (For information on installation paths, please use the stack
-  path command.).
-The stack build command will build the minimal project.
-stack exec my-project-exe will execute the command.
-If you just want to install an executable using stack, then all you have to do isstack install <package-name>.
+在第一步骤 stack new 命令创建工程文件后，生成了如下的文件结构：
+```shell
+.
+├── LICENSE
+├── Setup.hs
+├── app
+│   └── Main.hs
+├── my-project.cabal
+├── src
+│   └── Lib.hs
+├── stack.yaml
+└── test
+    └── Spec.hs
 
-### 2.2 关于stack的进一步探索：
+    3 directories, 7 files
+```
+其中src目录下主要包含创建library文件的源代码，而app目录下则主要包含可执行文件相关的源代码文件。
+如果在编写源代码的过程中，需要调用其它的第三方库，例如text库，具体的步骤为：
+
+- 1. 编辑当前工程目录的my-project.cabal文件，在其中的build-depends段落中添加需要引入的text包名；
+- 2. 重新执行stack build命令一次，stack会索引my-project.cabal文件，然后下载所引入的包；
+- 3. 如果在执行stack build命令的时候遇到“your package isn't in the LTS”错误，尝试在stack.yaml文件的extra-deps段落中添加对应包的更新的版本说明，然后再次执行stack build命令，直到没有错误发生；
+- 4. 执行stack build正确后，即生成对应的库文件和可执行文件。
 
 
 
