@@ -1,9 +1,9 @@
 # 关于java中回调机制和注册的实现：
 
 在实现多种接口的具体实现和interface的接口调用的过程中，随着代码的编写，想实现类似于Spring中注册机制，Spring基于的IOC是其核心。
-现在先看看一般意义上的注册机制。
+本文分析java的接口回调机制细节，然后结合Spring的IOC原理进行思考。
 
-## 1 java中的接口回调机制
+## 一 java中的接口回调机制
 
 ### 1.1 回调的概念：
 模块之间都存在一定的调用关系，从调用方式上看，可以分为三类：同步调用、异步调用和回调。
@@ -137,8 +137,23 @@ public static void main(String[] args) {
 会返回如下执行结果：
 ```shell
 准备开始异步调用
+进入回调调用
+slave process : 0
 完成异步调用，继续执行当前控制类代码
+slave process : 1
+slave process : 2
 控制类继续执行中
-告知已经完成工作了
+slave process : 3
+slave process : 4
+slave process : 5
+slave process : 6
+slave process : 7
+...
+slave process : 9999
+回调执行完毕
 ```
 可见当前的执行顺序为master在执行异步调用后，继续执行后续的process程序，然后异步处理的doEvent在后台进行处理，然后返回结果。
+
+
+
+## 二 Spring的IOC机制：

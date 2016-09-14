@@ -61,13 +61,32 @@ C:\Users\wenta\AppData\Roaming\local\bin
 现在就可以在命令行中使用stack命令进行管理了。
 
 #### 1.2.2 使用stack安装基本的haskell工具环境：
-接下来，我们通过stack安装基本的haskell解释和编译工具支持，基本的命令可以用如下命令查看：
+
+##### <1> 配置stack：
+在使用stack之前，首先需要初始化stack的变量设置。stack的全局默认配置文件位于：~/.stack/config.yaml，在windows下默认路径为：C:\Users\wenta\AppData\Roaming\stack\config.yaml。
+编辑这个文件，添加基本的用户信息：
+```shell
+# This file contains default non-project-specific settings for 'stack', used
+# in all projects.  For more information about stack's configuration, see
+# http://docs.haskellstack.org/en/stable/yaml_configuration/
+#
+
+templates:
+    params:
+        author-name: hellmonky
+        author-email: hellmonky@qq.com
+        category: personal project
+        copyright: 'Copyright: (c) 2016 hellmonky'
+        github-username: hellmonky
+
+```
+下次执行stack new的时候就会默认使用这个全局配置作为蓝本生成工程。
+
+##### <2> stack的基本命令：
+我们通过stack安装基本的haskell解释和编译工具支持，基本的命令可以用如下命令查看：
 ```shell
 stack --help
 ```
-在使用stack之前，首先需要初始化stack的变量设置：
-
-
 使用stack安装基本的haskell环境：
 ```shell
 stack setup
@@ -80,8 +99,9 @@ C:\Users\wenta\AppData\Local\Programs\stack\x86_64-windows
 现在就可以在命令行中使用：
 ```shell
 stack ghc
+stack ghci
 ```
-来调用haskell编译器了。
+来调用haskell编译器和解释器了。
 同样的为了方便设置，stack可以使用命令：*stack path* 来查看当前stack中涉及的所有环境变量和路径，一下是我本机的环境变量查看情况：
 ```shell
 stack-root: C:\Users\wenta\AppData\Roaming\stack
@@ -113,6 +133,19 @@ stack upgrade
 ```
 命令来更新stack命令本身。这个命令会下载stack的源代码，然后编译安装到默认的路径下。
 
+> 可以输入 stack --version命令查看当前stack的具体版本，并且会给出对应的git版本号，这样就可以通过这个版本号访问对应的源代码了，例如：
+```shell
+stack --version
+Version 1.1.2, Git revision c6dac65e3174dea79df54ce6d56f3e98bc060ecc (3647 commits) x86_64 hpack-0.14.0
+```
+> 然后可以构造如下的url来查看当前这次提交的具体的内容：
+> https://github.com/commercialhaskell/stack/commit/c6dac65e3174dea79df54ce6d56f3e98bc060ecc
+
+> 可以访问这个提交下的完整的源代码树，进行下载对应代码的zip包：
+> https://github.com/commercialhaskell/stack/tree/c6dac65e3174dea79df54ce6d56f3e98bc060ecc
+
+> 也可以check具体的版本看源代码：git checkout c6dac65e3174dea79df54ce6d56f3e98bc060ecc
+
 #### 1.2.3 最终选择：
 关于这两个平台的选择，实质是不同构建思路的选择。haskell platform更为基础，并且支持提供cabal来管理第三方库；stack更类似于一个集成开发环境，一切开发活动都通过stack来进行代理处理。
 
@@ -126,8 +159,11 @@ stack保证了依赖的一致性和运行的一致性，确保给用户提供了
 并且在实际使用中，通过安装hlint来支持代码提示的过程，结合对比[第一节](#### 1.2.1)和[第二节](#### 1.2.2)的安装过程，虽然haskell platform比较简单，但是需要自己使用cabal安装解决第三方包的依赖和运行环境的设置，反而stack比较方便，通过使用stack的命令可以方便的安装依赖、构建和编译工程。
 最终选择stack的方式进行安装haskell开发环境。
 
+
 ## 2 使用stack构造haskell工程
 stack本身就是一个完整的haskll工程构建工具，我们开发haskell程序的时候可以使用stack构建基本工程结构，然后进行代码编写。本节主要介绍使用stack构建基本工程的步骤。
+
+官方出了详细的 *[用户手册](https://docs.haskellstack.org/en/stable/GUIDE/#user-guide)* 来详细的说明如何使用stack来构建工程。
 
 ### 2.1 stack新建一个haskll工程：
 首先，我们使用stack创建一个工程，走通整个流程，然后在后续小节中进行仔细的分析。
@@ -300,7 +336,6 @@ stack exec helloworld-exe hellmonky
 ```
 使用stack的exec命令来指定当前工程的可执行文件，这儿的名称为helloworld-exe，后面跟着这个程序运行所需要的参数。回车后如果程序执行正常，表示当前stack的编译完成正确。基本的使用stack构建haskell工程的步骤就完成了。
 
-
 ### 2.2 关于stack的进一步探索：
 在[上一小节](###2.1)中，从整体流程上说明了使用stack创建新的工程的完整流程，这一节对上述内容的细节进行展开讨论。
 首先，上一节的整体流程总结下来为：
@@ -337,11 +372,18 @@ stack exec my-project-exe
 其中src目录下主要包含创建library文件的源代码，而app目录下则主要包含可执行文件相关的源代码文件。
 如果在编写源代码的过程中，需要调用其它的第三方库，例如text库，具体的步骤为：
 
-- 1. 编辑当前工程目录的my-project.cabal文件，在其中的build-depends段落中添加需要引入的text包名；
+- 1. 编辑当前工程目录的my-project.cabal文件，在其中的build-depends段落中添加需要引入的text包名，否则在执行stack build的时候会报“Could not find module”错误；
 - 2. 重新执行stack build命令一次，stack会索引my-project.cabal文件，然后下载所引入的包；
 - 3. 如果在执行stack build命令的时候遇到“your package isn't in the LTS”错误，尝试在stack.yaml文件的extra-deps段落中添加对应包的更新的版本说明，然后再次执行stack build命令，直到没有错误发生；
 - 4. 执行stack build正确后，即生成对应的库文件和可执行文件。
 
+其中my-project.cabal文件说明了当前工程依赖的库的具体信息，具体的结构为：
+
+
+
+Michael Snoyman的这篇文章[New in-depth guide to stack](https://www.fpcomplete.com/blog/2015/08/new-in-depth-guide-stack)比较完整的给出了stack的概略介绍。
+
+更多的关于stack使用教程，可以参考官方文档，也可以查看
 
 
 
