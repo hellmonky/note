@@ -280,8 +280,32 @@ Registering hellworld-0.1.0.0...
 可以看见多出了.stack-work文件夹，并且在这个文件夹下生成了两个文件夹：dist和install。会生成lib文件和可执行的exe文件。
 我们先检测生成的文件是否可以正确的执行，使用下面的命令：
 ```shell
-stack exec helloworld-exe
+stack exec helloworld-exe hellmonky
 ```
+使用stack的exec命令来指定当前工程的可执行文件，这儿的名称为helloworld-exe，后面跟着这个程序运行所需要的参数。回车后如果程序执行正常，表示当前stack的编译完成正确。基本的使用stack构建haskell工程的步骤就完成了。
+总结下来，整个基本流程为：
+```shell
+stack new my-project
+cd my-project
+stack setup
+stack build
+stack exec my-project-exe
+```
+其中：
+> stack new 命令会创建一个新的包含所有可以正常启动一个工程所需要的文件的目录；
+> stack setup 命令会下载必要的haskell编译器在一个独立的目录中（默认为：~/.stack），不会与任何系统级的安装过程干涉，只能在命令行中执行stack命令进行运行；
+> stack build 命令会按照最小的依赖构建当前工程；
+> stack exec my-project-exe 命令会在当前命令行中运行当前工程所构建的应用程序；
+> 
+
+The stack setup will download the compiler if necessary in an isolated location (default ) that won't interfere with any system-level installations. (For information on installation paths, please use the stack
+  path command.).
+The stack build command will build the minimal project.
+stack exec my-project-exe will execute the command.
+If you just want to install an executable using stack, then all you have to do isstack install <package-name>.
+
+### 2.2 关于stack的进一步探索：
+
 
 
 
@@ -310,6 +334,7 @@ stack install hlint
 ~~stack --resolver lts-6.16 --install-ghc --no-system-ghc install hlint~~
 ```
 stack会自动完成依赖的查找和安装，并且最终将可执行的hlint文件放在stack所在的目录里，供windows程序可以直接访问。
+关于hlint，[官方说明文档](http://community.haskell.org/~ndm/darcs/hlint/hlint.htm)给出了详细的说明，如果需要关注更多的动态，可以在作者[Neil Mitchell的blog](http://ndmitchell.com/)页面找到更多的资料。
 
 ### 3.4 配置vscode的haskell插件：
 完成上述两个步骤之后，需要重新配置vscode的haskell插件来让自己编写代码更加简单。
