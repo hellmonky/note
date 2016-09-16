@@ -1,7 +1,7 @@
 # 关于java中回调机制和注册的实现：
 
 在实现多种接口的具体实现和interface的接口调用的过程中，随着代码的编写，想实现类似于Spring中注册机制，Spring基于的IOC是其核心。
-本文分析java的接口回调机制细节，然后结合Spring的IOC原理进行思考。
+本文分析java的接口回调机制细节，然后结合Spring的IoC原理进行思考。
 
 ## 一 java中的接口回调机制
 
@@ -155,5 +155,21 @@ slave process : 9999
 可见当前的执行顺序为master在执行异步调用后，继续执行后续的process程序，然后异步处理的doEvent在后台进行处理，然后返回结果。
 
 
+## 二 Spring的IoC原理：
+> 参考文档：[spring ioc原理](http://blog.csdn.net/it_man/article/details/4402245)
 
-## 二 Spring的IOC机制：
+所谓的IoC（Inversion of Control），中文为：控制倒转。这是spring的核心，贯穿始终。这个概念的提出需要分析整理java开发中的类的使用情况：
+> *java程序中的每个业务逻辑至少需要两个或以上的对象来协作完成，通常，每个对象在使用他的合作对象时，自己均要使用像new object（） 这样的语法来完成合作对象的申请工作。你会发现：对象间的耦合度高了。而IOC的思想是：Spring容器来实现这些相互依赖对象的创建、协调工作。对象只需要关系业务逻辑本身就可以了。从这方面来说，对象如何得到他的协作对象的责任被反转了（IOC、DI）。*
+
+也就是说Ioc将对象的创建进行了统一的管理，
+
+
+
+## 三 Spring的IoC的依赖注入和回调的关系：
+> 参考文档：[依赖注入的三种实现形式](http://wiki.jikexueyuan.com/project/spring-ioc/iocordi-1.html)
+
+Spring将组件的依赖关系由容器实现，那么容器如何知道一个组件依赖哪些其它的组件呢？例如用户注册的例子：容器如何得知UserRegister依赖于UserDao呢。
+这样，我们的组件必须提供一系列所谓的回调方法（这个方法并不是具体的 Java 类的方法），这些回调方法会告知容器它所依赖的组件。根据回调方法的不同，我们可以将 IoC 分为三种形式：
+- 接口注入（Interface Injection）
+- 设值方法注入（Setter Injection）
+- 构造子注入（Constructor Injection）

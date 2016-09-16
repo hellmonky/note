@@ -63,7 +63,13 @@ C:\Users\wenta\AppData\Roaming\local\bin
 #### 1.2.2 使用stack安装基本的haskell工具环境：
 
 ##### <1> 配置stack：
-在使用stack之前，首先需要初始化stack的变量设置。stack的全局默认配置文件位于：~/.stack/config.yaml，在windows下默认路径为：C:\Users\wenta\AppData\Roaming\stack\config.yaml。
+在使用stack之前，首先需要初始化stack的变量设置。
+stack使用YAML格式的配置文件：YAML 是一个数据序列化语言，被设计成人类直接可写可读的。它是 JSON 的严格超集，增加了语法显著换行符和缩进，就像 Python。但和 Python 不一样， YAML 根本不容许文字制表符。
+> 关于YAML可以在[官方网站](http://www.yaml.org/)获取最新的规范文档信息。
+
+> 具体的语法可以参考教程：*[X分钟速成Y](https://learnxinyminutes.com/docs/zh-cn/yaml-cn/)* 和 *[YAML 简介](http://www.ibm.com/developerworks/cn/xml/x-cn-yamlintro/)*
+
+stack的全局默认配置文件位于：~/.stack/config.yaml，在windows下默认路径为：C:\Users\wenta\AppData\Roaming\stack\config.yaml。
 编辑这个文件，添加基本的用户信息：
 ```shell
 # This file contains default non-project-specific settings for 'stack', used
@@ -80,7 +86,24 @@ templates:
         github-username: hellmonky
 
 ```
-下次执行stack new的时候就会默认使用这个全局配置作为蓝本生成工程。
+下次执行 *"stack new currentProject"* 的时候就会默认使用这个全局配置作为蓝本生成工程。在新生成的currentProject工程目录下的currentProject.cabal文件中就会出现如下内容：
+```shell
+name:                currentProject
+version:             0.1.0.0
+synopsis:            Initial project template from stack
+description:         Please see README.md
+homepage:            https://github.com/hellmonky/testProfile#readme
+license:             BSD3
+license-file:        LICENSE
+author:              hellmonky
+maintainer:          hellmonky@qq.com
+copyright:           Copyright: (c) 2016 hellmonky
+category:            personal project
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+```
+表示当前的stack全局设置生效了。
 
 ##### <2> stack的基本命令：
 我们通过stack安装基本的haskell解释和编译工具支持，基本的命令可以用如下命令查看：
@@ -353,14 +376,14 @@ stack exec my-project-exe
 > stack exec my-project-exe 命令会在当前命令行中运行当前工程所构建的应用程序；
 > 如果你想使用stack安装当前的应用程序，可以执行stack install <package-name>命令。
 
-在第一步骤 stack new 命令创建工程文件后，生成了如下的文件结构：
+在第一步骤 *"stack new hellworld"* 命令创建工程文件后，生成了如下的文件结构：
 ```shell
 .
 ├── LICENSE
 ├── Setup.hs
 ├── app
 │   └── Main.hs
-├── my-project.cabal
+├── hellworld.cabal
 ├── src
 │   └── Lib.hs
 ├── stack.yaml
@@ -372,12 +395,54 @@ stack exec my-project-exe
 其中src目录下主要包含创建library文件的源代码，而app目录下则主要包含可执行文件相关的源代码文件。
 如果在编写源代码的过程中，需要调用其它的第三方库，例如text库，具体的步骤为：
 
-- 1. 编辑当前工程目录的my-project.cabal文件，在其中的build-depends段落中添加需要引入的text包名，否则在执行stack build的时候会报“Could not find module”错误；
-- 2. 重新执行stack build命令一次，stack会索引my-project.cabal文件，然后下载所引入的包；
+- 1. 编辑当前工程目录的hellworld.cabal文件，在其中的build-depends段落中添加需要引入的text包名，否则在执行stack build的时候会报“Could not find module”错误；
+- 2. 重新执行stack build命令一次，stack会索引hellworld.cabal文件，然后下载所引入的包；
 - 3. 如果在执行stack build命令的时候遇到“your package isn't in the LTS”错误，尝试在stack.yaml文件的extra-deps段落中添加对应包的更新的版本说明，然后再次执行stack build命令，直到没有错误发生；
 - 4. 执行stack build正确后，即生成对应的库文件和可执行文件。
 
-其中my-project.cabal文件说明了当前工程依赖的库的具体信息，具体的结构为：
+其中hellworld.cabal文件中的library段落说明了当前工程依赖的库的具体信息。初始化之后的内容为：
+```yaml
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+  default-language:    Haskell2010
+```
+如果我们修改src/Lib.hs文件，引入第三方包：
+```haskell
+module Lib
+    ( someFunc
+    ) where
+
+import qualified Data.Text.IO as T
+
+someFunc :: IO ()
+someFunc = T.putStrLn "someFunc"
+```
+然后使用stack build编译，会出现如下结果：
+```shell
+hellworld-0.1.0.0: unregistering (local file changes: app\Main.hs src\Lib.hs)
+hellworld-0.1.0.0: build
+Preprocessing library hellworld-0.1.0.0...
+
+D:\workspace\vsproject\hellworld\src\Lib.hs:5:18:
+    Could not find module ‘Data.Text.IO’
+    Use -v to see a list of the files searched for.
+
+--  While building package hellworld-0.1.0.0 using:
+      C:\Users\wenta\AppData\Roaming\stack\setup-exe-cache\x86_64-windows\setup-Simple-Cabal-1.22.5.0-ghc-7.10.3.exe --builddir=.stack-work\dist\2672c1f3 build lib:hellworld exe:hellworld-exe --ghc-options " -ddump-hi -ddump-to-file"
+    Process exited with code: ExitFailure 1
+```
+所以我们需要在hellworld.cabal文件中的library段落中加入Data包：
+```yaml
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+                      ,text
+  default-language:    Haskell2010
+```
+然后执行 *"stack build"* 命令执行编译。
 
 
 
