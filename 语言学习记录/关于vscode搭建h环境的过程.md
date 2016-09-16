@@ -182,6 +182,7 @@ stack保证了依赖的一致性和运行的一致性，确保给用户提供了
 并且在实际使用中，通过安装hlint来支持代码提示的过程，结合对比[第一节](#### 1.2.1)和[第二节](#### 1.2.2)的安装过程，虽然haskell platform比较简单，但是需要自己使用cabal安装解决第三方包的依赖和运行环境的设置，反而stack比较方便，通过使用stack的命令可以方便的安装依赖、构建和编译工程。
 最终选择stack的方式进行安装haskell开发环境。
 
+> 相关的讨论也可以参考：知乎的邵成写的 *[Haskell工具链科普](https://zhuanlan.zhihu.com/p/21798264?refer=damotou)*
 
 ## 2 使用stack构造haskell工程
 stack本身就是一个完整的haskll工程构建工具，我们开发haskell程序的时候可以使用stack构建基本工程结构，然后进行代码编写。本节主要介绍使用stack构建基本工程的步骤。
@@ -444,11 +445,90 @@ library
 ```
 然后执行 *"stack build"* 命令执行编译。
 
+> PS：千万注意，在这个src/Lib.hs文件的最上方需要加入：{-# LANGUAGE OverloadedStrings #-} ，否则会报错。
+> 具体的内容可以参考：Alexander Altman写的[Basic Syntax Extensions](https://www.schoolofhaskell.com/school/to-infinity-and-beyond/pick-of-the-week/guide-to-ghc-extensions/basic-syntax-extensions#overloadedstrings)
+
+从上述也可以看出，haskell的实际实现GHC，使用了很多扩展，包括OverloadedStrings在内，这个是对标准98和2010标准的haskell进行了扩展，也是现在常用的版本，如果需要继续学习haskell，最好还是熟悉一下这些基本扩展，方便理解。
+
+在编辑了cabal文件之后，我们也可以使用stack来查看当前项目依赖的包的详情：
+``shell
+stack list-dependencies
+```
+看到目前的项目依赖包的具体内容为：
+```shell
+array 0.5.1.0
+base 4.8.2.0
+binary 0.7.5.0
+bytestring 0.10.6.0
+containers 0.5.6.2
+deepseq 1.4.1.1
+ghc-prim 0.4.0.0
+hellworld 0.1.0.0
+integer-gmp 1.0.0.0
+text 1.2.2.1
+```
+
+既然引入了包机制，那就还有一个问题：__如果需要使用的包已经不再维护，或者需要指定版本的包才行，那么该如何进行配置？__
+还记得我们在"stack new"新建一个工程的时候，stack默认使用lts-3.2进行工程的构建吗？lts-3.2定义了我们工程依赖的库的版本，上面我们使用text的时候也只是在depends里面加入了text说明，而没有指定版本，这是因为lts-3.2已经默认包含了text的支持版本，我们可以直接使用。那么如果lts中没有支持的package要被使用，该如何进行？
+我们可以使用stack.yaml中的extra-deps段落来指定自己需要的没有被lts维护的包的具体信息（名称和版本）：
+```yaml
+extra-deps:
+- acme-missiles-0.3 # not in lts-3.2
+```
+然后更新我们的代码进行测试，编辑src/Lib.hs文件：
+```haskell
+module Lib
+    ( someFunc
+    ) where
+
+import Acme.Missiles
+
+someFunc :: IO ()
+someFunc = launchMissiles
+```
+然后在helloworld.cabal文件中也添加相关的包支持说明：
+```shell
+library
+  hs-source-dirs:      src
+  exposed-modules:     Lib
+  build-depends:       base >= 4.7 && < 5
+                       -- This next line is the new one
+                     , text
+                     , acme-missiles
+  default-language:    Haskell2010
+```
+然后编译测试当前的修改"stack build"：
+```shell
+hellworld-0.1.0.0: unregistering (missing dependencies: acme-missiles)
+stm-2.4.4.1: download
+stm-2.4.4.1: configure
+stm-2.4.4.1: build
+stm-2.4.4.1: copy/register
+acme-missiles-0.3: download
+acme-missiles-0.3: configure
+acme-missiles-0.3: build
+acme-missiles-0.3: copy/register
+hellworld-0.1.0.0: configure
+Configuring hellworld-0.1.0.0...
+hellworld-0.1.0.0: build
+Preprocessing library hellworld-0.1.0.0...
+[1 of 1] Compiling Lib              ( src\Lib.hs, .stack-work\dist\2672c1f3\build\Lib.o )
+In-place registering hellworld-0.1.0.0...
+Preprocessing executable 'hellworld-exe' for hellworld-0.1.0.0...
+[1 of 1] Compiling Main             ( app\Main.hs, .stack-work\dist\2672c1f3\build\hellworld-exe\hellworld-exe-tmp\Main.o ) [Lib changed]
+Linking .stack-work\dist\2672c1f3\build\hellworld-exe\hellworld-exe.exe ...
+hellworld-0.1.0.0: copy/register
+Installing library in
+D:\workspace\vsproject\hellworld\.stack-work\install\b70b48a6\lib\x86_64-windows-ghc-7.10.3\hellworld-0.1.0.0-3s6tG2TYF7fIYayAZNLhNw
+Installing executable(s) in
+D:\workspace\vsproject\hellworld\.stack-work\install\b70b48a6\bin
+Registering hellworld-0.1.0.0...
+Completed 3 action(s).
+```
+可以看到顺利的下载编译了acme-missiles这个package。
 
 
-Michael Snoyman的这篇文章[New in-depth guide to stack](https://www.fpcomplete.com/blog/2015/08/new-in-depth-guide-stack)比较完整的给出了stack的概略介绍。
-
-更多的关于stack使用教程，可以参考官方文档，也可以查看
+> 更多的关于stack使用教程，可以参考官方文档，也可以查看Michael Snoyman的这篇文章[New in-depth guide to stack](https://www.fpcomplete.com/blog/2015/08/new-in-depth-guide-stack)比较完整的给出了stack的概略介绍。
 
 
 
