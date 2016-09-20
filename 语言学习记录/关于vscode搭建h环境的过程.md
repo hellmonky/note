@@ -574,13 +574,16 @@ stack会自动完成依赖的查找和安装，并且最终将可执行的hlint�
 haskell作为一个函数式程序设计语言，和之前自己熟悉的命令式程序设计语言非常不同。虽然本质上和scheme都是相同的，但是haskell更加的强调不变性，引入monod来处理可变性内特，将haskell作为一个“纯”的函数式程序设计语言而变得非常不同。
 
 #### <1> 基本元素和基本表达式：
->我们在这一节使用ghci来获取解释结果，这样可以方便直观的查看当前结果，使用stack调出ghci的命令为：
+> 本节根据文章：[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell) 整理而成。
+
+
+> 我们在这一节使用ghci来获取解释结果，这样可以方便直观的查看当前结果，使用stack调出ghci的命令为：
 ```shell
 stack ghci
 ```
 然后继续下面的内容。
 
-
+##### 表达式：
 大部份数学表达式都可以输入 ghci 直接解答：
 ```haskell
 3 * 5
@@ -595,7 +598,7 @@ succ 5
 round 6.59
 sqrt 2
 ```
-调用 I/O actions 进行控制台输入和输出：
+##### 调用 I/O actions 进行控制台输入和输出：
 ```haskell
 putStrLn "Hello, Haskell"
 print (5 + 4)
@@ -620,6 +623,7 @@ main = do putStrLn "What is 2 + 2?"
 这儿就需要注意缩进对于haskell的意义：
     *do 之后首个非空白字符，如上例 putStrLn 的 p，是特别的。每新起一行，行首与之对齐，即视为同一 do 块之新句；缩进较之多则继续前句；较之少则结束此 do 块。*
 
+##### 类型：
 关于类型声明，Haskell会自动进行推断，不必声明之。如果非要声明类型，可用 :: 符号明确指出：
 ```haskell
 5 :: Int
@@ -672,17 +676,130 @@ gcd 15 20 :: Integral a => a
 ```
 你可以把它看作类似C语言中的void关键字。在一个I/O动作中，如果你不想返回任何东西，你可以返回()。
 
+##### 有结构的数据：
+基本数据类型可以通过两种方式组合在一起：
+- 列表：lists，使用方括号组合在一起，例如：[a, b]；
+- 元组：tuples，使用圆括号组合在一起，例如：(a,b)。
+
+列表可以用来存储多个相同类型的值，多个可以个数不固定，甚至是无限多个，例如：
+```haskell
+[1,2,3]
+[True,False,False]
+```
+haskell中的字符串就是字符的list：
+```haskell
+['H','e','l','l','o']
+```
+ghci返回的结果为：Hello
+使用冒号":"运算符，可以将一个项（item）添加到列表的开始处，相当于lisp中的cons函数：
+```haskell
+'C':['H','e','l','l','o']
+```
+将返回：CHello
+
+元组用来存储固定个数，但是类型可以不同的值：
+```haskell
+(1, True)
+```
+这个元组将整型和布尔型组合在一起了。
+可以使用zip函数将两个列表组合为一个元组的列表：
+```haskell
+zip [1 .. 5] ['a' .. 'e']
+```
+返回的结果为：
+```haskell
+[(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e')]
+```
+他将第一个列表的第一个元素和第二个列表的第一个元素组合为一个元组，形成新的元组类型，然后依次这样处理，最后形成这种元组类型的列表。
+这样就可以保证列表中的每一个元素的类型都是一样的，然后通过元组的可以容纳不同类型的元素来合并之前两个列表的每一项的内容。可以查看这个新的列表的类型：
+```haskell
+:type [(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e')]
+```
+返回结果为：
+```haskell
+[(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e')] :: Num t => [(t, Char)]
+```
+这个返回结果表示ghci对当前输入内容的类型推导，两个冒号之前的是当前的输入，冒号之后的是这个输入的类型说明。
+这个类型说明为：当前输入的值的类型为一个类类型的变量t（也称为类型变量），这个类型变量t是类型[(t, Char)]的一个实例。
+
+*Haskell中经常使用小写字母，比如a，f，m等代表类型变量，并且形成了一套类型体系机制，英文名称是：Algebraic Data Types，翻译过来就是：代数数据类型。*
+
+Algebra Data Type之所以叫这个名字是因为它可以像代数一样做运算，更为详细的内容可以参考下面三篇文章：
+- [The Algebra of Algebraic Data Types, Part 1](http://chris-taylor.github.io/blog/2013/02/10/the-algebra-of-algebraic-data-types/)
+- [The Algebra of Algebraic Data Types, Part 2](http://chris-taylor.github.io/blog/2013/02/11/the-algebra-of-algebraic-data-types-part-ii/)
+- [The Algebra of Algebraic Data Types, Part 3](http://chris-taylor.github.io/blog/2013/02/13/the-algebra-of-algebraic-data-types-part-iii/)
 
 
+##### 列表上的函数：
+haskell中经常使用列表来进行计算，所以针对列表提供了大量的函数来方便使用。这些函数一般都为高阶函数，因为都需要接受函数操作参数来对列表进行处理：
+
+map：将第一个参数指定的操作，作用在第二参数上，其中第二个参数为列表，作用方式为对列表中的每一项进行，最后返回被第一个指定的操作参数处理过的列表。定义为：
+```haskell
+map' :: (a -> b) -> [a] -> [b]
+
+map' f [] = []
+map' f (x:xs) =f x : map' f xs
+```
+
+filter：和map相同，但是返回第一个参数操作后为真的列表元素，是一个新的列表。定义为：
+```haskell
+filter' :: (a -> Bool) -> [a] -> [a]
+
+filter' f [] = []
+filter' f (x:xs)
+     | f x       = x : filter' f xs
+     | otherwise = filter' f xs
+```
+
+fold：它对一个列表中的所有元素做某种处理，并且一边处理元素，一边更新累积器，最后在处理完整个列表之后，返回累积器的值。根据操作执行的顺序，分别定义了左侧和右侧的fold函数：
+```haskell
+foldl' :: (a -> b -> a) -> a -> [b] -> a
+foldl' f s [] = s
+foldl' f s (x:xs) = foldl' f (f s x) xs
+
+foldr' :: (a -> b -> a) -> a -> [b] -> a
+foldr' f s [] = s
+foldr' f s (x:xs) = f (foldr' f s xs) x
+```
+foldl’函数接收一个函数，一个a类型的值，一个b类型的列表，返回值为a类型的值。这个函数接收一个a类型的值，b类型的值，并返回一个a类型值。并且这个fold函数是递归的，他在实现中调用了自己。
+fold函数的递归特性可以用来构造自己，例如可以使用左fold函数构造右fold函数：
+```haskell
+foldr2 f s [] = s
+foldr2 f s (x:xs) = f s (foldl' f x xs)
+```
+这个右fold函数foldr2，被foldl'函数实现。
+还可以使用fold函数来实现map和filter。可以使用左fold函数实现：
+```haskell
+map2 :: (a -> b) -> [a] -> [b]
+map2 f xs =foldl' (\s x -> s ++ [f x]) [] xs
+
+filter2 :: (a -> Bool) -> [a] -> [a]
+filter2 f [] = []
+filter2 f (x:xs) = foldl' (\s x -> if f x then s ++ [x] else s ) [] xs
+```
+也可以使用右fold函数实现：
+```haskell
+map3 :: (a -> b) -> [a] -> [b
+map3 f xs =foldr' (\s x -> f x : s) [] xs
+
+filter3 :: (a -> Bool) -> [a] -> [a]
+filter3 f [] = []
+filter3 f (x:xs) = foldr' (\s x -> if f x then x : s else s) [] xs
+```
+> 注意：由于++效率没有:高，所以生成结果为list的时候最好使用右fold。
+
+最后需要说明的是，haskell的列表其实也是一个函数，我们可以自己来实现。
+
+> 参考文档：[Haskell函数式编程之四-List操作](http://www.cnblogs.com/huang0925/archive/2013/04/05/3000675.html)
 
 
-
-
+##### 函数定义：
 
 
 
 
 ```haskell
+
 ```
 
 
