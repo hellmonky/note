@@ -1499,8 +1499,15 @@ public class FastDFSTest {
 ```shell
 [group1, M00/00/00/wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4]
 ```
-可以得到这个文件现在存储在storage标号为group1的卷上，存储位置为：M00/00/00/wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4。
-可以在/home/fastdfs/fdfs_data/sdata/data/00/00路径下找到这个wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4文件。表示上传成功。
+可以得到这个文件现在存储在storage标号为group1的卷上，存储位置为：
+```shell
+M00/00/00/wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4
+```
+可以在:
+```shell
+/home/fastdfs/fdfs_data/sdata/data/00/00
+```
+路径下找到这个wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4文件，表示上传成功。
 
 
 *至此，基本的fastDFS环境搭建、测试和java程序开发的流程就结束了。*
