@@ -17,6 +17,8 @@
         - [3.2.2 gradle工程中引入这个本地的jar包来进行开发集成：](#322-gradle工程中引入这个本地的jar包来进行开发集成)
     - [3.3 编写java程序进行外部文件上传测试：](#33-编写java程序进行外部文件上传测试)
 - [4 对fastDFS的部署思考：](#4-对fastdfs的部署思考)
+    - [4.1 centos7下自动启动fastDFS服务：](#41-centos7下自动启动fastdfs服务)
+    - [4.2 脚本实现fastDFS的分发和部署：](#42-脚本实现fastdfs的分发和部署)
 
 <!-- /TOC -->
 
@@ -1512,6 +1514,32 @@ M00/00/00/wKgth1fiJ-yAWqX2CAvnNEL5tsI595.mp4
 
 *至此，基本的fastDFS环境搭建、测试和java程序开发的流程就结束了。*
 
+
 ## 4 对fastDFS的部署思考：
+
+### 4.1 centos7下自动启动fastDFS服务：
+将当前的fastDFS应用编写服务，在命令行下运行：
+```shell
+bash -c 'cat > /usr/lib/systemd/system/fdfs_storaged.service << EOF
+[Unit]
+Description=fastdfs storage server
+After=network.target
+
+[Service]
+Type=forking
+PIDFile=/data/fastdfs/data/fdfs_storaged.pid
+ExecStart=/usr/bin/fdfs_storaged /etc/fdfs/storage.conf
+ExecReload=/usr/bin/fdfs_storaged /etc/fdfs/storage.conf restart
+ExecStop=/usr/bin/fdfs_storaged /etc/fdfs/storage.conf stop
+
+[Install]
+WantedBy=multi-user.target
+EOF'
+systemctl enable fdfs_storaged.service
+systemctl start fdfs_storaged.service
+```
+这个脚本编写了一个服务启动描述，并且立即将服务启动。
+
+### 4.2 脚本实现fastDFS的分发和部署：
 根据第二章节编译部署fastDFS的总结发下，可以将编译好的文件包使用脚本进行分发，并且动态配置相关的配置文件内容。
 目前希望通过运行在主机上的脚本来进行软件的分发和部署。
