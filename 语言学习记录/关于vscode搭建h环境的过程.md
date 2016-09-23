@@ -731,6 +731,9 @@ Algebra Data Type之所以叫这个名字是因为它可以像代数一样做运
 
 
 ##### 列表上的函数：
+> 因为 ghci 只支持 Haskell 特性的一个非常受限的子集，因此，尽管可以在 ghci 里面定义函数，但那里并不是编写函数最适当的环境。更关键的是， ghci 里面定义函数的语法和 Haskell 源码里定义函数的语法并不相同。综上所述，我们选择将代码写在源码文件里。然后使用ghc来编译检查函数定义是否正确。
+> 我们在这一节以及后续章节使用ghc来编译，ghci无法正确的解析函数定义中的操作符了。
+
 haskell中经常使用列表来进行计算，所以针对列表提供了大量的函数来方便使用。这些函数一般都为高阶函数，因为都需要接受函数操作参数来对列表进行处理：
 
 map：将第一个参数指定的操作，作用在第二参数上，其中第二个参数为列表，作用方式为对列表中的每一项进行，最后返回被第一个指定的操作参数处理过的列表。定义为：
@@ -814,8 +817,6 @@ main = do putStrLn "What is 2 + 2?"
 ```
 从简单的函数调用，到IO操作函数调用，最后到haskell的入口函数实现。
 
-> 因为 ghci 只支持 Haskell 特性的一个非常受限的子集，因此，尽管可以在 ghci 里面定义函数，但那里并不是编写函数最适当的环境。更关键的是， ghci 里面定义函数的语法和 Haskell 源码里定义函数的语法并不相同。综上所述，我们选择将代码写在源码文件里。然后使用ghc来编译检查函数定义是否正确。
-
 在haskell中，一个函数就是一个单独的表达式（expression），而不是一组陈述（statement），求值表达式所得的结果就是函数的返回值。所以一个函数的定义就是一个完整的表达式：
 ```haskell
 doubleMe x = x + x
@@ -824,14 +825,73 @@ doubleMe x = x + x
 函数的定义语法为：
 ```shell
 name x1 x2 ... xk = e
-name为函数名，x1到xk为形式参数，e表示函数的结果，一般而言就是函数的定义体
+name为函数名，x1到xk为形式参数，e表示函数的结果，一般而言就是函数的定义体。
 ```
 按照这个函数定义的语法来分析doubleMe函数：
 doubleMe为函数的名称，也就是被调用时需要指定的名称，x表示doubleMe函数接受的参数，x + x就等价于e，表示这个函数的结果，这儿使用一个表达式的结果来作为函数的结果。
 
+也可以为一个函数明确的说明其类型，一般的格式为：
+```shell
+name :: t1 -> t2 -> ... -> tk -> t
+```
+其中name为函数名，t1到tk表示函数的输入参数类型，最后一个t表示这个函数返回值的类型。
+所以完整的函数声明为：
+```shell
+name :: t1 -> t2 -> ... -> tk -> t
+name x1 x2 ... xk = e
+```
+现在也可以看一下上述的doubleMe函数被haskell推断的类型为，首先建立一个test.hs文件，然后输入doubleMe的定义，然后在ghci中读入这个文件测试：
+```shell
+:load test.hs
+```
+回显：
+```shell
+Prelude> :load D:\workspace\vsproject\hellworld\src\test.hs
+[1 of 1] Compiling Main             ( D:\workspace\vsproject\hellworld\src\test.hs, interpreted )
+Ok, modules loaded: Main.
+```
+然后测试这个函数是否正确的被调用：
+```shell
+*Main> doubleMe 2
+4
+```
+表示正确的被运行，然后查看这个函数的类型推导：
+```shell
+:type doubleMe
+doubleMe :: Num a => a -> a
+```
+但是一般而言我们在程序编写过程中，对函数的类型定义都是短视的：
+```shell
+doubleMe :: Int -> Int
+doubleMe x = x + x
+```
+也就是说，这个doubleMe函数在定义时值针对Int类型的参数进行操作。这个时候明确的说明了函数的类型，在ghci中检查结果为：
+```shell
+*Main> :type doubleMe
+doubleMe :: Int -> Int
+```
+那么反过来考虑这个问题，如果我们想编写一个接受任意类型的函数，应该怎么明确的定义其类型，例如map和filter函数。
+我们使用Numeric Class Structure来解决这个问题：
+按照这个定义来重写doubleMe函数为：
+```shell
+doubleMe :: (Num b) => b -> b
+doubleMe x = x + x
+```
+然后检查当前的这个函数类型，结果为：
+```shell
+*Main> :type doubleMe
+doubleMe :: Num b => b -> b
+```
+这个类型推导和不申明类型的函数的类型推导是一样的。
 
 
 
+我们使用类类型（typeclass）来解决这个问题：
+*类型类定义了一系列函数，这些函数对于不同类型的值使用不同的函数实现。它和其他语言的接口和多态方法有些类似。*
+类型类使用 class 关键字来定义，后面接着类型的名称和类型的实例（Instance）：
+```shell
+class TypeName TpyeInstance
+```
 
 
 
