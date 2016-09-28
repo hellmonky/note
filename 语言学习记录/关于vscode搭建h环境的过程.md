@@ -116,7 +116,7 @@ stack setup
 ```
 stack会根据当前的系统环境下载安装合适的GHC来进行编译。这个命令会下载对应的GHC包、7z解压文件和msys压缩包到路径：
 ```shell
-C:\Users\wenta\AppData\Local\Programs\stack\x86_64-windows
+C:\Users\wentao\AppData\Local\Programs\stack\x86_64-windows
 ```
 下面，然后会被解压之后放置在相同的路径中。
 现在就可以在命令行中使用：
@@ -559,7 +559,16 @@ stack install hlint
 stack会自动完成依赖的查找和安装，并且最终将可执行的hlint文件放在stack所在的目录里，供windows程序可以直接访问。
 关于hlint，[官方说明文档](http://community.haskell.org/~ndm/darcs/hlint/hlint.htm)给出了详细的说明，如果需要关注更多的动态，可以在作者[Neil Mitchell的blog](http://ndmitchell.com/)页面找到更多的资料。
 
-### 3.4 配置vscode的haskell插件：
+### 3.4 stack安装ghc-mod来支持开发：
+[ghc-mod](http://hackage.haskell.org/package/ghc-mod)是haskell的一个库，用于给编辑器提供haskell的基础语言支持。可以使用stack安装，也可以从官方[github](https://github.com/DanielG/ghc-mod)下载源代码自行编译安装。
+vscode的vscode-ghc-mod插件可以使用ghc-mod在vscode中支持haskell的开发，我们也使用stack来安装ghc-mod来提供环境支持：
+```shell
+stack intall ghc-mod
+```
+安装完毕之后，在vscode中进行配置：
+
+
+
 完成上述两个步骤之后，需要重新配置vscode的haskell插件来让自己编写代码更加简单。
 
 
@@ -571,19 +580,69 @@ stack会自动完成依赖的查找和安装，并且最终将可执行的hlint�
 掌握了上述内容，就基本可以使用该语言进行程序的开发了，本节的内容也是从这两点出发，进行一些学习。因为篇幅相关，本节不会非常的详细，但是一定会将必须的内容给予分析和展示。
 
 ### 4.1 haskell语言的基本语法特点：
-haskell作为一个函数式程序设计语言，和之前自己熟悉的命令式程序设计语言非常不同。虽然本质上和scheme都是相同的，但是haskell更加的强调不变性，引入monod来处理可变性内特，将haskell作为一个“纯”的函数式程序设计语言而变得非常不同。
+haskell被设计作为一个通用函数式程序设计语言，但是和之前自己熟悉的命令式程序设计语言（C系）却非常不同，haskell还被设计定位于一门结合当前许多程序设计语言理论学术成果的纯函数式程序设计语言有关。
 
-#### <1> 基本元素和基本表达式：
-> 本节根据文章：[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell) 整理而成。
+出于上述设计目的，haskell提供了：高阶函数、非严格的语义、静态多态性分型、用户自定义代数数据类型、模式匹配、列表推导、模块系统、单子I/O系统和丰富的基本数据类型集。基本数据类型包含有：列表、数组、任意和固定精度整数和浮点数。
+所以haskell是一个集成了对非严格语义函数式语言多年研究成果的总结和沉淀的语言。
+
+> Haskell provides higher-order functions, non-strict semantics, static polymorphic typing, user-defined algebraic datatypes, pattern-matching, list comprehensions, a module system, a monadic I/O system, and a rich set of primitive datatypes, including lists, arrays, arbitrary and fixed precision integers, and floating-point numbers. Haskell is both the culmination and solidification of many years of research on non-strict functional languages.
 
 
-> 我们在这一节使用ghci来获取解释结果，这样可以方便直观的查看当前结果，使用stack调出ghci的命令为：
+虽然本质上和scheme都是函数式程序设计语言，但是haskell更加的强调不变性，引入monod来处理可变性内特，将haskell作为一个“纯”的函数式程序设计语言而变得非常特别。
+
+因为[Haskell is not context free](http://trevorjim.com/haskell-is-not-context-free/)，所以haskell的语法没有办法使用BNF来进行描述。但是官方给出了一个非常接近的BNF-like语法来进行描述：[Syntax Reference](https://www.haskell.org/onlinereport/syntax-iso.html)，在这个章节中对于基本的一些语法和语义给出了完整的描述。
+
+下面的小结也会根据[Haskell 98 Report](https://www.haskell.org/onlinereport/index98.html)文档给出的程序的基本组成结构进行安排，然后结合[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell)这篇文章给出明确的例子方便复习整理。
+
+> 我们在这一节使用ghci来获取解释结果，这样可以方便直观的查看当前结果，对于函数定义和更多的组织形式则采用ghc来编译验证。
+使用stack调出ghci的命令为：
 ```shell
 stack ghci
 ```
-然后继续下面的内容。
+#### <0> haskell的程序结构：
+我们首先要从整体的角度来不断拆分看待haskell构建的软件的组成结构，从高层次到最底层，分为四层：
+- 从整个软件的角度来看，haskell程序由一组module构成，模块提供了一种命名空间管理的方式，方便大型软件构件时的重用；
+- 在模块的角度来看，一个模块由不同组成方式的声明的集合组成，声明定义了例如普通的值、数据类型和类类型等内容；
+- 比模块更低层次就是表达式，一个表达式表示一个值，并具有一个静态类型，表达式是haskell组织的最小形式；
+- 在最低层的结构就是词法结构了，词法结构表示了从Haskell程序文本中获取的具体表达形式。
+
+除此之外，haskell还提供了标准的内建数据类型和类，基于单子的I/O交互系统等工程应用内容。
+
+#### <1> 基本元素和基本表达式：
 
 ##### 表达式：
+表达式就是返回一个值的一段程式码。根据官方文档，表达式的语法定义为：
+```BNF
+exp	->	exp0 :: [context =>] type	(expression type signature)
+|	exp0
+expi	->	expi+1 [qop(n,i) expi+1]
+|	lexpi
+|	rexpi
+lexpi	->	(lexpi | expi+1) qop(l,i) expi+1
+lexp6	->	- exp7
+rexpi	->	expi+1 qop(r,i) (rexpi | expi+1)
+exp10	->	\ apat1 ... apatn -> exp	(lambda abstraction, n>=1)
+|	let decls in exp	(let expression)
+|	if exp then exp else exp	(conditional)
+|	case exp of { alts }	(case expression)
+|	do { stmts }	(do expression)
+|	fexp
+fexp	->	[fexp] aexp	(function application)
+aexp	->	qvar	(variable)
+|	gcon	(general constructor)
+|	literal
+|	( exp )	(parenthesized expression)
+|	( exp1 , ... , expk )	(tuple, k>=2)
+|	[ exp1 , ... , expk ]	(list, k>=1)
+|	[ exp1 [, exp2] .. [exp3] ]	(arithmetic sequence)
+|	[ exp | qual1 , ... , qualn ]	(list comprehension, n>=1)
+|	( expi+1 qop(a,i) )	(left section)
+|	( lexpi qop(l,i) )	(left section)
+|	( qop(a,i)<-> expi+1 )	(right section)
+|	( qop(r,i)<-> rexpi )	(right section)
+|	qcon { fbind1 , ... , fbindn }	(labeled construction, n>=0)
+|	aexp<qcon> { fbind1 , ... , fbindn }	(labeled update, n >= 1)
+```
 大部份数学表达式都可以输入 ghci 直接解答：
 ```haskell
 3 * 5
@@ -598,6 +657,14 @@ succ 5
 round 6.59
 sqrt 2
 ```
+
+##### 定义：
+定义是一门语言的最基本的组织形式，通过定义来构造其他语言要素。一个Haskell定义将一个名（或者标识符）与一个特定类型的值相关联。例如：
+```haskell
+name :: type
+name = expression
+```
+
 ##### 调用 I/O actions 进行控制台输入和输出：
 ```haskell
 putStrLn "Hello, Haskell"
