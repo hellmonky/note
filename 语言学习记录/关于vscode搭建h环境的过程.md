@@ -567,19 +567,19 @@ stack intall ghc-mod
 ```
 安装完毕之后，在vscode中进行配置：
 
-
-
 完成上述两个步骤之后，需要重新配置vscode的haskell插件来让自己编写代码更加简单。
 
 
-## 4 haskell基本语法和程序组织形式：
+## 4 haskell基本语法学习：
 学习一门语言最重要的包含两点：
 - 熟练的掌握这门语言的基本语法，理解这些语法对应的语义，能够明确的将自己的逻辑想法转换为这门语言的表述；
 - 明确该语言支持的程序的组织形式，明确从这些组织形式到实际被编译的可执行文件之间的关联；
 
 掌握了上述内容，就基本可以使用该语言进行程序的开发了，本节的内容也是从这两点出发，进行一些学习。因为篇幅相关，本节不会非常的详细，但是一定会将必须的内容给予分析和展示。
 
-### 4.1 haskell语言的基本语法特点：
+下面的小结会根据[Haskell 98 Report](https://www.haskell.org/onlinereport/index98.html)文档给出的程序的基本组成结构进行安排，然后结合[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell)这篇文章给出明确的例子方便复习整理。
+
+### 4.1 haskell语言的基本特点：
 haskell被设计作为一个通用函数式程序设计语言，但是和之前自己熟悉的命令式程序设计语言（C系）却非常不同，haskell还被设计定位于一门结合当前许多程序设计语言理论学术成果的纯函数式程序设计语言有关。
 
 出于上述设计目的，haskell提供了：高阶函数、非严格的语义、静态多态性分型、用户自定义代数数据类型、模式匹配、列表推导、模块系统、单子I/O系统和丰富的基本数据类型集。基本数据类型包含有：列表、数组、任意和固定精度整数和浮点数。
@@ -587,19 +587,17 @@ haskell被设计作为一个通用函数式程序设计语言，但是和之前�
 
 > Haskell provides higher-order functions, non-strict semantics, static polymorphic typing, user-defined algebraic datatypes, pattern-matching, list comprehensions, a module system, a monadic I/O system, and a rich set of primitive datatypes, including lists, arrays, arbitrary and fixed precision integers, and floating-point numbers. Haskell is both the culmination and solidification of many years of research on non-strict functional languages.
 
-
 虽然本质上和scheme都是函数式程序设计语言，但是haskell更加的强调不变性，引入monod来处理可变性内特，将haskell作为一个“纯”的函数式程序设计语言而变得非常特别。
 
 因为[Haskell is not context free](http://trevorjim.com/haskell-is-not-context-free/)，所以haskell的语法没有办法使用BNF来进行描述。但是官方给出了一个非常接近的BNF-like语法来进行描述：[Syntax Reference](https://www.haskell.org/onlinereport/syntax-iso.html)，在这个章节中对于基本的一些语法和语义给出了完整的描述。
-
-下面的小结也会根据[Haskell 98 Report](https://www.haskell.org/onlinereport/index98.html)文档给出的程序的基本组成结构进行安排，然后结合[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell)这篇文章给出明确的例子方便复习整理。
 
 > 我们在这一节使用ghci来获取解释结果，这样可以方便直观的查看当前结果，对于函数定义和更多的组织形式则采用ghc来编译验证。
 使用stack调出ghci的命令为：
 ```shell
 stack ghci
 ```
-#### <0> haskell的程序结构：
+
+### 4.2 haskell的程序结构：
 我们首先要从整体的角度来不断拆分看待haskell构建的软件的组成结构，从高层次到最底层，分为四层：
 - 从整个软件的角度来看，haskell程序由一组module构成，模块提供了一种命名空间管理的方式，方便大型软件构件时的重用；
 - 在模块的角度来看，一个模块由不同组成方式的声明的集合组成，声明定义了例如普通的值、数据类型和类类型等内容；
@@ -608,9 +606,37 @@ stack ghci
 
 除此之外，haskell还提供了标准的内建数据类型和类，基于单子的I/O交互系统等工程应用内容。
 
-#### <1> 基本元素和基本表达式：
+#### 4.2.1 haskell kernel：
+haskell将函数式程序设计中流行和常用的句法结构用简单的结构表达出来，这些被用来构建流行和常用句法结构的简单结构程序集称为haskell kernel。尽管haskell kernel没有正式的定义，但是可以认为这个所谓的kernel就是具有非常明确的指称语义（denotational semantics）的lambda算子的语法糖形式。
+对于这些流行和常用的句法结构的haskell kernel实现，相当于给出了一个非常好的语法介绍。并且这种模块化的设计有利于Haskell程序进行推理，也为语言的实现者提供有益的指导。
+> Haskell has adopted many of the convenient syntactic structures that have become popular in functional programming. In this Report, the meaning of such syntactic sugar is given by translation into simpler constructs. If these translations are applied exhaustively, the result is a program written in a small subset of Haskell that we call the Haskell kernel.
+> Although the kernel is not formally specified, it is essentially a slightly sugared variant of the lambda calculus with a straightforward denotational semantics. The translation of each syntactic structure into the kernel is given as the syntax is introduced. This modular design facilitates reasoning about Haskell programs and provides useful guidelines for implementors of the language.
 
-##### 表达式：
+#### 4.2.2 值和类型：
+一个表达式经过求值得到一个固定类型的值。值和类型在haskell中没有被混在一起，类型系统允许用户自定义的数据类型，并允许不仅可以参数化多态性（通过使用传统的Hindley-Milner型结构），还允许特设多态性（ad hoc polymorphism）或重载（通过使用类型类）。
+haskell中的错误语义等价于"_|_"。从技术实现来说，错误和非终止没有什么区别，因此，haskell语言中并不包括用于检测或作用于错误的机制。但是haskell中的错误处理实现中可能会尝试提供有关错误的有用信息。
+
+#### 4.2.3 命名空间：
+在haskell中有6种名字：
+- 变量名称；
+- 函数名称；
+- 类型变量名称；
+- 类型构造函数名称；
+- 和类型系统关联的类型类实体名；
+- 表示模块的模块名；
+上述名称的命名规则有两个约束：
+- 变量和类型变量的名称是标识符开头的小写字母或下划线，其他四种类型的名称以大写字母开头的标识符。
+- 不能在同一范围内使用相同的标识符命名类型构造函数和类。
+
+### 4.3 haskell程序结构的梳理和展现：
+上一节从整体的haskell程序构建上梳理了整个程序设计中的逐步递进的结构关系。这一节将从底层最小的结构到整个软件构件的结构的角度，对上述四个层次进行展开。
+
+#### 4.3.1 词法结构（Lexical Structure）：
+词法结构是一套基础性规则，用来描述如何使用haskell来编写程序。
+##### 符号约定：
+符号约定用来说明用什么符号来表达语法。
+
+#### 4.3.2 表达式
 表达式就是返回一个值的一段程式码。根据官方文档，表达式的语法定义为：
 ```BNF
 exp	->	exp0 :: [context =>] type	(expression type signature)
@@ -658,12 +684,41 @@ round 6.59
 sqrt 2
 ```
 
-##### 定义：
+#### 4.3.3 定义：
 定义是一门语言的最基本的组织形式，通过定义来构造其他语言要素。一个Haskell定义将一个名（或者标识符）与一个特定类型的值相关联。例如：
 ```haskell
 name :: type
 name = expression
 ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ##### 调用 I/O actions 进行控制台输入和输出：
 ```haskell
