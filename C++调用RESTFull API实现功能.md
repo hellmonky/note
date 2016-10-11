@@ -66,7 +66,7 @@ web service是基于http协议的访问接口，所以C++需要一个http协议�
 
 
 ### 2 C++网络访问模块第三方库：
-主要用于让C++可以访问http协议的RESTFul接口的封装。
+C++的网络模块有很多种，本节聚焦于http协议的网络模块。因为web service是基于http协议的，所以只要能够进行http协议访问，就可以实现对restful的接口的访问。
 
 #### 2.1 网络访问相关：
 * [ACE](http://www.cs.wustl.edu/~schmidt/ACE.html) - An OO Network Programming Toolkit in C++. [?MIT?]
@@ -91,19 +91,17 @@ web service是基于http协议的访问接口，所以C++需要一个http协议�
 * [WebSocket++](https://github.com/zaphoyd/websocketpp) - C++/Boost Asio based websocket client/server library. [BSD]
 
 > 库的选型和对比：
-建议使用libcurl进行http访问的开发。
+建议使用libcurl进行http访问的开发。或者使用POCO来进行http访问实现对restfulAPI的访问。
 
 主要参考文档有：
 [REST实战——调用百度语音的云服务](http://www.voidcn.com/blog/u011000290/article/p-5782799.html)
+[Call Rest Web Services from C++](http://itcompiles.blogspot.jp/2013/09/call-rest-web-services-from-c.html)
+> Rest webservice are based on http all we have to do is make http requests. 
 
 
-#### 2.2 Web Services相关：
+#### 2.2 完整的Web Services相关：
 * [gsoap2](http://sourceforge.net/projects/gsoap2): Development toolkit for Web Services and XML data bindings for C & C++
 * [cpprestsdk](https://github.com/Microsoft/cpprestsdk): The C++ REST SDK is a Microsoft project for cloud-based client-server communication in native code using a modern asynchronous C++ API design. This project aims to help C++ developers connect to and interact with services.
-* [](): 
-* [](): 
-* [](): 
-* [](): 
 
 > 库的选型和对比：
 建议使用cpprestsdk进行RESTFul接口的访问。
