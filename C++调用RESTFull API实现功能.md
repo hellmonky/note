@@ -118,77 +118,106 @@ C++的网络模块有很多种，本节聚焦于http协议的网络模块。因�
 在上述基本步骤和第三方库选型完毕之后就需要尝试在windows和linux系统下进行实际的测试和开发，本机关注与工程实践的部署环节和开发环节。
 个人现在从工程实践的角度来进行考虑，还是希望开发越简单，部署越容易好，从这个角度出发，偏向于使用功能完善的http库来提升开发效率。偏向于使用http库进行开发。
 
-### 基于libcurl的web service访问：
-基于jsoncpp库和libcurl库完成开发。其中JSON库可以使用其他C库进行替换。
+### 1 基于libcurl的web service访问：
+这一节尝试基于jsoncpp库和libcurl库完成开发。其中JSON库可以使用其他C库进行替换。
 
+#### 1.1 windows下编译安装需要的库：
+基础编译环境：
+vs2015 update 3
+cmake-3.7.0-rc1-win64-x64.msi
+需要下载的库版本：
+[openssl-1.1.0b.tar.gz](http://www.openssl.org/source/openssl-1.1.0b.tar.gz)
+[zlib-1.2.8.tar.gz](http://zlib.net/zlib-1.2.8.tar.gz)
+[curl-7.50.3.zip](https://github.com/curl/curl/archive/curl-7_50_3.zip)
+[jsoncpp-1.7.7.zip](https://codeload.github.com/open-source-parsers/jsoncpp/zip/1.7.7)
+
+#### 1.2 编译基础库：
+解压zlib-1.2.8.tar.gz到文件夹中，然后使用cmake默认生成vs工程文件。进入后设置安装路径就可以正常编译。
+
+因为当前的web service没有使用https协议，而且openssl需要perl进行编译，故本文没有对openssl进行编译。
+
+解压curl-7.50.3.zip到文件夹中，然后使用cmake生成，打开CURL_ZLIB选项，然后点击Add Entry，将zlib生成的文件指定：
+```shell
+ZLIB_INCLUDE_DIR		X:/XXXXX/zlib/include/
+ZLIB_LIBRARIES			X:/XXXXX/zlib/lib
+```
+然后点击生成完成配置，使用vs进行编译安装。
+
+解压jsoncpp-1.7.7.zip到文件夹中，然后使用cmake默认生成，使用vs编译即可。
+
+> 参考文档：
+[在Windows上编译最新的CURL，含有zlib，openssl](http://blog.csdn.net/hujkay/article/details/18986153)
+[在 Windows 上使用 Visual Studio 编译 CURL](https://yq.aliyun.com/articles/8502)
+
+#### 1.3 编写测试代码：
+打开vs，新建win32命令行工程，选择模板为空，不需要预编译选项。然后新建如下main.cpp文件：
 ```C++
-#include <cstdio>
-#include <cstring>
-#include <stdlib.h>
-#include "curl/curl.h"
+#include <string>
+#include <iostream>
+#include <fstream>
 
+#include "curl/curl.h"
 #include "curl/easy.h"
 #include "json/json.h"
+
 #define MAX_BUFFER_SIZE 512
 #define MAX_BODY_SIZE 1000000
 
 using namespace std;
 
-static const std::string base64_chars =
-"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-"abcdefghijklmnopqrstuvwxyz"
-"0123456789+/";
+static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+										"abcdefghijklmnopqrstuvwxyz"
+										"0123456789+/";
 
-static inline bool is_base64(unsigned char c) 
-{
+static inline bool is_base64(unsigned char c) {
 	return (isalnum(c) || (c == '+') || (c == '/'));
 }
 
-string base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) 
-{
+string base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) {
 	std::string ret;
 	int i = 0;
 	int j = 0;
 	unsigned char char_array_3[3];
 	unsigned char char_array_4[4];
 
-	while (in_len--) 
-	{
+	while (in_len--) {
 		char_array_3[i++] = *(bytes_to_encode++);
-		if (i == 3) 
-		{
+		if (i == 3) {
 			char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
 			char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
 			char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
 			char_array_4[3] = char_array_3[2] & 0x3f;
 
-			for (i = 0; (i <4); i++)
+			for (i = 0; (i < 4); i++) {
 				ret += base64_chars[char_array_4[i]];
+			}
+
 			i = 0;
 		}
 	}
 
-	if (i)
-	{
-		for (j = i; j < 3; j++)
+	if (i) {
+		for (j = i; j < 3; j++) {
 			char_array_3[j] = '\0';
+		}
 
 		char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
 		char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
 		char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
 		char_array_4[3] = char_array_3[2] & 0x3f;
 
-		for (j = 0; (j < i + 1); j++)
+		for (j = 0; (j < i + 1); j++) {
 			ret += base64_chars[char_array_4[j]];
+		}
 
-		while ((i++ < 3))
+		while ((i++ < 3)) {
 			ret += '=';
+		}
 	}
 	return ret;
 }
 
-string base64_decode(std::string const& encoded_string) 
-{
+string base64_decode(std::string const& encoded_string) {
 	int in_len = encoded_string.size();
 	int i = 0;
 	int j = 0;
@@ -196,32 +225,33 @@ string base64_decode(std::string const& encoded_string)
 	unsigned char char_array_4[4], char_array_3[3];
 	std::string ret;
 
-	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_])) 
-	{
+	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
 		char_array_4[i++] = encoded_string[in_]; in_++;
-		if (i == 4) 
-		{
-			for (i = 0; i <4; i++)
+		if (i == 4) {
+			for (i = 0; i < 4; i++) {
 				char_array_4[i] = base64_chars.find(char_array_4[i]);
+			}
 
 			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
 			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
 
-			for (i = 0; (i < 3); i++)
+			for (i = 0; (i < 3); i++) {
 				ret += char_array_3[i];
+			}
+
 			i = 0;
 		}
 	}
 
-	if (i)
-	{
-		for (j = i; j <4; j++)
+	if (i) {
+		for (j = i; j < 4; j++) {
 			char_array_4[j] = 0;
+		}
 
-
-		for (j = 0; j <4; j++)
+		for (j = 0; j < 4; j++) {
 			char_array_4[j] = base64_chars.find(char_array_4[j]);
+		}
 
 		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
 		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
@@ -233,42 +263,41 @@ string base64_decode(std::string const& encoded_string)
 }
 
 //回调函数
-static size_t writefunc(void *ptr, size_t size, size_t nmemb, char **result)
-{
+static size_t writefunc(void *ptr, size_t size, size_t nmemb, char **result) {
 	size_t result_len = size * nmemb;
 	*result = (char *)realloc(*result, result_len + 1);
-	if (*result == NULL)
-	{
+	if (*result == NULL) {
 		printf("realloc failure!\n");
 		return 1;
 	}
 	memcpy(*result, ptr, result_len);
 	(*result)[result_len] = '\0';
-	cout<<百度服务器返回的json数据："<<*result<<endl;
+	cout << "百度服务器返回的json数据：" << *result << endl;
 	/*Json::Reader reader;
 	Json::Value root;
 	if(reader.parse(result,root))
 	{
-		string res = root["result"].asString();
-		cout <<"解析的结果: "<< res << endl;
+	string res = root["result"].asString();
+	cout <<"解析的结果: "<< res << endl;
 	}*/
 	return result_len;
 }
 
 int main()
 {
-    // 将整个结果写入到文本文件中作为测试查看
+	// 将整个结果写入到文本文件中作为测试查看
 	freopen("out.txt", "w", stdout);
+
+	// 打开数据文件，读入内容
 	int json_file_size;
 	FILE *pFile = NULL;
 	char *audio_data;
 	pFile = fopen("test.pcm", "r");
-	if (pFile == NULL)
-	{
+
+	if (pFile == NULL) {
 		perror("Open file error!\n");
 	}
-	else
-	{
+	else {
 		fseek(pFile, 0, SEEK_END);
 		int file_size = ftell(pFile);
 		cout << "file size: " << file_size << " bytes" << endl;
@@ -282,7 +311,7 @@ int main()
 		char *secret_key = "nZn45o3X0LGx42qovumYy2mjpOiOup2E";
 
 		char host[MAX_BUFFER_SIZE];
-        // 最主要的调用URL构造
+		// 最主要的调用URL构造
 		snprintf(host, sizeof(host),
 			"https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=%s&client_secret=%s",
 			api_key, secret_key);
@@ -301,19 +330,17 @@ int main()
 		strcat(cmd, yinhao);
 
 
-		p = popen(cmd, "r");
+		p = fopen(cmd, "r");
 		fgets(result, MAX_BUFFER_SIZE, p);
 		cout << "curl -s 响应结果: " << result << endl;
-		pclose(p);
+		fclose(p);
 
 		string access_token;
 		//解析服务器返回的Json数据,获取access_token
-		if (result != NULL)
-		{
+		if (result != NULL) {
 			Json::Reader reader;
 			Json::Value root;
-			if (reader.parse(result, root, false))
-			{
+			if (reader.parse(result, root, false)) {
 				access_token = root.get("access_token", "").asString();
 			}
 			cout << "access_token: " << access_token << endl;
@@ -323,13 +350,11 @@ int main()
 		char body[MAX_BODY_SIZE];
 		memset(body, 0, sizeof(body));
 		string decode_data = base64_encode((const unsigned char *)audio_data, file_size);
-		if (0 == decode_data.length())
-		{
+		if (0 == decode_data.length()) {
 			cout << "Error!base64 encoded data is empty!";
 			return 1;
 		}
-		else
-		{
+		else {
 			Json::Value buffer;
 			Json::FastWriter buf_writer;
 			buffer["format"] = "pcm";
@@ -369,23 +394,52 @@ int main()
 			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);//设置回调函数
 			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result_buffer);
 			res = curl_easy_perform(curl);
-			if (res != CURLE_OK)
-			{
+			if (res != CURLE_OK) {
 				printf("perform curl error:%d.\n", res);
 				return 1;
 			}
 			curl_slist_free_all(http_header);
 			curl_easy_cleanup(curl);
-			
+
 			free(audio_data);
 		}
 	}
 
 	fclose(pFile);
 	return 0;
-
 }
 ```
+
+然后配置当前工程的附加库：
+
+```shell
+1. 添加编译所需要（依赖）的 lib 文件
+     在“项目->属性->配置属性->连接器->输入->附加依赖项”里填写“winsock.lib”，多个 lib 以空格隔开。等同于“#pragma comment(lib, "*.lib") ”语句。
+
+2. 添加库（libs）文件目录
+     方法 1：项目->属性->配置属性->连接器->常规->附加库目录”
+     方法 2：[菜单]“工具->选项->项目和解决方案->c++ 目录”，选择对应平台，然后添加所需“库文件”目录
+     这个设置类似于设置环境变量，主要是为程序设置搜索的库目录，真正进行库加载还需要进行第一种设置！
+
+3. 添加包含（include）文件目录
+     方法 1：“项目->属性->配置属性->c/c++->常规->附加包含目录”
+     方法 2：[菜单]“工具->选项->项目和解决方案->c++ 目录”，添加所需“包括文件”目录
+     方法2类似于设置环境变量。
+4. 导入库（import）
+    在“项目->属性->配置属性->连接器->高级->导入库”填写需要生成的导入库
+```
+
+根据上述完成对libcurl和jsoncpp库的添加。
+
+因为上述代码使用了C的运行时库，vs会报安全错误，为了关闭，执行以下操作：
+```shell
+右击工程 - 属性 - 配置属性 - C/C++  - 命令行
+命令行增加		/D _CRT_SECURE_NO_WARNINGS
+```
+
+完成上述步骤后执行编译，如果没有错误就表示程序编译通过，然后就需要进行单步调试了。
+
+
 
 运行前，将jsoncpp库的头文件在json文件夹下和libcurl库的头文件在curl文件夹下，以及相应的.a和.so库跟代码文件放在一个目录下。运行可执行文件，源码中将标准输出写入到out.txt文件中。
 具体的libcurl的C编程教程可以参考：
