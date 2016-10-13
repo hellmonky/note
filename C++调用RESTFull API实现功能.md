@@ -438,9 +438,38 @@ int main()
 ```
 
 完成上述步骤后执行编译，如果没有错误就表示程序编译通过，然后就需要进行单步调试了。
+在调试和运行前，需要将jsoncpp库和libcurl库的相应的.dll或者.a和.so库跟代码文件放在一个目录下保证动态链接库能被正常的访问。
+
+
+#### 1.4 libcurl编程框架：
+因为使用libcurl来进行http协议下的网络访问，所以需要熟悉libcurl提供的编程框架来完成自己的代码。
+libcurl的基本编程流程为：
+* 1. 调用curl_global_init()初始化libcurl
+* 2. 调用curl_easy_init()函数得到 easy interface型指针
+* 3. 调用curl_easy_setopt()设置传输选项
+* 4. 根据curl_easy_setopt()设置的传输选项，实现回调函数以完成用户特定任务
+* 5. 调用curl_easy_perform()函数完成传输任务
+* 6. 调用curl_easy_cleanup()释放内存
+
+上述步骤中，除去初始化和结束回收之外，最关键的步骤中使用的函数就是：*curl_easy_setopt()*，这个函数通过不同的参数来进行行为的设置。
 
 
 
-运行前，将jsoncpp库的头文件在json文件夹下和libcurl库的头文件在curl文件夹下，以及相应的.a和.so库跟代码文件放在一个目录下。运行可执行文件，源码中将标准输出写入到out.txt文件中。
+
+
+
+
+
+
+
+
+
+
+
+
+
 具体的libcurl的C编程教程可以参考：
 [C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
+[Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
+[Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
+[c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
