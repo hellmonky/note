@@ -166,8 +166,8 @@ ZLIB_LIBRARIES			X:/XXXXX/zlib/lib
 using namespace std;
 
 static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-										"abcdefghijklmnopqrstuvwxyz"
-										"0123456789+/";
+																"abcdefghijklmnopqrstuvwxyz"
+																"0123456789+/";
 
 static inline bool is_base64(unsigned char c) {
 	return (isalnum(c) || (c == '+') || (c == '/'));
@@ -283,8 +283,231 @@ static size_t writefunc(void *ptr, size_t size, size_t nmemb, char **result) {
 	return result_len;
 }
 
+// 获取指定URL的内容到屏幕中：
+void getURLPrint(string URLAddress) {
+	CURL *curl;             //定义CURL类型的指针
+	CURLcode res;           //定义CURLcode类型的变量，保存返回状态码
+
+	// 修改协议头
+	struct curl_slist *useragent = NULL;
+	useragent = curl_slist_append(useragent, "Mozilla/5.0 (Windows; U; Windows NT 5.1; rv:1.7.3) Gecko/20041001 Firefox/0.10.1");
+
+
+	curl = curl_easy_init();        //初始化一个CURL类型的指针
+	if (curl != NULL)
+	{
+		//设置curl选项. 其中CURLOPT_URL是让用户指 定url. argv[1]中存放的命令行传进来的网址
+		curl_easy_setopt(curl, CURLOPT_URL, URLAddress);
+		//curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (Windows; U; Windows NT 5.1; rv:1.7.3) Gecko/20041001 Firefox/0.10.1", URLAddress);
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, useragent, URLAddress);
+		//curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, URLAddress);
+
+		//调用curl_easy_perform 执行我们的设置.并进行相关的操作. 在这 里只在屏幕上显示出来.
+		res = curl_easy_perform(curl);
+		//清除curl操作.
+		curl_easy_cleanup(curl);
+	}
+}
+
+// 从指定的URL获取网页内容到文件中：
+bool getURL(string URL, char *filename)
+{
+	CURL *curl;
+	CURLcode res;
+
+	// 返回结果用文件存储
+	FILE *fp;
+	if ((fp = fopen(filename, "w")) == NULL) {
+		return false;
+	}
+
+	// 修改协议头
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, "Accept: Agent-007");
+
+	// 初始化
+	curl = curl_easy_init();
+	if (curl)
+	{
+		//curl_easy_setopt(curl, CURLOPT_PROXY, "10.99.60.201:8080");// 代理
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);// 改协议头
+		curl_easy_setopt(curl, CURLOPT_URL, URL);
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp); //将返回的http头输出到fp指向的文件
+		curl_easy_setopt(curl, CURLOPT_HEADERDATA, fp); //将返回的html主体数据输出到fp指向的文件
+		res = curl_easy_perform(curl);   // 执行
+
+		// 检查当前访问网页的返回代码
+		if (res != 0) {
+			curl_slist_free_all(headers);
+			curl_easy_cleanup(curl);
+		}
+		fclose(fp);
+		return true;
+	}
+}
+
+// 发送post请求到指定的URL，然后返回数据到文件中
+bool postUrl(char *filename)
+{
+	CURL *curl;
+	CURLcode res;
+	FILE *fp;
+	if ((fp = fopen(filename, "w")) == NULL)
+		return false;
+	curl = curl_easy_init();
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "/tmp/cookie.txt"); // 指定cookie文件
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "&logintype=uid&u=xieyan&psw=xxx86");    // 指定post内容
+																							//curl_easy_setopt(curl, CURLOPT_PROXY, "10.99.60.201:8080");
+		curl_easy_setopt(curl, CURLOPT_URL, " http://mail.sina.com.cn/cgi-bin/login.cgi ");   // 指定url
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+		res = curl_easy_perform(curl);
+		curl_easy_cleanup(curl);
+	}
+	fclose(fp);
+	return true;
+}
+
+
+
+/*********************************************************************/
+/************** 访问RESTFul服务，获取JSON返回结果 **************/
+/*********************************************************************/
+static size_t processInsideWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
+{
+	((std::string*)userp)->append((char*)contents, size * nmemb);
+	return size * nmemb;
+}
+
+void processInside(std::string URL, std::string readBuffer) {
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headers = NULL; // init to NULL is important 
+	curl_slist_append(headers, "Accept: application/json");
+	curl_slist_append(headers, "Content-Type: application/json");
+	curl_slist_append(headers, "charsets: utf-8");
+	curl = curl_easy_init();
+
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, processInsideWriteCallback);	// 设置回调函数来写入获取的数据
+		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);			// 要写入的内容
+		res = curl_easy_perform(curl);
+
+		// 检查返回码，然后将获取的结果返回
+		if (CURLE_OK == res)
+		{
+			char *ct;
+			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
+			if ((CURLE_OK == res) && ct) {
+				std::cout << readBuffer << std::endl;
+			}	
+		}
+
+		// 清理缓存
+		curl_easy_cleanup(curl);
+	}
+}
+
+/*********************************************************************/
+/************** 访问RESTFul服务，获取JSON返回结果 **************/
+/*********************************************************************/
+std::string *outStream;
+
+static int processOutsideWriteCallback(char *data, size_t size, size_t nmemb, std::string *buffer_in) {
+	// Is there anything in the buffer?  
+	if (buffer_in != NULL) {
+		// Append the data to the buffer    
+		buffer_in->append(data, size * nmemb);
+		// How much did we write?   
+		outStream = buffer_in;
+		return size * nmemb;
+	}
+	return 0;
+}
+
+std::string processOutside(std::string URL) {
+	CURL *curl;
+	CURLcode res;
+	struct curl_slist *headers = NULL; // init to NULL is important 
+	curl_slist_append(headers, "Accept: application/json");
+	curl_slist_append(headers, "Content-Type: application/json");
+	curl_slist_append(headers, "charsets: utf-8");
+	curl = curl_easy_init();
+
+	if (curl) {
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
+		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, processOutsideWriteCallback);	// 设置回调函数来写入获取的数据
+		res = curl_easy_perform(curl);
+
+		// 检查返回码，然后将获取的结果返回
+		if (CURLE_OK == res)
+		{
+			char *ct;
+			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
+			if ((CURLE_OK == res) && ct) {
+				return *outStream;
+			}
+		}
+
+		// 清理缓存
+		curl_easy_cleanup(curl);
+	}
+}
+
+
+
 int main()
 {
+	/*
+	// 访问网址，并且将网页返回内容显示在屏幕上
+	string wwwRequestURL = "http://www.baidu.com";
+	getURLPrint(wwwRequestURL);
+	*/
+
+
+	/*
+	// 获取网页返回的数据到文件中
+	char* fileName = "D:\\workspace\\project\\C_scripts\\curl-webservice\\WebServicewithCurl\\Debug\\baidu.html";
+	bool result = getURL(fileName);
+	*/
+
+
+
+	string localRequestURL = "http://192.168.1.3:1568/datasong/dataService/mpci/target/07_7eFOo4FtbGpMsTDd1kq20160929140055071";
+
+	// 获取RESTFul接口返回的数据，并且在里面显示
+	std::string readBuffer;
+	processInside(localRequestURL, readBuffer);
+
+	// 获取RESTFul接口返回的数据，并且在外面处理
+	processOutside(localRequestURL);
+	std::cout << *outStream <<std::endl;
+
+	// 处理JSON格式的数据进行解析
+	// 将string转换为char*
+	char *outStreamChar = const_cast<char*>((*outStream).c_str());
+	// 然后使用jsoncpp来解析JSON内容
+	if (outStreamChar != NULL) {
+		Json::Reader reader;
+		Json::Value root;
+		if (reader.parse(outStreamChar, root, false)) {
+			// 获取格式化后的JSON串中的数据内容，然后转换为string输出查看
+			string dataId = root.get("dataId", "").asString();
+			cout << "dataId: " << dataId << endl;
+		}
+	}
+
+
+
+	/*
+
 	// 将整个结果写入到文本文件中作为测试查看
 	freopen("out.txt", "w", stdout);
 
@@ -406,6 +629,7 @@ int main()
 	}
 
 	fclose(pFile);
+	*/
 	return 0;
 }
 ```
