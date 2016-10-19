@@ -158,130 +158,8 @@ ZLIB_LIBRARIES			X:/XXXXX/zlib/lib
 
 #include "curl/curl.h"
 #include "curl/easy.h"
-#include "json/json.h"
-
-#define MAX_BUFFER_SIZE 512
-#define MAX_BODY_SIZE 1000000
 
 using namespace std;
-
-static const std::string base64_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-																"abcdefghijklmnopqrstuvwxyz"
-																"0123456789+/";
-
-static inline bool is_base64(unsigned char c) {
-	return (isalnum(c) || (c == '+') || (c == '/'));
-}
-
-string base64_encode(unsigned char const* bytes_to_encode, unsigned int in_len) {
-	std::string ret;
-	int i = 0;
-	int j = 0;
-	unsigned char char_array_3[3];
-	unsigned char char_array_4[4];
-
-	while (in_len--) {
-		char_array_3[i++] = *(bytes_to_encode++);
-		if (i == 3) {
-			char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-			char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-			char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-			char_array_4[3] = char_array_3[2] & 0x3f;
-
-			for (i = 0; (i < 4); i++) {
-				ret += base64_chars[char_array_4[i]];
-			}
-
-			i = 0;
-		}
-	}
-
-	if (i) {
-		for (j = i; j < 3; j++) {
-			char_array_3[j] = '\0';
-		}
-
-		char_array_4[0] = (char_array_3[0] & 0xfc) >> 2;
-		char_array_4[1] = ((char_array_3[0] & 0x03) << 4) + ((char_array_3[1] & 0xf0) >> 4);
-		char_array_4[2] = ((char_array_3[1] & 0x0f) << 2) + ((char_array_3[2] & 0xc0) >> 6);
-		char_array_4[3] = char_array_3[2] & 0x3f;
-
-		for (j = 0; (j < i + 1); j++) {
-			ret += base64_chars[char_array_4[j]];
-		}
-
-		while ((i++ < 3)) {
-			ret += '=';
-		}
-	}
-	return ret;
-}
-
-string base64_decode(std::string const& encoded_string) {
-	int in_len = encoded_string.size();
-	int i = 0;
-	int j = 0;
-	int in_ = 0;
-	unsigned char char_array_4[4], char_array_3[3];
-	std::string ret;
-
-	while (in_len-- && (encoded_string[in_] != '=') && is_base64(encoded_string[in_])) {
-		char_array_4[i++] = encoded_string[in_]; in_++;
-		if (i == 4) {
-			for (i = 0; i < 4; i++) {
-				char_array_4[i] = base64_chars.find(char_array_4[i]);
-			}
-
-			char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-			char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-			char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-			for (i = 0; (i < 3); i++) {
-				ret += char_array_3[i];
-			}
-
-			i = 0;
-		}
-	}
-
-	if (i) {
-		for (j = i; j < 4; j++) {
-			char_array_4[j] = 0;
-		}
-
-		for (j = 0; j < 4; j++) {
-			char_array_4[j] = base64_chars.find(char_array_4[j]);
-		}
-
-		char_array_3[0] = (char_array_4[0] << 2) + ((char_array_4[1] & 0x30) >> 4);
-		char_array_3[1] = ((char_array_4[1] & 0xf) << 4) + ((char_array_4[2] & 0x3c) >> 2);
-		char_array_3[2] = ((char_array_4[2] & 0x3) << 6) + char_array_4[3];
-
-		for (j = 0; (j < i - 1); j++) ret += char_array_3[j];
-	}
-	return ret;
-}
-
-//回调函数
-static size_t writefunc(void *ptr, size_t size, size_t nmemb, char **result) {
-	size_t result_len = size * nmemb;
-	*result = (char *)realloc(*result, result_len + 1);
-	if (*result == NULL) {
-		printf("realloc failure!\n");
-		return 1;
-	}
-	memcpy(*result, ptr, result_len);
-	(*result)[result_len] = '\0';
-	cout << "百度服务器返回的json数据：" << *result << endl;
-	/*Json::Reader reader;
-	Json::Value root;
-	if(reader.parse(result,root))
-	{
-	string res = root["result"].asString();
-	cout <<"解析的结果: "<< res << endl;
-	}*/
-	return result_len;
-}
 
 // 获取指定URL的内容到屏幕中：
 void getURLPrint(string URLAddress) {
@@ -309,327 +187,10 @@ void getURLPrint(string URLAddress) {
 	}
 }
 
-// 从指定的URL获取网页内容到文件中：
-bool getURL(string URL, char *filename)
-{
-	CURL *curl;
-	CURLcode res;
-
-	// 返回结果用文件存储
-	FILE *fp;
-	if ((fp = fopen(filename, "w")) == NULL) {
-		return false;
-	}
-
-	// 修改协议头
-	struct curl_slist *headers = NULL;
-	headers = curl_slist_append(headers, "Accept: Agent-007");
-
-	// 初始化
-	curl = curl_easy_init();
-	if (curl)
-	{
-		//curl_easy_setopt(curl, CURLOPT_PROXY, "10.99.60.201:8080");// 代理
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);// 改协议头
-		curl_easy_setopt(curl, CURLOPT_URL, URL);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp); //将返回的http头输出到fp指向的文件
-		curl_easy_setopt(curl, CURLOPT_HEADERDATA, fp); //将返回的html主体数据输出到fp指向的文件
-		res = curl_easy_perform(curl);   // 执行
-
-		// 检查当前访问网页的返回代码
-		if (res != 0) {
-			curl_slist_free_all(headers);
-			curl_easy_cleanup(curl);
-		}
-		fclose(fp);
-		return true;
-	}
-}
-
-// 发送post请求到指定的URL，然后返回数据到文件中
-bool postUrl(char *filename)
-{
-	CURL *curl;
-	CURLcode res;
-	FILE *fp;
-	if ((fp = fopen(filename, "w")) == NULL)
-		return false;
-	curl = curl_easy_init();
-	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_COOKIEFILE, "/tmp/cookie.txt"); // 指定cookie文件
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "&logintype=uid&u=xieyan&psw=xxx86");    // 指定post内容
-																							//curl_easy_setopt(curl, CURLOPT_PROXY, "10.99.60.201:8080");
-		curl_easy_setopt(curl, CURLOPT_URL, " http://mail.sina.com.cn/cgi-bin/login.cgi ");   // 指定url
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-		res = curl_easy_perform(curl);
-		curl_easy_cleanup(curl);
-	}
-	fclose(fp);
-	return true;
-}
-
-
-
-/*********************************************************************/
-/************** 访问RESTFul服务，获取JSON返回结果 **************/
-/*********************************************************************/
-static size_t processInsideWriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
-{
-	((std::string*)userp)->append((char*)contents, size * nmemb);
-	return size * nmemb;
-}
-
-void processInside(std::string URL, std::string readBuffer) {
-	CURL *curl;
-	CURLcode res;
-	struct curl_slist *headers = NULL; // init to NULL is important 
-	curl_slist_append(headers, "Accept: application/json");
-	curl_slist_append(headers, "Content-Type: application/json");
-	curl_slist_append(headers, "charsets: utf-8");
-	curl = curl_easy_init();
-
-	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, processInsideWriteCallback);	// 设置回调函数来写入获取的数据
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &readBuffer);			// 要写入的内容
-		res = curl_easy_perform(curl);
-
-		// 检查返回码，然后将获取的结果返回
-		if (CURLE_OK == res)
-		{
-			char *ct;
-			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
-			if ((CURLE_OK == res) && ct) {
-				std::cout << readBuffer << std::endl;
-			}	
-		}
-
-		// 清理缓存
-		curl_easy_cleanup(curl);
-	}
-}
-
-/*********************************************************************/
-/************** 访问RESTFul服务，获取JSON返回结果 **************/
-/*********************************************************************/
-std::string *outStream;
-
-static int processOutsideWriteCallback(char *data, size_t size, size_t nmemb, std::string *buffer_in) {
-	// Is there anything in the buffer?  
-	if (buffer_in != NULL) {
-		// Append the data to the buffer    
-		buffer_in->append(data, size * nmemb);
-		// How much did we write?   
-		outStream = buffer_in;
-		return size * nmemb;
-	}
-	return 0;
-}
-
-std::string processOutside(std::string URL) {
-	CURL *curl;
-	CURLcode res;
-	struct curl_slist *headers = NULL; // init to NULL is important 
-	curl_slist_append(headers, "Accept: application/json");
-	curl_slist_append(headers, "Content-Type: application/json");
-	curl_slist_append(headers, "charsets: utf-8");
-	curl = curl_easy_init();
-
-	if (curl) {
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_URL, URL.c_str());
-		curl_easy_setopt(curl, CURLOPT_HTTPGET, 1);
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, processOutsideWriteCallback);	// 设置回调函数来写入获取的数据
-		res = curl_easy_perform(curl);
-
-		// 检查返回码，然后将获取的结果返回
-		if (CURLE_OK == res)
-		{
-			char *ct;
-			res = curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
-			if ((CURLE_OK == res) && ct) {
-				return *outStream;
-			}
-		}
-
-		// 清理缓存
-		curl_easy_cleanup(curl);
-	}
-}
-
-
-
-int main()
-{
-	/*
-	// 访问网址，并且将网页返回内容显示在屏幕上
+// 测试入口
+int main() {
 	string wwwRequestURL = "http://www.baidu.com";
 	getURLPrint(wwwRequestURL);
-	*/
-
-
-	/*
-	// 获取网页返回的数据到文件中
-	char* fileName = "D:\\workspace\\project\\C_scripts\\curl-webservice\\WebServicewithCurl\\Debug\\baidu.html";
-	bool result = getURL(fileName);
-	*/
-
-
-
-	string localRequestURL = "http://192.168.1.3:1568/datasong/dataService/mpci/target/07_7eFOo4FtbGpMsTDd1kq20160929140055071";
-
-	// 获取RESTFul接口返回的数据，并且在里面显示
-	std::string readBuffer;
-	processInside(localRequestURL, readBuffer);
-
-	// 获取RESTFul接口返回的数据，并且在外面处理
-	processOutside(localRequestURL);
-	std::cout << *outStream <<std::endl;
-
-	// 处理JSON格式的数据进行解析
-	// 将string转换为char*
-	char *outStreamChar = const_cast<char*>((*outStream).c_str());
-	// 然后使用jsoncpp来解析JSON内容
-	if (outStreamChar != NULL) {
-		Json::Reader reader;
-		Json::Value root;
-		if (reader.parse(outStreamChar, root, false)) {
-			// 获取格式化后的JSON串中的数据内容，然后转换为string输出查看
-			string dataId = root.get("dataId", "").asString();
-			cout << "dataId: " << dataId << endl;
-		}
-	}
-
-
-
-	/*
-
-	// 将整个结果写入到文本文件中作为测试查看
-	freopen("out.txt", "w", stdout);
-
-	// 打开数据文件，读入内容
-	int json_file_size;
-	FILE *pFile = NULL;
-	char *audio_data;
-	pFile = fopen("test.pcm", "r");
-
-	if (pFile == NULL) {
-		perror("Open file error!\n");
-	}
-	else {
-		fseek(pFile, 0, SEEK_END);
-		int file_size = ftell(pFile);
-		cout << "file size: " << file_size << " bytes" << endl;
-		fseek(pFile, 0, SEEK_SET);
-		audio_data = (char *)malloc(sizeof(char)*file_size);
-		fread(audio_data, file_size, sizeof(char), pFile);
-
-		//机器的mac地址
-		char *cuid = "56:84:7a:fe:97:99";
-		char *api_key = "6yFhYifMjXc8QmubiICXBQgi";
-		char *secret_key = "nZn45o3X0LGx42qovumYy2mjpOiOup2E";
-
-		char host[MAX_BUFFER_SIZE];
-		// 最主要的调用URL构造
-		snprintf(host, sizeof(host),
-			"https://openapi.baidu.com/oauth/2.0/token?grant_type=client_credentials&client_id=%s&client_secret=%s",
-			api_key, secret_key);
-		cout << "curl -s命令的host: " << host << endl;
-
-		FILE *p = NULL;
-		char cmd[MAX_BUFFER_SIZE];
-		//curl -s命令的返回结果
-		char *result = (char*)malloc(MAX_BUFFER_SIZE);
-		char *curl_cmd = "curl -s ";
-		char *yinhao = "\"";
-
-		strcpy(cmd, curl_cmd);
-		strcat(cmd, yinhao);
-		strcat(cmd, host);
-		strcat(cmd, yinhao);
-
-
-		p = fopen(cmd, "r");
-		fgets(result, MAX_BUFFER_SIZE, p);
-		cout << "curl -s 响应结果: " << result << endl;
-		fclose(p);
-
-		string access_token;
-		//解析服务器返回的Json数据,获取access_token
-		if (result != NULL) {
-			Json::Reader reader;
-			Json::Value root;
-			if (reader.parse(result, root, false)) {
-				access_token = root.get("access_token", "").asString();
-			}
-			cout << "access_token: " << access_token << endl;
-		}
-
-		//采取隐式发送的方式给服务器发送json格式的数据
-		char body[MAX_BODY_SIZE];
-		memset(body, 0, sizeof(body));
-		string decode_data = base64_encode((const unsigned char *)audio_data, file_size);
-		if (0 == decode_data.length()) {
-			cout << "Error!base64 encoded data is empty!";
-			return 1;
-		}
-		else {
-			Json::Value buffer;
-			Json::FastWriter buf_writer;
-			buffer["format"] = "pcm";
-			buffer["rate"] = 8000;
-			buffer["channel"] = 1;
-			buffer["token"] = access_token.c_str();
-			buffer["cuid"] = cuid;
-			buffer["speech"] = decode_data;
-			buffer["len"] = file_size;
-			//实际json格式数据的长度
-			json_file_size = buf_writer.write(buffer).length();
-			cout << "Json file size:" << json_file_size << " bytes" << endl;
-			memcpy(body, buf_writer.write(buffer).c_str(), json_file_size);
-
-			CURL *curl;
-			CURLcode res;//服务器的响应结果
-			char *result_buffer = NULL;
-			struct curl_slist *http_header = NULL;
-			char temp[MAX_BUFFER_SIZE];
-			memset(temp, 0, sizeof(temp));
-			snprintf(temp, sizeof(temp), "%s", "Content-Type: application/json; charset=utf-8");
-			http_header = curl_slist_append(http_header, temp);
-			snprintf(temp, sizeof(temp), "Content-Length: %d", json_file_size);
-			http_header = curl_slist_append(http_header, temp);
-
-
-			memset(host, 0, sizeof(host));
-			snprintf(host, sizeof(host), "%s", "http://vop.baidu.com/server_api");
-			cout << "server host: " << host << endl;
-			curl = curl_easy_init();
-			curl_easy_setopt(curl, CURLOPT_URL, host);//设置访问的URL
-			curl_easy_setopt(curl, CURLOPT_POST, 1);//1表示常规的http post请求
-			curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30);//设置延时
-			curl_easy_setopt(curl, CURLOPT_HTTPHEADER, http_header);
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body);
-			curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, json_file_size);
-			curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writefunc);//设置回调函数
-			curl_easy_setopt(curl, CURLOPT_WRITEDATA, &result_buffer);
-			res = curl_easy_perform(curl);
-			if (res != CURLE_OK) {
-				printf("perform curl error:%d.\n", res);
-				return 1;
-			}
-			curl_slist_free_all(http_header);
-			curl_easy_cleanup(curl);
-
-			free(audio_data);
-		}
-	}
-
-	fclose(pFile);
-	*/
 	return 0;
 }
 ```
@@ -677,8 +238,50 @@ libcurl的基本编程流程为：
 
 上述步骤中，除去初始化和结束回收之外，最关键的步骤中使用的函数就是：*curl_easy_setopt()*，这个函数通过不同的参数来进行行为的设置。
 
+在完成上述框架的了解之后，可以使用提供的基本API进行编写代码来测试了。具体的代码片段为：
+```C++
+```
+
+#### 1.5 JSon格式数据的解析：
+根据性能测评和移植性测评，最终选定RapidJSON来进行JSON格式的解析和转换。对比jsoncpp的编译和链接，可以方便的通过头文件引入的方式来集成，方便整个开发。
+首先从[官方网站](https://github.com/miloyip/rapidjson)同步代码：
+```shell
+git clone https://github.com/miloyip/rapidjson.git
+```
+然后，新建一个C++类来完成测试：
+```C++
+```
+
+#### 1.6 JSON和C++ struct之间的转化：
+完成JSON格式的解析之后，为了通用性，需要将JSON字符串和对应的struct结构体进行转换才可以方便的进行处理。
+然后C++没有提供java自带的反射机制，这一步骤无法通过语言提供的原生语法实现，需要借助于第三方库来进行处理。
+参考：
+[C结构体与 JSON 快速互转库](https://www.zybuluo.com/armink/note/189711)
+[C结构体与Json字符串自动转换](http://xphhhh.blog.51cto.com/7540829/1573856)
+关于一些开源的实现和思路：
+[cobj](https://github.com/xphh/cobj)
+[ajson](https://github.com/lordoffox/ajson)
+[C++ JSON Serialization](http://stackoverflow.com/questions/17549906/c-json-serialization)
+[Codeless JSON C/C++ Object Serialization](http://jbvsblog.blogspot.jp/2013/12/codeless-json-c-cpp-object-serialization.html)
+[ThorSerializer](https://github.com/Loki-Astari/ThorsSerializer)
+[JSON for Modern C++](https://github.com/nlohmann/json)
+[protobuf-c](https://github.com/protobuf-c/protobuf-c)
 
 
+#### 1.7 使用libcurl进行form表单的multipart/form-data的设置：
+在使用libcurl进行form表单数据提交的时候遇到了问题，因为server端使用了spring的multipartFile参数，使用libcurl的设置就发生了变化，参考[官方的例程1:postit2](https://curl.haxx.se/libcurl/c/postit2.html)和[官方的例程2:multi-post](https://curl.haxx.se/libcurl/c/multi-post.html)没有帮助，只能从网上查找相关的资料，主要有如下：
+[使用libcurl进行文件上传](http://www.cnblogs.com/lidabo/p/4159377.html)
+[使用libcurl POST数据和上传文件](http://www.cnblogs.com/lidabo/p/4159592.html)
+[使用libcurl Post 含有照片的HTTP form表单](http://inspire365.blog.163.com/blog/static/196187838201368112120658/)
+[[实践OK]C语言 HTTP上传文件-利用libcurl库上传文件, curl连接超时的问题 特别是获取返回头及内容的c写法。](http://justwinit.cn/post/7626/)
+[linux c libcurl的简单使用](https://my.oschina.net/u/136923/blog/93448)
+[上传文件multipart form-data boundary 说明](http://www.cnblogs.com/yydcdut/p/3736667.html)
+[libcurl上传文件](http://www.cnblogs.com/meteoric_cry/p/4285881.html)
+[libcURL POST multipart upload (with buffered image) returning HTTP 400](http://stackoverflow.com/questions/37082651/libcurl-post-multipart-upload-with-buffered-image-returning-http-400)
+
+整个form表单设置中最主要就是[curl_formadd](https://curl.haxx.se/libcurl/c/curl_formadd.html)函数对整个form表单的结构进行了规定。
+
+> 最终发现问题所在：因为libcurl是C库，所以所有接受参数都必须为char*数组指针，而不是string，这就是造成明明传输了参数，但是却无法获取的原因。
 
 
 
@@ -697,3 +300,13 @@ libcurl的基本编程流程为：
 [Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
 [Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
 [c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
+关于断点续传：
+[coco2dx c++ 断点续传实现](http://blog.csdn.net/vpingchangxin/article/details/22309067)
+[使用libcurl库进行HTTP的下载](http://blog.csdn.net/gjy1606/article/details/5644712)
+[Libcurl实现文件下载](http://blog.sina.com.cn/s/blog_a6fb6cc90101ffn4.html)
+[使用libcurl提交POST请求](http://finux.iteye.com/blog/715247)
+[libcurl post／get上传下载文件 以及断点下载](http://www.xuebuyuan.com/1254589.html)
+[Libcurl实现断点续传](http://www.cnblogs.com/chang290/archive/2012/08/12/2634858.html)
+[libcurl 撸记](http://ftxtool.org/index.php/tag/duan_dian_xu_chuan/)
+关于vs设置：
+[带你玩转Visual Studio——带你跳出坑爹的Runtime Library坑](http://blog.csdn.net/luoweifu/article/details/49055933)
