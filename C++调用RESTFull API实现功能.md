@@ -284,10 +284,63 @@ git clone https://github.com/miloyip/rapidjson.git
 > 最终发现问题所在：因为libcurl是C库，所以所有接受参数都必须为char*数组指针，而不是string，这就是造成明明传输了参数，但是却无法获取的原因。
 
 
+#### 1.8 使用cmake来管理当前的整个工程文件：
+在上述步骤完成之后，基本的测试和验证系统完成了开发，为了后续联合开发的方便，需要对整个工程做跨平台处理，这儿借助于cmake来帮助完成。
+```cmake
+# 设置最小的构建版本要求
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+
+# 设置当前的工程名称和版本号
+PROJECT(WebServicewithCurl CXX)
+set(LIB_MAJOR_VERSION "1")
+set(LIB_MINOR_VERSION "1")
+set(LIB_PATCH_VERSION "0")
+set(LIB_VERSION_STRING "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_PATCH_VERSION}")
+
+# 添加底层文件路径
+ADD_SUBDIRECTORY(src)
+```
+
+然后再src文件夹下新建cmake构建文件，用于构建动态链接库，内容为：
+```cmake
+# 设置当前文件夹构建需要的源文件：
+SET(LIBRESTFULREQUESTOR_SRC RESTFulRequestor.cpp)
+# 使用上述设置的源文件构建动态链接库：
+ADD_LIBRARY(RESTFulRequestor SHARED ${LIBRESTFULREQUESTOR_SRC})
+# 使用上述设置的源文件，构建静态库文件：
+ADD_LIBRARY(RESTFulRequestorlib STATIC ${LIBRESTFULREQUESTOR_SRC})
+# 添加库的版本
+SET_TARGET_PROPERTIES(RESTFulRequestor PROPERTIES VERSION 1.0 SOVERSION 1)
+# 设置需要的附加头文件：
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
+# 设置需要的附加库文件：
+TARGET_LINK_LIBRARIES(RESTFulRequestor ${CMAKE_CURRENT_SOURCE_DIR}/lib/jsoncpp.lib)
+TARGET_LINK_LIBRARIES(RESTFulRequestor ${CMAKE_CURRENT_SOURCE_DIR}/lib/libcurl_imp.lib)
+# 设置库编译安装的位置：
+INSTALL(TARGETS RESTFulRequestor RUNTIME DESTINATION lib)
+INSTALL(TARGETS RESTFulRequestorlib ARCHIVE DESTINATION libstatic)
+INSTALL(FILES RESTFulRequestor.h DESTINATION include/RESTFulRequestor)
+```
+完成上述文件的编写之后，就可以使用cmake构建工程了，最后生成需要的头文件、动态库文件和静态库文件。
 
 
-
-
+参考资料：
+入门渐进式资料，用于从头开始编写cmake文件：
+[使用CMake构建项目的简明示例（1）](http://blog.csdn.net/lzx1104/article/details/6038007)
+[使用CMake构建项目的简明示例（2）](http://blog.csdn.net/lzx1104/article/details/6046131)
+[CMake 实例学习（0）开始](http://blog.chinaunix.net/uid-25696269-id-603825.html)
+[CMake 实例学习（1）内外之分](http://blog.chinaunix.net/uid-25696269-id-603961.html)
+[CMake 实例学习（2）构建共享库](http://blog.chinaunix.net/uid-25696269-id-761383.html)
+[CMake 实例学习（3）构建静态库](http://blog.chinaunix.net/uid-25696269-id-1435094.html)
+[CMake 实例学习（4）动/静态库共存](http://blog.chinaunix.net/uid-25696269-id-1564981.html)
+汇总资料，用于查询对应的用法：
+[CMake整理](http://pengbotao.cn/linux-cmake.html)
+[cmake使用示例与整理总结](http://blog.csdn.net/wzzfeitian/article/details/40963457)
+[利用CMake生成动态或静态链接库工程](http://www.cnblogs.com/springbarley/p/3359624.html)
+[]()
+[]()
+[]()
+[]()
 
 
 
