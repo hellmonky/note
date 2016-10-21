@@ -225,6 +225,9 @@ int main() {
 完成上述步骤后执行编译，如果没有错误就表示程序编译通过，然后就需要进行单步调试了。
 在调试和运行前，需要将jsoncpp库和libcurl库的相应的.dll或者.a和.so库跟代码文件放在一个目录下保证动态链接库能被正常的访问。
 
+关于vs设置的参考文件：
+[带你玩转Visual Studio——带你跳出坑爹的Runtime Library坑](http://blog.csdn.net/luoweifu/article/details/49055933)
+
 
 #### 1.4 libcurl编程框架：
 因为使用libcurl来进行http协议下的网络访问，所以需要熟悉libcurl提供的编程框架来完成自己的代码。
@@ -241,6 +244,20 @@ libcurl的基本编程流程为：
 在完成上述框架的了解之后，可以使用提供的基本API进行编写代码来测试了。具体的代码片段为：
 ```C++
 ```
+
+具体的libcurl的C编程教程可以参考：
+[C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
+[Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
+[Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
+[c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
+关于断点续传：
+[coco2dx c++ 断点续传实现](http://blog.csdn.net/vpingchangxin/article/details/22309067)
+[使用libcurl库进行HTTP的下载](http://blog.csdn.net/gjy1606/article/details/5644712)
+[Libcurl实现文件下载](http://blog.sina.com.cn/s/blog_a6fb6cc90101ffn4.html)
+[使用libcurl提交POST请求](http://finux.iteye.com/blog/715247)
+[libcurl post／get上传下载文件 以及断点下载](http://www.xuebuyuan.com/1254589.html)
+[Libcurl实现断点续传](http://www.cnblogs.com/chang290/archive/2012/08/12/2634858.html)
+[libcurl 撸记](http://ftxtool.org/index.php/tag/duan_dian_xu_chuan/)
 
 #### 1.5 JSon格式数据的解析：
 根据性能测评和移植性测评，最终选定RapidJSON来进行JSON格式的解析和转换。对比jsoncpp的编译和链接，可以方便的通过头文件引入的方式来集成，方便整个开发。
@@ -286,41 +303,196 @@ git clone https://github.com/miloyip/rapidjson.git
 
 #### 1.8 使用cmake来管理当前的整个工程文件：
 在上述步骤完成之后，基本的测试和验证系统完成了开发，为了后续联合开发的方便，需要对整个工程做跨平台处理，这儿借助于cmake来帮助完成。
+然后重新整理上述完成的代码，后续的开发和编译工作都从cmake进行组织和管理。
+
+##### 1.8.1 梳理代码组织形式：
+首先，需要梳理当前的源代码组织形式，然后再根据这个源代码的组织形式来编写cmake脚本，帮助完成配置和编译工作。
+现在初步规划的组织形式为：
+```shell
+WebServicewithCurl_cmake
+│
+│─CMakeLists.txt
+│
+├─include
+│  ├─curl
+│  │      curl.h
+│  │      curlbuild.h
+│  │      curlrules.h
+│  │      curlver.h
+│  │      easy.h
+│  │      mprintf.h
+│  │      multi.h
+│  │      stdcheaders.h
+│  │      typecheck-gcc.h
+│  │
+│  ├─json
+│  │      allocator.h
+│  │      assertions.h
+│  │      autolink.h
+│  │      config.h
+│  │      features.h
+│  │      forwards.h
+│  │      json.h
+│  │      reader.h
+│  │      value.h
+│  │      version.h
+│  │      writer.h
+│  │
+│  └─rapidjson
+│      │  allocators.h
+│      │  document.h
+│      │  encodedstream.h
+│      │  encodings.h
+│      │  filereadstream.h
+│      │  filewritestream.h
+│      │  fwd.h
+│      │  istreamwrapper.h
+│      │  memorybuffer.h
+│      │  memorystream.h
+│      │  ostreamwrapper.h
+│      │  pointer.h
+│      │  prettywriter.h
+│      │  rapidjson.h
+│      │  reader.h
+│      │  schema.h
+│      │  stream.h
+│      │  stringbuffer.h
+│      │  writer.h
+│      │
+│      ├─error
+│      │      en.h
+│      │      error.h
+│      │
+│      ├─internal
+│      │      biginteger.h
+│      │      diyfp.h
+│      │      dtoa.h
+│      │      ieee754.h
+│      │      itoa.h
+│      │      meta.h
+│      │      pow10.h
+│      │      regex.h
+│      │      stack.h
+│      │      strfunc.h
+│      │      strtod.h
+│      │      swap.h
+│      │
+│      └─msinttypes
+│              inttypes.h
+│              stdint.h
+│
+├─lib
+│      jsoncpp.lib
+│      libcurl_imp.lib
+│
+├─libtest
+│      CMakeLists.txt
+│      main.cpp
+│
+└─src
+    │  CMakeLists.txt
+    │  RESTFulRequestor.cpp
+    │  RESTFulRequestor.h
+    │
+    └─JsonUtil
+            JsonCppUtil.cpp
+            JsonCppUtil.h
+            JsonInterface.h
+            RapidJsonUtil.cpp
+            RapidJsonUtil.h
+```
+其中：
+- src为库的主要实现文件夹，包含自己定义的类和要生成库的主要实现文件和头文件；
+- libtest是为测试库的测试应用程序文件夹；
+- lib为使用的第三方静态库的文件夹，主要是为了方便开发放在了一起，可以通过cmake进行配置路径进行设置；
+- include文件夹存放的是第三方库的头文件，下面按照使用的三个库：libcurl、jsoncpp和rapidjson分别放在不同的文件夹下；
+
+##### 1.8.2 编写cmake脚本：
+经过上述的初步组织，需要三个cmake脚本来帮助完成编译工作：
+- 顶层cmake脚本：设置当前整个工程的属性和基本依赖项；
+- src层cmake脚本：组织自己编写的代码模块，生成需要的静态库和动态库；
+- libtest层cmake脚本：使用src生成的静态库链接生成可执行文件来进行测试；
+
+###### （1）顶层cmake脚本内容为：
 ```cmake
 # 设置最小的构建版本要求
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 # 设置当前的工程名称和版本号
 PROJECT(WebServicewithCurl CXX)
-set(LIB_MAJOR_VERSION "1")
-set(LIB_MINOR_VERSION "1")
-set(LIB_PATCH_VERSION "0")
-set(LIB_VERSION_STRING "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_PATCH_VERSION}")
+SET(LIB_MAJOR_VERSION "1")
+SET(LIB_MINOR_VERSION "1")
+SET(LIB_PATCH_VERSION "0")
+SET(LIB_VERSION_STRING "${LIB_MAJOR_VERSION}.${LIB_MINOR_VERSION}.${LIB_PATCH_VERSION}")
 
-# 添加底层文件路径
+# 设置外部依赖的头文件路径：
+FIND_PATH(MUDUO_INCLUDE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# 设置外部依赖的第三方库路径：
+FIND_LIBRARY(LIB_CURL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/libcurl_imp.lib)
+FIND_LIBRARY(LIB_JSONCPP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib/jsoncpp.lib)
+
+# 添加库的子文件夹：
 ADD_SUBDIRECTORY(src)
+# 添加测试库子文件夹：
+ADD_SUBDIRECTORY(libtest)
 ```
-
-然后再src文件夹下新建cmake构建文件，用于构建动态链接库，内容为：
+###### （2）src文件夹cmake脚本内容为：
 ```cmake
 # 设置当前文件夹构建需要的源文件：
 SET(LIBRESTFULREQUESTOR_SRC RESTFulRequestor.cpp)
+
 # 使用上述设置的源文件构建动态链接库：
 ADD_LIBRARY(RESTFulRequestor SHARED ${LIBRESTFULREQUESTOR_SRC})
 # 使用上述设置的源文件，构建静态库文件：
 ADD_LIBRARY(RESTFulRequestorlib STATIC ${LIBRESTFULREQUESTOR_SRC})
+
 # 添加库的版本
 SET_TARGET_PROPERTIES(RESTFulRequestor PROPERTIES VERSION 1.0 SOVERSION 1)
+
+# 设置当前编译需要的自定义模块头文件：
+#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/)
 # 设置需要的附加头文件：
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include)
+INCLUDE_DIRECTORIES(${MUDUO_INCLUDE_PATH})
 # 设置需要的附加库文件：
-TARGET_LINK_LIBRARIES(RESTFulRequestor ${CMAKE_CURRENT_SOURCE_DIR}/lib/jsoncpp.lib)
-TARGET_LINK_LIBRARIES(RESTFulRequestor ${CMAKE_CURRENT_SOURCE_DIR}/lib/libcurl_imp.lib)
+TARGET_LINK_LIBRARIES(RESTFulRequestor ${LIB_CURL_PATH})
+
 # 设置库编译安装的位置：
 INSTALL(TARGETS RESTFulRequestor RUNTIME DESTINATION lib)
 INSTALL(TARGETS RESTFulRequestorlib ARCHIVE DESTINATION libstatic)
 INSTALL(FILES RESTFulRequestor.h DESTINATION include/RESTFulRequestor)
 ```
+
+###### （3）libtest文件夹cmake脚本内容为：
+```cmake
+# 设置测试工程名称
+SET(TARGET_LABEL_PREFIX "Test ")
+
+# 设置当前文件夹编译依赖文件
+SET(LIBRESTFULREQUESTORTEST_SRC main.cpp)
+
+# 使用上述设置的源文件构建应用程序：
+ADD_EXECUTABLE(RESTFulRequestorTest ${LIBRESTFULREQUESTORTEST_SRC})
+
+# 添加库的版本
+SET_TARGET_PROPERTIES(RESTFulRequestorTest PROPERTIES VERSION 1.0 SOVERSION 1)
+
+# 依赖于本工程自己的头文件路径
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src)
+# 依赖的第三方库头文件路径：
+INCLUDE_DIRECTORIES(${MUDUO_INCLUDE_PATH})
+
+# 设置对当前工程文件生成库的依赖：直接使用其他子文件夹下ADD_LIBRARY中定义的文件
+TARGET_LINK_LIBRARIES(RESTFulRequestorTest RESTFulRequestorlib)
+
+# 设置需要的附加库文件：
+TARGET_LINK_LIBRARIES(RESTFulRequestorTest ${LIB_CURL_PATH})
+TARGET_LINK_LIBRARIES(RESTFulRequestorTest ${LIB_JSONCPP_PATH})
+
+# 设置库编译安装的位置：
+INSTALL(TARGETS RESTFulRequestorTest RUNTIME DESTINATION test)
+```
+
 完成上述文件的编写之后，就可以使用cmake构建工程了，最后生成需要的头文件、动态库文件和静态库文件。
 
 
@@ -337,29 +509,4 @@ INSTALL(FILES RESTFulRequestor.h DESTINATION include/RESTFulRequestor)
 [CMake整理](http://pengbotao.cn/linux-cmake.html)
 [cmake使用示例与整理总结](http://blog.csdn.net/wzzfeitian/article/details/40963457)
 [利用CMake生成动态或静态链接库工程](http://www.cnblogs.com/springbarley/p/3359624.html)
-[]()
-[]()
-[]()
-[]()
-
-
-
-
-
-
-
-具体的libcurl的C编程教程可以参考：
-[C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
-[Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
-[Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
-[c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
-关于断点续传：
-[coco2dx c++ 断点续传实现](http://blog.csdn.net/vpingchangxin/article/details/22309067)
-[使用libcurl库进行HTTP的下载](http://blog.csdn.net/gjy1606/article/details/5644712)
-[Libcurl实现文件下载](http://blog.sina.com.cn/s/blog_a6fb6cc90101ffn4.html)
-[使用libcurl提交POST请求](http://finux.iteye.com/blog/715247)
-[libcurl post／get上传下载文件 以及断点下载](http://www.xuebuyuan.com/1254589.html)
-[Libcurl实现断点续传](http://www.cnblogs.com/chang290/archive/2012/08/12/2634858.html)
-[libcurl 撸记](http://ftxtool.org/index.php/tag/duan_dian_xu_chuan/)
-关于vs设置：
-[带你玩转Visual Studio——带你跳出坑爹的Runtime Library坑](http://blog.csdn.net/luoweifu/article/details/49055933)
+[为什么使用CMake](http://linghutf.github.io/2016/06/16/cmake/)
