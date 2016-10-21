@@ -132,16 +132,16 @@ cmake-3.7.0-rc1-win64-x64.msi
 - [jsoncpp-1.7.7.zip](https://codeload.github.com/open-source-parsers/jsoncpp/zip/1.7.7)
 
 #### 1.2 编译基础库：
-（1）编译zlib：
+##### （1）编译zlib：
 解压zlib-1.2.8.tar.gz到文件夹中，然后使用cmake默认生成vs工程文件。进入后设置安装路径就可以正常编译。因为当前的web service没有使用https协议，而且openssl需要perl进行编译，故本文没有对openssl进行编译。
-（2）编译curl：
+##### （2）编译curl：
 解压curl-7.50.3.zip到文件夹中，然后使用cmake生成，打开CURL_ZLIB选项，然后点击Add Entry，将zlib生成的文件指定：
 ```shell
 ZLIB_INCLUDE_DIR		X:/XXXXX/zlib/include/
 ZLIB_LIBRARIES			X:/XXXXX/zlib/lib
 ```
 然后点击生成完成配置，使用vs进行编译安装。
-（3）编译jsoncpp：
+##### （3）编译jsoncpp：
 解压jsoncpp-1.7.7.zip到文件夹中，然后使用cmake默认生成，使用vs编译即可。
 
 > 参考文档：
@@ -247,7 +247,7 @@ libcurl的基本编程流程为：
 > - [C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
 > - [Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
 > - [Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
-> - [c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
+> - [c++ libcurl json rest](http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
 
 
 
