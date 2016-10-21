@@ -94,24 +94,24 @@ C++的网络模块有很多种，本节聚焦于http协议的网络模块。因�
 建议使用libcurl进行http访问的开发。或者使用POCO来进行http访问实现对restfulAPI的访问。
 
 主要参考文档有：
-[REST实战——调用百度语音的云服务](http://www.voidcn.com/blog/u011000290/article/p-5782799.html)
-[Call Rest Web Services from C++](http://itcompiles.blogspot.jp/2013/09/call-rest-web-services-from-c.html)
-> Rest webservice are based on http all we have to do is make http requests. 
+> - [REST实战——调用百度语音的云服务](http://www.voidcn.com/blog/u011000290/article/p-5782799.html)
+> - [Call Rest Web Services from C++](http://itcompiles.blogspot.jp/2013/09/call-rest-web-services-from-c.html)
+
+*Rest webservice are based on http all we have to do is make http requests. *
 
 
 #### 2.2 完整的Web Services相关：
-* [gsoap2](http://sourceforge.net/projects/gsoap2): Development toolkit for Web Services and XML data bindings for C & C++
-* [cpprestsdk](https://github.com/Microsoft/cpprestsdk): The C++ REST SDK is a Microsoft project for cloud-based client-server communication in native code using a modern asynchronous C++ API design. This project aims to help C++ developers connect to and interact with services.
+> - [gsoap2](http://sourceforge.net/projects/gsoap2): Development toolkit for Web Services and XML data bindings for C & C++
+> - [cpprestsdk](https://github.com/Microsoft/cpprestsdk): The C++ REST SDK is a Microsoft project for cloud-based client-server communication in native code using a modern asynchronous C++ API design. This project aims to help C++ developers connect to and interact with services.
 
-> 库的选型和对比：
-建议使用cpprestsdk进行RESTFul接口的访问。
+库的选型和对比：
+初步选取cpprestsdk进行RESTFul接口的访问，但是这个库由于过于重量级，暂时不予考虑。
 
-主要参考文档有：
-[gsoap2官方文档](https://www.genivia.com/dev.html)
-[c/c++使用gsoap发布和调用webservice](http://blog.csdn.net/wenzi49312/article/details/8963345)
-[使用微软的 C++ REST SDK](http://blog.jobbole.com/53642/)
-[cpprestsdk官方示例代码](https://github.com/Microsoft/cpprestsdk/wiki/Samples)
-
+> 参考文档：
+> - [gsoap2官方文档](https://www.genivia.com/dev.html)
+> - [c/c++使用gsoap发布和调用webservice](http://blog.csdn.net/wenzi49312/article/details/8963345)
+> - [使用微软的 C++ REST SDK](http://blog.jobbole.com/53642/)
+> - [cpprestsdk官方示例代码](https://github.com/Microsoft/cpprestsdk/wiki/Samples)
 
 
 ## 三 环境设置：
@@ -515,3 +515,153 @@ INSTALL(TARGETS RESTFulRequestorTest RUNTIME DESTINATION test)
 > - [cmake使用示例与整理总结](http://blog.csdn.net/wzzfeitian/article/details/40963457)
 > - [利用CMake生成动态或静态链接库工程](http://www.cnblogs.com/springbarley/p/3359624.html)
 > - [为什么使用CMake](http://linghutf.github.io/2016/06/16/cmake/)
+
+
+## 四 C++的反射实现：
+在上述章节中，由于C++原生不支持反射，所以类似于java的反序列化在C++中难以只通过语言层面的机制实现，所以考虑由库的形式进行支持来帮助完成JSON库反序列化到DOM对象，然后生成指定的C++结构体或者类实例的过程。
+根据网上查找的资料，[Kapok](https://github.com/qicosmos/Kapok)提供了预想中的例程。所以准备使用这个库来完成当前的任务。
+
+### 1 依赖的库：
+这个库为了完成对应的结构体自动转换，使用了如下的第三方库：
+> - [boost](http://www.boost.org/users/download/)
+> - [fmt](https://github.com/fmtlib/fmt)
+> - [RapidJSON]()
+
+#### boost库的使用：
+因为boost库太庞大，所以采用官方提供的预编译库：*[Prebuilt windows binaries](https://sourceforge.net/projects/boost/files/boost-binaries/)* 来完成编译和链接。
+修改默认安装位置为：C:/boost_1_62_0
+等待一段时间后完成释放安装。
+
+#### fmtlib库的使用：
+对于fmtlib还是采用自己编译的方式来完成：
+```shell
+git clone https://github.com/fmtlib/fmt.git
+cmake ..
+make -j4
+make install
+```
+然后使用安装完毕的头文件和静态库来完成开发。
+
+#### RapidJSON库的使用：
+Kapok是建立在RapidJSON基础上完成JSON序列化和反序列化的，所以也需要这个库来完成开发。具体内容参考之前的章节。
+
+### 2 编译Kapok生成静态库：
+根据顶层cmake脚本，需要手工在cmake-gui中添加变量：
+```shell
+BOOST_ROOT			C:/boost_1_62_0
+```
+然后就可以正确的生成了。
+但是由于这个库作者的失误，在cmake-gui中添加的BOOST_ROOT并没有被正确的添加到工程文件中，所以还需要自己手动进行添加。
+添加fmtlib是为了Kapok自带的测试输出更方便查看，而不是库完成功能本身的需求。
+完成依赖库的添加之后就可以进行编译了。
+
+> 后续考虑将这个工程集成到自己的工程中，方便使用和配置。
+
+### 3 封装Kapok库提供接口，并且测试：
+根据官方文档，然后结合自己的需求，对接口进行封装。
+AutoParser.h头文件内容：
+```C++
+// 使用Kapok作为序列化和反序列化的支持
+#pragma once
+
+#ifndef AUTOPARSER_H
+#define AUTOPARSER_H
+
+// standar library
+#include <string>
+#include <iostream>
+#include <fstream>
+
+// 3rd library
+# include "kapok\Kapok.hpp"
+
+using namespace std;
+
+template<class T> class AutoParser {
+public:
+	AutoParser();
+	~AutoParser();
+	bool deserialize(T& instance, string jsonStr);
+	string serialize(T a);
+private:
+	Serializer sr;
+	DeSerializer dr;
+};
+
+// for template link
+//# include "AutoParser.cpp"
+#endif
+```
+
+AutoParser.cpp实现内容：
+```C++
+#include "AutoParser.h"
+
+template<class T>
+AutoParser<T>::AutoParser() {
+	cout << "welcome to auto parser to JSON-Struct" << endl;
+}
+
+template<class T>
+AutoParser<T>::~AutoParser() {
+	cout << "goodbye" << endl;
+}
+
+template<class T>
+bool AutoParser<T>::deserialize(T& instance, string jsonStr) {
+	this->dr.Parse(jsonStr);
+	this->dr.Deserialize(instance);
+	return true;
+}
+
+template<class T>
+string AutoParser<T>::serialize(T a) {
+	this->sr.Serialize(a);
+	return this->sr.GetString();
+}
+```
+
+最后在测试文件中添加如下代码：
+```C++
+// JSON转换接口
+#include "AutoParser.cpp"
+int main(int argc, char * argv[]) {
+
+	// 测试结构体的序列化和反序列化
+	struct Person
+	{
+		int age;
+		string name;
+		string city;
+
+		// import : to add meteinfo to autoparser
+		META(age, name, city)
+	};
+	Person p = { 18, "bb", "aa" };
+
+	// 准备序列化和反序列化
+	AutoParser<Person> parser;
+	string serializitionResult = parser.serialize(p);
+	cout << "转换后的JSON结果为：" << serializitionResult << endl;
+	Person deserializitionResult;
+	bool result = parser.deserialize(deserializitionResult, serializitionResult);
+	if (result) {
+		cout << "反序列化成功！" << endl;
+		cout << deserializitionResult.age << endl;
+		cout << deserializitionResult.name << endl;
+		cout << deserializitionResult.city << endl;
+		//cout << &deserializitionResult.Meta << endl;
+	}
+
+	return 0;
+}
+```
+编译后，完成测试。
+
+* 目前来看，通过Kapok是可以满足当前工程的基本需求的，但是作者的具体实现思路还不清楚，为了后续集成，RTFSC。 *
+
+> 参考文档：
+> - [Kapok wiki](https://github.com/qicosmos/Kapok/wiki)
+> - [从一个例子看现代C++的威力](http://purecpp.org/?p=694)
+> - [更好的C++序列化/反序列化库–KAPOK](http://purecpp.org/?p=17)
+> - [KAPOK发布1.0版本了](http://purecpp.org/?p=893)
