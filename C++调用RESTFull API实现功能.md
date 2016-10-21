@@ -115,7 +115,7 @@ C++的网络模块有很多种，本节聚焦于http协议的网络模块。因�
 
 
 ## 三 环境设置：
-在上述基本步骤和第三方库选型完毕之后就需要尝试在windows和linux系统下进行实际的测试和开发，本机关注与工程实践的部署环节和开发环节。
+在上述基本步骤和第三方库选型完毕之后就需要尝试在windows和linux系统下进行实际的测试和开发，本节关注与工程实践的部署环节和开发环节。
 个人现在从工程实践的角度来进行考虑，还是希望开发越简单，部署越容易好，从这个角度出发，偏向于使用功能完善的http库来提升开发效率。偏向于使用http库进行开发。
 
 ### 1 基于libcurl的web service访问：
@@ -126,28 +126,27 @@ C++的网络模块有很多种，本节聚焦于http协议的网络模块。因�
 vs2015 update 3
 cmake-3.7.0-rc1-win64-x64.msi
 需要下载的库版本：
-[openssl-1.1.0b.tar.gz](http://www.openssl.org/source/openssl-1.1.0b.tar.gz)
-[zlib-1.2.8.tar.gz](http://zlib.net/zlib-1.2.8.tar.gz)
-[curl-7.50.3.zip](https://github.com/curl/curl/archive/curl-7_50_3.zip)
-[jsoncpp-1.7.7.zip](https://codeload.github.com/open-source-parsers/jsoncpp/zip/1.7.7)
+- [openssl-1.1.0b.tar.gz](http://www.openssl.org/source/openssl-1.1.0b.tar.gz)
+- [zlib-1.2.8.tar.gz](http://zlib.net/zlib-1.2.8.tar.gz)
+- [curl-7.50.3.zip](https://github.com/curl/curl/archive/curl-7_50_3.zip)
+- [jsoncpp-1.7.7.zip](https://codeload.github.com/open-source-parsers/jsoncpp/zip/1.7.7)
 
 #### 1.2 编译基础库：
-解压zlib-1.2.8.tar.gz到文件夹中，然后使用cmake默认生成vs工程文件。进入后设置安装路径就可以正常编译。
-
-因为当前的web service没有使用https协议，而且openssl需要perl进行编译，故本文没有对openssl进行编译。
-
+（1）编译zlib：
+解压zlib-1.2.8.tar.gz到文件夹中，然后使用cmake默认生成vs工程文件。进入后设置安装路径就可以正常编译。因为当前的web service没有使用https协议，而且openssl需要perl进行编译，故本文没有对openssl进行编译。
+（2）编译curl：
 解压curl-7.50.3.zip到文件夹中，然后使用cmake生成，打开CURL_ZLIB选项，然后点击Add Entry，将zlib生成的文件指定：
 ```shell
 ZLIB_INCLUDE_DIR		X:/XXXXX/zlib/include/
 ZLIB_LIBRARIES			X:/XXXXX/zlib/lib
 ```
 然后点击生成完成配置，使用vs进行编译安装。
-
+（3）编译jsoncpp：
 解压jsoncpp-1.7.7.zip到文件夹中，然后使用cmake默认生成，使用vs编译即可。
 
 > 参考文档：
-[在Windows上编译最新的CURL，含有zlib，openssl](http://blog.csdn.net/hujkay/article/details/18986153)
-[在 Windows 上使用 Visual Studio 编译 CURL](https://yq.aliyun.com/articles/8502)
+> - [在Windows上编译最新的CURL，含有zlib，openssl](http://blog.csdn.net/hujkay/article/details/18986153)
+> - [在 Windows 上使用 Visual Studio 编译 CURL](https://yq.aliyun.com/articles/8502)
 
 #### 1.3 编写测试代码：
 打开vs，新建win32命令行工程，选择模板为空，不需要预编译选项。然后新建如下main.cpp文件：
@@ -196,7 +195,6 @@ int main() {
 ```
 
 然后配置当前工程的附加库：
-
 ```shell
 1. 添加编译所需要（依赖）的 lib 文件
      在“项目->属性->配置属性->连接器->输入->附加依赖项”里填写“winsock.lib”，多个 lib 以空格隔开。等同于“#pragma comment(lib, "*.lib") ”语句。
@@ -225,8 +223,8 @@ int main() {
 完成上述步骤后执行编译，如果没有错误就表示程序编译通过，然后就需要进行单步调试了。
 在调试和运行前，需要将jsoncpp库和libcurl库的相应的.dll或者.a和.so库跟代码文件放在一个目录下保证动态链接库能被正常的访问。
 
-关于vs设置的参考文件：
-[带你玩转Visual Studio——带你跳出坑爹的Runtime Library坑](http://blog.csdn.net/luoweifu/article/details/49055933)
+> 关于vs设置的参考文件：
+> - [带你玩转Visual Studio——带你跳出坑爹的Runtime Library坑](http://blog.csdn.net/luoweifu/article/details/49055933)
 
 
 #### 1.4 libcurl编程框架：
@@ -245,19 +243,22 @@ libcurl的基本编程流程为：
 ```C++
 ```
 
-具体的libcurl的C编程教程可以参考：
-[C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
-[Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
-[Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
-[c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
-关于断点续传：
-[coco2dx c++ 断点续传实现](http://blog.csdn.net/vpingchangxin/article/details/22309067)
-[使用libcurl库进行HTTP的下载](http://blog.csdn.net/gjy1606/article/details/5644712)
-[Libcurl实现文件下载](http://blog.sina.com.cn/s/blog_a6fb6cc90101ffn4.html)
-[使用libcurl提交POST请求](http://finux.iteye.com/blog/715247)
-[libcurl post／get上传下载文件 以及断点下载](http://www.xuebuyuan.com/1254589.html)
-[Libcurl实现断点续传](http://www.cnblogs.com/chang290/archive/2012/08/12/2634858.html)
-[libcurl 撸记](http://ftxtool.org/index.php/tag/duan_dian_xu_chuan/)
+> 具体的libcurl的C编程教程可以参考：
+> - [C++ 用libcurl库进行http通讯网络编程](http://www.cnblogs.com/moodlxs/archive/2012/10/15/2724318.html)
+> - [Calling SOAP webservice from C++ using libcurl](https://curl.haxx.se/mail/lib-2011-10/0212.html)
+> - [Save cURL content result into a string in C++](http://stackoverflow.com/questions/9786150/save-curl-content-result-into-a-string-in-c)
+> - [c++ libcurl json rest])(http://stackoverflow.com/questions/5707957/c-libcurl-json-rest)
+
+
+
+> 关于断点续传：
+> - [coco2dx c++ 断点续传实现](http://blog.csdn.net/vpingchangxin/article/details/22309067)
+> - [使用libcurl库进行HTTP的下载](http://blog.csdn.net/gjy1606/article/details/5644712)
+> - [Libcurl实现文件下载](http://blog.sina.com.cn/s/blog_a6fb6cc90101ffn4.html)
+> - [使用libcurl提交POST请求](http://finux.iteye.com/blog/715247)
+> - [libcurl post／get上传下载文件 以及断点下载](http://www.xuebuyuan.com/1254589.html)
+> - [Libcurl实现断点续传](http://www.cnblogs.com/chang290/archive/2012/08/12/2634858.html)
+> - [libcurl 撸记](http://ftxtool.org/index.php/tag/duan_dian_xu_chuan/)
 
 #### 1.5 JSon格式数据的解析：
 根据性能测评和移植性测评，最终选定RapidJSON来进行JSON格式的解析和转换。对比jsoncpp的编译和链接，可以方便的通过头文件引入的方式来集成，方便整个开发。
@@ -272,33 +273,37 @@ git clone https://github.com/miloyip/rapidjson.git
 #### 1.6 JSON和C++ struct之间的转化：
 完成JSON格式的解析之后，为了通用性，需要将JSON字符串和对应的struct结构体进行转换才可以方便的进行处理。
 然后C++没有提供java自带的反射机制，这一步骤无法通过语言提供的原生语法实现，需要借助于第三方库来进行处理。
-参考：
-[C结构体与 JSON 快速互转库](https://www.zybuluo.com/armink/note/189711)
-[C结构体与Json字符串自动转换](http://xphhhh.blog.51cto.com/7540829/1573856)
-关于一些开源的实现和思路：
-[cobj](https://github.com/xphh/cobj)
-[ajson](https://github.com/lordoffox/ajson)
-[C++ JSON Serialization](http://stackoverflow.com/questions/17549906/c-json-serialization)
-[Codeless JSON C/C++ Object Serialization](http://jbvsblog.blogspot.jp/2013/12/codeless-json-c-cpp-object-serialization.html)
-[ThorSerializer](https://github.com/Loki-Astari/ThorsSerializer)
-[JSON for Modern C++](https://github.com/nlohmann/json)
-[protobuf-c](https://github.com/protobuf-c/protobuf-c)
+
+> 参考：
+> - [C结构体与 JSON 快速互转库](https://www.zybuluo.com/armink/note/189711)
+> - [C结构体与Json字符串自动转换](http://xphhhh.blog.51cto.com/7540829/1573856)
+
+
+> 关于一些开源的实现和思路：
+> - [cobj](https://github.com/xphh/cobj)
+> - [ajson](https://github.com/lordoffox/ajson)
+> - [C++ JSON Serialization](http://stackoverflow.com/questions/17549906/c-json-serialization)
+> - [Codeless JSON C/C++ Object Serialization](http://jbvsblog.blogspot.jp/2013/12/codeless-json-c-cpp-object-serialization.html)
+> - [ThorSerializer](https://github.com/Loki-Astari/ThorsSerializer)
+> - [JSON for Modern C++](https://github.com/nlohmann/json)
+> - [protobuf-c](https://github.com/protobuf-c/protobuf-c)
 
 
 #### 1.7 使用libcurl进行form表单的multipart/form-data的设置：
 在使用libcurl进行form表单数据提交的时候遇到了问题，因为server端使用了spring的multipartFile参数，使用libcurl的设置就发生了变化，参考[官方的例程1:postit2](https://curl.haxx.se/libcurl/c/postit2.html)和[官方的例程2:multi-post](https://curl.haxx.se/libcurl/c/multi-post.html)没有帮助，只能从网上查找相关的资料，主要有如下：
-[使用libcurl进行文件上传](http://www.cnblogs.com/lidabo/p/4159377.html)
-[使用libcurl POST数据和上传文件](http://www.cnblogs.com/lidabo/p/4159592.html)
-[使用libcurl Post 含有照片的HTTP form表单](http://inspire365.blog.163.com/blog/static/196187838201368112120658/)
-[[实践OK]C语言 HTTP上传文件-利用libcurl库上传文件, curl连接超时的问题 特别是获取返回头及内容的c写法。](http://justwinit.cn/post/7626/)
-[linux c libcurl的简单使用](https://my.oschina.net/u/136923/blog/93448)
-[上传文件multipart form-data boundary 说明](http://www.cnblogs.com/yydcdut/p/3736667.html)
-[libcurl上传文件](http://www.cnblogs.com/meteoric_cry/p/4285881.html)
-[libcURL POST multipart upload (with buffered image) returning HTTP 400](http://stackoverflow.com/questions/37082651/libcurl-post-multipart-upload-with-buffered-image-returning-http-400)
+> - [使用libcurl进行文件上传](http://www.cnblogs.com/lidabo/p/4159377.html)
+> - [使用libcurl POST数据和上传文件](http://www.cnblogs.com/lidabo/p/4159592.html)
+> - [使用libcurl Post 含有照片的HTTP form表单](http://inspire365.blog.163.com/blog/static/196187838201368112120658/)
+> - [[实践OK]C语言 HTTP上传文件-利用libcurl库上传文件, curl连接超时的问题 特别是获取返回头及内容的c写法。](http://justwinit.cn/post/7626/)
+> - [linux c libcurl的简单使用](https://my.oschina.net/u/136923/blog/93448)
+> - [上传文件multipart form-data boundary 说明](http://www.cnblogs.com/yydcdut/p/3736667.html)
+> - [libcurl上传文件](http://www.cnblogs.com/meteoric_cry/p/4285881.html)
+> - [libcURL POST multipart upload (with buffered image) returning HTTP 400](http://stackoverflow.com/questions/37082651/libcurl-post-multipart-upload-with-buffered-image-returning-http-400)
+
 
 整个form表单设置中最主要就是[curl_formadd](https://curl.haxx.se/libcurl/c/curl_formadd.html)函数对整个form表单的结构进行了规定。
 
-> 最终发现问题所在：因为libcurl是C库，所以所有接受参数都必须为char*数组指针，而不是string，这就是造成明明传输了参数，但是却无法获取的原因。
+最终发现问题所在：因为libcurl是C库，所以所有接受参数都必须为char*数组指针，而不是string，这就是造成明明传输了参数，但是却无法获取的原因。
 
 
 #### 1.8 使用cmake来管理当前的整个工程文件：
@@ -497,16 +502,16 @@ INSTALL(TARGETS RESTFulRequestorTest RUNTIME DESTINATION test)
 
 
 参考资料：
-入门渐进式资料，用于从头开始编写cmake文件：
-[使用CMake构建项目的简明示例（1）](http://blog.csdn.net/lzx1104/article/details/6038007)
-[使用CMake构建项目的简明示例（2）](http://blog.csdn.net/lzx1104/article/details/6046131)
-[CMake 实例学习（0）开始](http://blog.chinaunix.net/uid-25696269-id-603825.html)
-[CMake 实例学习（1）内外之分](http://blog.chinaunix.net/uid-25696269-id-603961.html)
-[CMake 实例学习（2）构建共享库](http://blog.chinaunix.net/uid-25696269-id-761383.html)
-[CMake 实例学习（3）构建静态库](http://blog.chinaunix.net/uid-25696269-id-1435094.html)
-[CMake 实例学习（4）动/静态库共存](http://blog.chinaunix.net/uid-25696269-id-1564981.html)
-汇总资料，用于查询对应的用法：
-[CMake整理](http://pengbotao.cn/linux-cmake.html)
-[cmake使用示例与整理总结](http://blog.csdn.net/wzzfeitian/article/details/40963457)
-[利用CMake生成动态或静态链接库工程](http://www.cnblogs.com/springbarley/p/3359624.html)
-[为什么使用CMake](http://linghutf.github.io/2016/06/16/cmake/)
+> 入门渐进式资料，用于从头开始编写cmake文件：
+> - [使用CMake构建项目的简明示例（1）](http://blog.csdn.net/lzx1104/article/details/6038007)
+> - [使用CMake构建项目的简明示例（2）](http://blog.csdn.net/lzx1104/article/details/6046131)
+> - [CMake 实例学习（0）开始](http://blog.chinaunix.net/uid-25696269-id-603825.html)
+> - [CMake 实例学习（1）内外之分](http://blog.chinaunix.net/uid-25696269-id-603961.html)
+> - [CMake 实例学习（2）构建共享库](http://blog.chinaunix.net/uid-25696269-id-761383.html)
+> - [CMake 实例学习（3）构建静态库](http://blog.chinaunix.net/uid-25696269-id-1435094.html)
+> - [CMake 实例学习（4）动/静态库共存](http://blog.chinaunix.net/uid-25696269-id-1564981.html)
+> 汇总资料，用于查询对应的用法：
+> - [CMake整理](http://pengbotao.cn/linux-cmake.html)
+> - [cmake使用示例与整理总结](http://blog.csdn.net/wzzfeitian/article/details/40963457)
+> - [利用CMake生成动态或静态链接库工程](http://www.cnblogs.com/springbarley/p/3359624.html)
+> - [为什么使用CMake](http://linghutf.github.io/2016/06/16/cmake/)
