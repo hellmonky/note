@@ -1,7 +1,5 @@
 # CDH 5.7.1集群搭建部署文档
 
-> 作者：中国科学院软件研究所（北京）-综合信息实验室-徐文涛
->
 > 安装包：centos7_x64、CDH5.7.1安装包
 
 [TOC]
@@ -1152,11 +1150,11 @@ chmod 777 mkimage-yum.sh
 ```
 这个脚本的主要执行过程为：
 >
-1．tmp目录下建立临时目录和文件系统
-2．使用yum安装相关的软件包
-3．软件包安装和信息定制
-4．tar打包
-5．清理
+>1．tmp目录下建立临时目录和文件系统
+>2．使用yum安装相关的软件包
+>3．软件包安装和信息定制
+>4．tar打包
+>5．清理
 
 ### 2 使用官方tar方法生成docker镜像：
 使用 Tar 创建 Docker 基本映像：
@@ -1287,6 +1285,7 @@ docker history full_ubuntu
 ```
 获取结果为生成这个system的历史记录，每一个记录都表示一个层：
 ```shell
+
 ```
 Docker 镜像层的内容一般在 Docker 根目录的 aufs 路径下，为 /var/lib/docker/aufs/diff/，切换到这个目录下，然后输入：
 ```shell
@@ -1294,6 +1293,7 @@ ls | xargs ls
 ```
 结果如下：
 ```shell
+
 ```
 对于每一个镜像层，Docker 都会保存一份相应的 json 文件，json 文件的存储路径为 /var/lib/docker/graph，切换到这个目录，然后查看：
 ```shell
@@ -1301,6 +1301,7 @@ ls | xargs ls
 ```
 结果如下：
 ```shell
+
 ```
 除了 json 文件，每一个镜像层还包含一个 layersize文件，该文件主要记录镜像层内部文件内容的总大小：
 ```shell
@@ -1308,6 +1309,7 @@ cat json
 ```
 结果如下：
 ```shell
+
 ```
 
 ### 6 删除标签为<none>的镜像：
@@ -1648,6 +1650,7 @@ docker inspect data
 ```
 结果为：
 ```shell
+
 ```
 创建的数据卷可以通过docker inspect获取宿主机对应路径。
 
