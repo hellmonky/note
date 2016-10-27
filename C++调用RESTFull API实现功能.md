@@ -517,6 +517,10 @@ INSTALL(TARGETS RESTFulRequestorTest RUNTIME DESTINATION test)
 > - [为什么使用CMake](http://linghutf.github.io/2016/06/16/cmake/)
 
 
+#### 1.9 关于调用中的文件编码问题：
+
+
+
 ## 四 C++的反射实现：
 在上述章节中，由于C++原生不支持反射，所以类似于java的反序列化在C++中难以只通过语言层面的机制实现，所以考虑由库的形式进行支持来帮助完成JSON库反序列化到DOM对象，然后生成指定的C++结构体或者类实例的过程。
 根据网上查找的资料，[Kapok](https://github.com/qicosmos/Kapok)提供了预想中的例程。所以准备使用这个库来完成当前的任务。
@@ -662,6 +666,17 @@ int main(int argc, char * argv[]) {
 
 > 参考文档：
 > - [Kapok wiki](https://github.com/qicosmos/Kapok/wiki)
+> - [判断是否为TUPLE类型](http://purecpp.org/?p=30)
 > - [从一个例子看现代C++的威力](http://purecpp.org/?p=694)
 > - [更好的C++序列化/反序列化库–KAPOK](http://purecpp.org/?p=17)
 > - [KAPOK发布1.0版本了](http://purecpp.org/?p=893)
+
+
+## 四 关于C++模板导出为动态库：
+C++的模板属于编译期特性，那么如何将自己定义的模板库导出为指定编译器的动态库让他人使用？这样可以将我们编写的代码和用户使用完全隔离开来，即使需要考虑编译器兼容性也是能够接受的（针对不同的编译器提供预编译动态库，然后供用户下载使用）。
+
+
+
+> 参考文档：
+> - [动态链接库中导出模板函数](http://blog.csdn.net/liyuanbhu/article/details/50363670)
+> - [在dll中导出模板类的方法 ](http://blog.sina.com.cn/s/blog_4298002e01018y5s.html)
