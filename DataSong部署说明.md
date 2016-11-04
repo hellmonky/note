@@ -478,6 +478,11 @@ yum remove kernel
 ```
 这个命令会删除非当前使用的内核，并做好清理工作。
 
+上面的命令只能删除kernel包，对应的lib包，devel包等都无法删除，使用如下命令可以完整删除：
+```shell
+package-cleanup --oldkernels --count=1
+```
+
 #### 1.17 LVM空间调整：
 系统在使用的过程中，随着使用磁盘空间会变话，这个时候需要动态扩展目录，这儿使用减少home增加root的方式：
 把/home内容备份，然后将/home文件系统所在的逻辑卷删除，扩大/root文件系统，新建/home，具体过程如下：
