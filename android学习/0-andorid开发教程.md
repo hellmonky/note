@@ -217,12 +217,8 @@ Android 提供了一系列 View 和 ViewGroup 子类，可为您提供常用输�
 
 [View类定义](https://developer.android.com/reference/android/view/View.html)和[ViewGroup类定义](https://developer.android.com/reference/android/view/ViewGroup.html)从源代码的角度给出了完整的子类关系。
 
-#### 2.3.1 基本布局组件：
-android提供了多种基本布局组件供我们使用来搭建丰富多彩的应用程序，这些组件就像是积木，我们首先熟悉一下各个组件的样子。
 
-
-
-#### 2.3.2 基本布局方式：
+#### 2.3.1 布局：
 布局定义用户界面的视觉结构，根据[官方文档-布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)介绍，android包含以下几种基本布局方式：
 > - 1. LinearLayout：线性布局，所有的控件都是串在一条线上的；
 > - 2. RelativeLayout：相对布局，所有的控件的位置，都是相对于父控件的；
@@ -232,7 +228,7 @@ android提供了多种基本布局组件供我们使用来搭建丰富多彩的�
 
 然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。
 
-（1）布局的ID：
+##### 2.3.1.1 布局的ID：
 任何视图对象都可能具有关联的整型 ID，此 ID 用于在结构树中对 View 对象进行唯一标识。编译应用后，此 ID 将作为整型数引用，但在布局 XML 文件中，通常会在 id 属性中为该 ID 赋予字符串值。这是所有 View 对象共用的 XML 属性（由 View 类定义），您会经常用到它。XML 标记内部的 ID 语法是：
 ```xml
 android:id="@+id/my_button"
@@ -243,8 +239,6 @@ android:id="@+id/my_button"
 android:id="@android:id/empty"
 ```
 @符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#2.2.2.1)节中的：
-[test](#user-content-2222-资源文件在逻辑代码中的访问)
-
 ```xml
 <EditText xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/edit_text"
@@ -255,7 +249,7 @@ android:id="@android:id/empty"
 ```
 其中android:text="@string/hello"，表示引用string类型的，名称为hello的资源。所以这部分的语法和[访问资源-在 XML 中访问资源](https://developer.android.com/guide/topics/resources/accessing-resources.html#ResourcesFromXml)所使用的语法一样，本质上都是对已有资源的引用。
 
-（2）布局的公共属性：
+##### 2.3.1.2 布局的公共属性：
 这些基本布局方式使用一些公共属性来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共属性为：
 
 | Attribute                     | Description                                                                                   |
@@ -288,11 +282,14 @@ android:layout_width="fill_parent"
 
 后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
 
-##### 2.3.2.1 LinearLayout属性：
+##### 2.3.1.1 LinearLayout属性：
 orientation：属性是指定线性布局的排列方向。
 horizontal 水平。线性布局默认的朝向是水平的。
 vertical 垂直
 
+
+#### 2.3.2 基本布局组件：
+在完成基本布局的理解上，再看看由View派生的布局组件，这些组件就是android默认提供的，特殊功能的布局，可以实现不同的基本功能，这些组件就像是可视化的功能积木，我们使用这些组件搭建界面功能模块。
 
 
 #### 2.3.3 布局之间的切换：
@@ -334,3 +331,18 @@ vertical 垂直
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context=".MainActivity" >
 ```
+
+
+
+
+关于markdown的锚点，有两种方法可以实现：
+> - 1. 使用html的span语法标签，手动指定需要的锚点，然后使用语法[test](#锚点ID)实现跳转；
+> - 2. 根据markdown编译的html，找到自动生成的锚点ID，然后使用语法[test](#找到的锚点ID)实现跳转。
+
+例如根据markdown生成的html找到的锚点例子：
+[test](#user-content-2222-资源文件在逻辑代码中的访问)
+手动添加锚点的代码：
+```html
+<a name="id"> id对应的内容 </a>
+```
+参考文档：[How to link to a named anchor in Multimarkdown?](http://stackoverflow.com/questions/6695439/how-to-link-to-a-named-anchor-in-multimarkdown)
