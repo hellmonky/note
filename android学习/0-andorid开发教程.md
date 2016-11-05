@@ -242,7 +242,7 @@ android:id="@+id/my_button"
 ```xml
 android:id="@android:id/empty"
 ```
-@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](2.2.2.1)节中的：
+@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#2.2.2.1)节中的：
 ```xml
 <EditText xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/edit_text"
