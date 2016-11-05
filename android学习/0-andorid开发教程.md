@@ -121,7 +121,7 @@ InputStream is = res .openRawResource(R.raw.filename);
 对于资源文件的访问，在[提供资源](https://developer.android.com/guide/topics/resources/providing-resources.html)章节有明确的说明。主要分为xml中对资源的访问和逻辑代码中对资源的访问。
 xml中使用特殊标签来表示对资源的引用，逻辑代码则是通过aapt生成的R.java代码在activty中直接使用getResources函数获取资源。
 
-##### 2.2.2.1 资源文件在xml文件中的访问：
+##### <a name="#####2.2.2.1">2.2.2.1 资源文件在xml文件中的访问：</a>
 根据[访问资源-在 XML 中访问资源](https://developer.android.com/guide/topics/resources/accessing-resources.html#ResourcesFromXml)章节的介绍，在xml中使用特殊语法引入资源。具体语法为：
 ```xml
 @[<package_name>:]<resource_type>/<resource_name>
@@ -242,7 +242,7 @@ android:id="@+id/my_button"
 ```xml
 android:id="@android:id/empty"
 ```
-@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问][##### 2.2.2.1]节中的：
+@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#####2.2.2.1)节中的：
 ```xml
 <EditText xmlns:android="http://schemas.android.com/apk/res/android"
         android:id="@+id/edit_text"
