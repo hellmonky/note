@@ -242,9 +242,16 @@ android:id="@+id/my_button"
 ```xml
 android:id="@android:id/empty"
 ```
-@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](##### 2.2.2.1)节中的：
+@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问][##### 2.2.2.1]节中的：
 ```xml
+<EditText xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/edit_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/opaque_red"
+        android:text="@string/hello" />
 ```
+其中android:text="@string/hello"，表示引用string类型的，名称为hello的资源。所以这部分的语法和[访问资源-在 XML 中访问资源](https://developer.android.com/guide/topics/resources/accessing-resources.html#ResourcesFromXml)所使用的语法一样，本质上都是对已有资源的引用。
 
 （2）布局的公共属性：
 这些基本布局方式使用一些公共属性来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共属性为：
