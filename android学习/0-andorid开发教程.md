@@ -202,19 +202,72 @@ protected void onResume() {
 
 因为之前学习过Qt，所以对于这种使用xml的方式来组织布局的特点还是印象深刻的，Qt提供了多种组织布局的方式，包含ui文件和C++代码形式，其中ui文件本质上就是Qt Designer生成的xml文件。
 通过这种拆分，可以方便的将前台展示界面的调试和后台代码开发分离，和当前web开发的逻辑是一样的，也是一种更为合理有效的界面程序开发模式。
-同样，android程序中可以使用xml来组织布局，也可以使用代码组织布局。但是从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择。
-所以本节主要介绍基于xml的android布局。
+Android中任何可视化的控件都是从android.veiw.View继承而来的，系统提供了两种方法来设置视图：第一种也是我们最常用的的使用XML文件来配置View的相关属性，然后在程序启动时系统根据配置文件来创建相应的View视图。第二种是我们在代码中直接使用相应的类来创建视图。
+但是从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择，建议使用第一种方式，也就是xml来完成布局。所以本节主要介绍基于xml的android布局。
 
 本节主要初步分析一下界面布局常用的组件特性和布局方式，保证自己的测试程序能够将需要的信息正确的显示出来，而不关心美观问题。
 > 程序的美观程度和美工相关，也需要非常专业的知识才能完成良好的用户交互
 
 本章主要对android的基本布局组件进行学习，熟悉常用的组件和组件的布局方式，最后学习不同的布局之间的转换，为后续复杂交互程序做准备。
 
+
+Android 应用中的所有用户界面元素都是使用 View 和 ViewGroup 对象构建而成。
+View 对象用于在屏幕上绘制可供用户交互的内容。ViewGroup 对象用于储存其他 View（和 ViewGroup）对象，以便定义界面的布局。
+Android 提供了一系列 View 和 ViewGroup 子类，可为您提供常用输入控件（如按钮和文本字段）和各种布局模式（如线性布局或相对布局）。
+
+[View类定义](https://developer.android.com/reference/android/view/View.html)和[ViewGroup类定义](https://developer.android.com/reference/android/view/ViewGroup.html)从源代码的角度给出了完整的子类关系。
+
 #### 2.3.1 基本布局组件：
 android提供了多种基本布局组件供我们使用来搭建丰富多彩的应用程序，这些组件就像是积木，我们首先熟悉一下各个组件的样子。
 
 
+
 #### 2.3.2 基本布局方式：
+布局定义用户界面的视觉结构，根据[官方文档-布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)介绍，android包含以下几种基本布局方式：
+> - 1. LinearLayout：线性布局，所有的控件都是串在一条线上的；
+> - 2. RelativeLayout：相对布局，所有的控件的位置，都是相对于父控件的；
+> - 3. FrameLayout：单帧布局，FrameLayout布局中的控件都是一层一层的。帧布局每次添加的控件都显示在最上面，最后显示在界面上的是最后添加的一个控件；
+> - 4. TableLayout：表格布局，表格布局可以实现的.一般 可以使用 线性布局实现；
+> - 5. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
+
+然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。
+这些基本布局方式使用一些公共属性来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共属性为：
+| Attribute                     | Description                                                                                   |
+| ----------------------------- |-----------------------------------------------------------------------------------------------|
+| android:id                    | This is the ID which uniquely identifies the view.                                            |
+| android:layout_width          | This is the width of the layout.                                                              |
+| android:layout_height         | This is the height of the layout.                                                             |
+| android:layout_marginTop      | This is the extra space on the top side of the layout.                                        |
+| android:layout_marginBottom   | This is the extra space on the bottom side of the layout.                                     |
+| android:layout_marginLeft     | This is the extra space on the left side of the layout.                                       |
+| android:layout_marginRight    | This is the extra space on the right side of the layout.                                      |
+| android:layout_gravity        | This specifies how child Views are positioned.                                                |
+| android:layout_weight         | This specifies how much of the extra space in the layout should be allocated to the View.     |
+| android:layout_x              | This specifies the x-coordinate of the layout.                                                |
+| android:layout_y              | This specifies the y-coordinate of the layout.                                                |
+| android:layout_width          | This is the width of the layout.                                                              |
+| android:layout_width          | This is the width of the layout.                                                              |
+| android:paddingLeft           | This is the left padding filled for the layout.                                               |
+| android:paddingRight          | This is the right padding filled for the layout.                                              |
+| android:paddingTop            | This is the top padding filled for the layout.                                                |
+| android:paddingBottom         | This is the bottom padding filled for the layout.                                             |
+
+可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。例如：
+```xml
+android:layout_width="fill_parent"
+```
+表示这个布局的宽度特性值为"fill_parent"。
+
+参考文档：[Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
+
+后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
+
+##### 2.3.2.1 LinearLayout属性：
+orientation：属性是指定线性布局的排列方向。
+horizontal 水平。线性布局默认的朝向是水平的。
+vertical 垂直
+
+
 
 #### 2.3.3 布局之间的切换：
 
