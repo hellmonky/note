@@ -109,12 +109,12 @@ InputStream is = res .openRawResource(R.raw.filename);
 这两点就可以完成基本资源的设置和使用了。
 
 参考文档：
-[Android资源管理框架（Asset Manager）简要介绍和学习计划](http://blog.csdn.net/luoshengyang/article/details/8738877)
-[官方文档-提供资源](https://developer.android.com/guide/topics/resources/providing-resources.html)
-[Android源码分析-资源加载机制](http://blog.csdn.net/singwhatiwanna/article/details/24532419)
-[Android应用程序资源的查找过程分析](http://blog.csdn.net/luoshengyang/article/details/8806798)
-[记一次苦逼的资源逆向分析](http://zjutkz.net/2016/05/15/%E8%AE%B0%E4%B8%80%E6%AC%A1%E8%8B%A6%E9%80%BC%E7%9A%84%E8%B5%84%E6%BA%90%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/)
-[Android中资源查找过程分析](http://zjutkz.net/2016/06/19/Android%E4%B8%AD%E8%B5%84%E6%BA%90%E6%9F%A5%E6%89%BE%E8%BF%87%E7%A8%8B%E5%88%86%E6%9E%90/)
+> - 1. [Android资源管理框架（Asset Manager）简要介绍和学习计划](http://blog.csdn.net/luoshengyang/article/details/8738877)
+> - 2. [官方文档-提供资源](https://developer.android.com/guide/topics/resources/providing-resources.html)
+> - 3. [Android源码分析-资源加载机制](http://blog.csdn.net/singwhatiwanna/article/details/24532419)
+> - 4. [Android应用程序资源的查找过程分析](http://blog.csdn.net/luoshengyang/article/details/8806798)
+> - 5. [记一次苦逼的资源逆向分析](http://zjutkz.net/2016/05/15/%E8%AE%B0%E4%B8%80%E6%AC%A1%E8%8B%A6%E9%80%BC%E7%9A%84%E8%B5%84%E6%BA%90%E9%80%86%E5%90%91%E5%88%86%E6%9E%90/)
+> - 6. [Android中资源查找过程分析](http://zjutkz.net/2016/06/19/Android%E4%B8%AD%E8%B5%84%E6%BA%90%E6%9F%A5%E6%89%BE%E8%BF%87%E7%A8%8B%E5%88%86%E6%9E%90/)
 
 ~~并且资源文件的放置也需要注意：**所有的资源文件都放在rec文件夹下，不同类别的资源，需要放置在不同的特定名称的子文件夹中，或者是写在特定文件名的文件中。**
 也就是说，资源文件通过目录结构限定了资源类型，然后as会自动索引这些资源文件供布局文件和逻辑代码调用。~~
@@ -240,7 +240,7 @@ java.lang.Object
 从android生命周期的创建过程来综合理解。后续章节会有更为详细的介绍。
 
 
-#### 2.3.2 七种基本布局的共性介绍：
+#### 2.3.2 七种基本布局的公共参数介绍：
 从ViewGroup类派生出来了很多不同样式的布局来对整体界面的显示进行控制。
 布局定义用户界面的视觉结构，根据[官方文档-布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)介绍，android包含以下几种基本布局方式：
 > - 1. LinearLayout：线性布局，所有的控件都是串在一条线上的；
@@ -251,31 +251,14 @@ java.lang.Object
 > - 6. ListLayout：列表布局，
 > - 6. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
 
-然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。这七种布局都是从
+然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。
 
-##### 2.3.2.1 布局的ID：
-任何视图对象都可能具有关联的整型 ID，此 ID 用于在结构树中对 View 对象进行唯一标识。编译应用后，此 ID 将作为整型数引用，但在布局 XML 文件中，通常会在 id 属性中为该 ID 赋予字符串值。这是所有 View 对象共用的 XML 属性（由 View 类定义），您会经常用到它。XML 标记内部的 ID 语法是：
-```xml
-android:id="@+id/my_button"
-```
-字符串开头处的 @ 符号指示 XML 解析程序应该解析并展开 ID 字符串的其余部分，并将其标识为 ID 资源。加号 (+) 表示这是一个新的资源名称，必须创建该名称并将其添加到我们的资源（在 R.java 文件中）内。
-引用 Android 资源 ID 时，不需要加号，但必须添加 android 软件包命名空间，如下所示：
-```xml
-android:id="@android:id/empty"
-```
-@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#2.2.2.1)节中的：
-```xml
-<EditText xmlns:android="http://schemas.android.com/apk/res/android"
-        android:id="@+id/edit_text"
-        android:layout_width="fill_parent"
-        android:layout_height="wrap_content"
-        android:textColor="@color/opaque_red"
-        android:text="@string/hello" />
-```
-其中android:text="@string/hello"，表示引用string类型的，名称为hello的资源。所以这部分的语法和[访问资源-在 XML 中访问资源](https://developer.android.com/guide/topics/resources/accessing-resources.html#ResourcesFromXml)所使用的语法一样，本质上都是对已有资源的引用。
+为了对布局进行调整，ViewGroup类中有一个内部类[ViewGroup.LayoutParams](https://developer.android.com/reference/android/view/ViewGroup.LayoutParams.html)作为对Layout调整参数的基类。
+然后根据不同的ViewGroup子类，使用对应的LayoutParams的子类来构造布局参数，对不同的布局进进行调整。
 
-##### 2.3.2.2 布局的公共属性：
-这些基本布局方式使用一些公共属性来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共属性为：
+当前子类View使用LayoutParams来告诉他的父View，自己所需要的布局效果，根据[ViewGroup Layout Attributes](https://developer.android.com/reference/android/R.styleable.html)中的列表，可以看到所有相关的参数说明。
+
+不同布局都从ViewGroup中派生而来，这些基本布局方式使用一些公共参数来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的17个公共参数为：
 
 | Attribute                     | Description                                                                                   |
 | ----------------------------- |-----------------------------------------------------------------------------------------------|
@@ -297,18 +280,52 @@ android:id="@android:id/empty"
 | android:paddingTop            | This is the top padding filled for the layout.                                                |
 | android:paddingBottom         | This is the bottom padding filled for the layout.                                             |
 
-可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。例如：
+可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。需要注意的是，在布局xml文件中，对已有资源的引用就是在：[资源文件在xml文件中的访问](#2.2.2.1)所介绍的使用的语法。
+
+下面的小结中，将以：
+```xml
+<EditText xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/edit_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/opaque_red"
+        android:text="@string/hello" />
+```
+这段xml代码为例，来简略介绍上述公共参数的含义。
+
+##### 2.3.2.1 View的ID：
+android中，任何视图对象都可能具有关联的整型ID，此ID用于在结构树中对View对象进行唯一标识。编译应用后，此ID将作为整型数引用，但在布局XML文件中，通常会在id属性中为该ID赋予字符串值。
+这是所有View对象共用的XML属性（由View类定义）。XML标记内部的 ID 语法是：
+```xml
+android:id="@+id/my_button"
+```
+字符串开头处的 @ 符号指示 XML 解析程序应该解析并展开 ID 字符串的其余部分，并将其标识为 ID 资源。加号 (+) 表示这是一个新的资源名称，必须创建该名称并将其添加到我们的资源（在 R.java 文件中）内。
+引用 Android 资源 ID 时，不需要加号，但必须添加 android 软件包命名空间，如下所示：
+```xml
+android:id="@android:id/empty"
+```
+@符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#2.2.2.1)节中的：
+
+就是用字符串“edit_text”对当前的布局组件EditText添加了一个ID。
+
+##### 2.3.2.2 布局的长度和宽度参数：
 ```xml
 android:layout_width="fill_parent"
 ```
 表示这个布局的宽度特性值为"fill_parent"。
+
+
+
+
+
+
 
 参考文档：
 > - 1. [Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
 
 后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
 
-#### 2.3.3 七种基本布局特性介绍：
+#### 2.3.3 七种基本布局特性参数介绍：
 熟悉了七种布局的共有属性之后，还需要针对每一种不同的布局的特性进行了解，这样才能方便的进行界面的调整。
 
 ##### 2.3.3.1 LinearLayout属性：
