@@ -236,6 +236,7 @@ java.lang.Object
 > - 2. [Fragment-Lifecycle-onAttach(Activity)](https://developer.android.com/reference/android/app/Fragment.html)
 > - 3. [浅析 android 应用界面的展现流程（二）布局与视图的创建](http://3dobe.com/archives/119/)
 > - 4. [管理 Activity 生命周期](https://developer.android.com/training/basics/activity-lifecycle/index.html)
+
 从android生命周期的创建过程来综合理解。后续章节会有更为详细的介绍。
 
 
@@ -307,19 +308,26 @@ android:layout_width="fill_parent"
 
 后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
 
-##### 2.3.2.3 LinearLayout属性：
+#### 2.3.3 七种基本布局特性介绍：
+熟悉了七种布局的共有属性之后，还需要针对每一种不同的布局的特性进行了解，这样才能方便的进行界面的调整。
+
+##### 2.3.3.1 LinearLayout属性：
 orientation：属性是指定线性布局的排列方向。
 horizontal 水平。线性布局默认的朝向是水平的。
 vertical 垂直
 
 
-#### 2.3.3 布局组件：
+#### 2.3.4 布局组件：
 在完成基本布局的理解上，再看看由View和ViewGroup派生的功能布局，这些布局就是android默认提供的，特殊功能的布局，可以实现不同的基本功能，也可以称为布局组件。
 这些组件就像是可视化的功能积木，我们使用这些组件搭建界面功能模块。
 
+##### 2.3.4.1 TextEditView：
 
 
-#### 2.3.4 布局之间的切换：
+
+#### 2.3.5 布局之间的切换：
+
+
 
 
 ### 2.4 Android应用程序代码框架：
@@ -331,6 +339,8 @@ vertical 垂直
 #### 2.4.3 应用程序的消息处理：
 
 #### 2.4.4 
+
+
 
 
 ## 3 可运行的工程实践：
