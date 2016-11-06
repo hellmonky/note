@@ -1,5 +1,7 @@
 # android程序开发：
 
+默认最低版本为android 6.0，以nexus 5作为开发机，as2.1及以上IDE，并且不考虑向下兼容性。
+
 ## 1 使用android studio进行开发：
 as是google官方提供的android开发工具，建立在IDEA的基础上，比eclipse方便很多，是一个优秀的IDE。
 对比之前的eclipse，IDEA对于工程的命名有了明显的区别，针对as的工程，组织和显示内容可以根据google官方文档：[Projects Overview](https://developer.android.com/studio/projects/index.html) 可以看到具体的细节。
@@ -117,7 +119,7 @@ InputStream is = res .openRawResource(R.raw.filename);
 ~~并且资源文件的放置也需要注意：**所有的资源文件都放在rec文件夹下，不同类别的资源，需要放置在不同的特定名称的子文件夹中，或者是写在特定文件名的文件中。**
 也就是说，资源文件通过目录结构限定了资源类型，然后as会自动索引这些资源文件供布局文件和逻辑代码调用。~~
 
-#### 2.2.2 资源文件的访问：
+#### <a name="2.2.2">2.2.2 资源文件的访问：</a>
 对于资源文件的访问，在[提供资源](https://developer.android.com/guide/topics/resources/providing-resources.html)章节有明确的说明。主要分为xml中对资源的访问和逻辑代码中对资源的访问。
 xml中使用特殊标签来表示对资源的引用，逻辑代码则是通过aapt生成的R.java代码在activty中直接使用getResources函数获取资源。
 
@@ -159,7 +161,7 @@ resource_name：是不带扩展名的资源文件名，或 XML 元素中的 andr
 <resource_type> 是资源类型的 R 子类。
 <resource_name> 是不带扩展名的资源文件名，或 XML 元素中的 android:name 属性值（如果资源是简单值）。
 ```
-我们接着上面[资源文件在xml文件中的访问](##### 2.2.2.1)中增加的test.xml内容，使用xml中指定的ID获取对应的资源，然后转换为对应类型的java变量：
+我们接着上面[资源文件在xml文件中的访问](#2.2.2.1)中增加的test.xml内容，使用xml中指定的ID获取对应的资源，然后转换为对应类型的java变量：
 ```java
 String string = getString(R.string.hello);
 ```
@@ -197,38 +199,60 @@ protected void onResume() {
 > 在练习中学习，在学习中加强练习
 只有通过的不断的实际动手，才能完成学习和思考的交互，帮助充分的理解整个开发流程，对于其他方面也是一样。
 
-### 2.3 界面布局：
+### 2.3 界面和布局：
 根据上述简答的hello程序，我们理解了一个android程序的组成部分和相互的基本交互过程，但是我们的主界面布局文件怎么将这些资源文件组织显示还没有概念。
 
 因为之前学习过Qt，所以对于这种使用xml的方式来组织布局的特点还是印象深刻的，Qt提供了多种组织布局的方式，包含ui文件和C++代码形式，其中ui文件本质上就是Qt Designer生成的xml文件。
-通过这种拆分，可以方便的将前台展示界面的调试和后台代码开发分离，和当前web开发的逻辑是一样的，也是一种更为合理有效的界面程序开发模式。
-Android中任何可视化的控件都是从android.veiw.View继承而来的，系统提供了两种方法来设置视图：第一种也是我们最常用的的使用XML文件来配置View的相关属性，然后在程序启动时系统根据配置文件来创建相应的View视图。第二种是我们在代码中直接使用相应的类来创建视图。
-但是从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择，建议使用第一种方式，也就是xml来完成布局。所以本节主要介绍基于xml的android布局。
+通过这种拆分，可以方便的将前台展示界面的调试和后台代码开发分离，这种思路和当前web开发的逻辑是一样的，也是一种更为合理有效的界面程序开发模式。
 
-本节主要初步分析一下界面布局常用的组件特性和布局方式，保证自己的测试程序能够将需要的信息正确的显示出来，而不关心美观问题。
-> 程序的美观程度和美工相关，也需要非常专业的知识才能完成良好的用户交互
+Android系统提供了两种方法来设置视图：第一种也是我们最常用的的使用XML文件来配置View的相关属性，然后在程序启动时系统根据配置文件来创建相应的View视图。第二种是我们在代码中直接使用相应的类来创建视图。
+> 从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择，用户交互和逻辑代码实现的隔离可以简化开发流程。
 
-本章主要对android的基本布局组件进行学习，熟悉常用的组件和组件的布局方式，最后学习不同的布局之间的转换，为后续复杂交互程序做准备。
+由于程序的美观程度和美工相关，也需要非常专业的知识才能完成良好的用户交互，本节只通过介绍基于xml的android布局，初步分析一下界面布局常用的组件特性和布局方式，保证自己的测试程序能够将需要的信息正确的显示出来，而不关心美观问题。
+
+#### 2.3.1 View布局概述：
+View对象是Android平台上表示用户界面的基本单元。View代表了用户界面组件的一块可绘制的空间块，它包含了用户交互和显示，和windows的窗口的概念非常类似。ViewGroup是View的子类，主要用于存放其他View（和ViewGroup）对象的布局容器。
+
+通过ViewGroup构造的容器，将多个View构成了树形结构来完成用户界面的展示。所以，Android应用中的所有用户界面元素都是使用View和ViewGroup对象构建而成：
+> - 1. View对象用于在屏幕上绘制可供用户交互的内容；
+> - 2. ViewGroup对象用于储存其他View（和 ViewGroup）对象，以便定义界面的布局。
+
+[View类](https://developer.android.com/reference/android/view/View.html)是所有android上可显示的基类。
+[ViewGroup类](https://developer.android.com/reference/android/view/ViewGroup.html)也是从View类继承而来的：
+```shell
+java.lang.Object
+   ↳	android.view.View
+ 	   ↳	android.view.ViewGroup
+```
+并且ViewGroup类是所有Layout的基类，也就是说，所有的布局方式都是由ViewGroup类派生出来的。
+
+同时，andorid在[View类](https://developer.android.com/reference/android/view/View.html)中提出了widget的概念：which are used to create interactive UI components (buttons, text fields, etc.)，也就是说是一种“立即可用的UI组件”，例如：Button、ImageView和EditText等。
+一定要和[App Widgets](https://developer.android.com/guide/topics/appwidgets/index.html)这个概念区分开来：an App Widget is a remote View hierarchy which is most commonly displayed on the user's home screen，更侧重于可展示和嵌入应用的完整交互界面而言。
+
+参考文档：[difference between view and widget](http://stackoverflow.com/questions/5168549/difference-between-view-and-widget/21541275)
+
+关于从xml布局文件到View的转换过程，就是android默认提供的转换机制来保证的，具体可以参考：
+> - 1. [Android Inflate机制](https://developer.android.com/reference/android/view/LayoutInflater.html)
+> - 2. [Fragment-Lifecycle-onAttach(Activity)](https://developer.android.com/reference/android/app/Fragment.html)
+> - 3. [浅析 android 应用界面的展现流程（二）布局与视图的创建](http://3dobe.com/archives/119/)
+> - 4. [管理 Activity 生命周期](https://developer.android.com/training/basics/activity-lifecycle/index.html)
+从android生命周期的创建过程来综合理解。后续章节会有更为详细的介绍。
 
 
-Android 应用中的所有用户界面元素都是使用 View 和 ViewGroup 对象构建而成。
-View 对象用于在屏幕上绘制可供用户交互的内容。ViewGroup 对象用于储存其他 View（和 ViewGroup）对象，以便定义界面的布局。
-Android 提供了一系列 View 和 ViewGroup 子类，可为您提供常用输入控件（如按钮和文本字段）和各种布局模式（如线性布局或相对布局）。
-
-[View类定义](https://developer.android.com/reference/android/view/View.html)和[ViewGroup类定义](https://developer.android.com/reference/android/view/ViewGroup.html)从源代码的角度给出了完整的子类关系。
-
-
-#### 2.3.1 布局：
+#### 2.3.2 七种基本布局的共性介绍：
+从ViewGroup类派生出来了很多不同样式的布局来对整体界面的显示进行控制。
 布局定义用户界面的视觉结构，根据[官方文档-布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)介绍，android包含以下几种基本布局方式：
 > - 1. LinearLayout：线性布局，所有的控件都是串在一条线上的；
 > - 2. RelativeLayout：相对布局，所有的控件的位置，都是相对于父控件的；
 > - 3. FrameLayout：单帧布局，FrameLayout布局中的控件都是一层一层的。帧布局每次添加的控件都显示在最上面，最后显示在界面上的是最后添加的一个控件；
 > - 4. TableLayout：表格布局，表格布局可以实现的.一般 可以使用 线性布局实现；
-> - 5. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
+> - 5. GridLayout：网格布局，是Android4.0增加的网格布局控件，与之前的TableLayout有些相似，它把整个容器划分为rows × columns个网格，每个网格可以放置一个组件；
+> - 6. ListLayout：列表布局，
+> - 6. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
 
-然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。
+然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。这七种布局都是从
 
-##### 2.3.1.1 布局的ID：
+##### 2.3.2.1 布局的ID：
 任何视图对象都可能具有关联的整型 ID，此 ID 用于在结构树中对 View 对象进行唯一标识。编译应用后，此 ID 将作为整型数引用，但在布局 XML 文件中，通常会在 id 属性中为该 ID 赋予字符串值。这是所有 View 对象共用的 XML 属性（由 View 类定义），您会经常用到它。XML 标记内部的 ID 语法是：
 ```xml
 android:id="@+id/my_button"
@@ -249,7 +273,7 @@ android:id="@android:id/empty"
 ```
 其中android:text="@string/hello"，表示引用string类型的，名称为hello的资源。所以这部分的语法和[访问资源-在 XML 中访问资源](https://developer.android.com/guide/topics/resources/accessing-resources.html#ResourcesFromXml)所使用的语法一样，本质上都是对已有资源的引用。
 
-##### 2.3.1.2 布局的公共属性：
+##### 2.3.2.2 布局的公共属性：
 这些基本布局方式使用一些公共属性来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共属性为：
 
 | Attribute                     | Description                                                                                   |
@@ -278,21 +302,24 @@ android:layout_width="fill_parent"
 ```
 表示这个布局的宽度特性值为"fill_parent"。
 
-参考文档：[Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
+参考文档：
+> - 1. [Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
 
 后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
 
-##### 2.3.1.1 LinearLayout属性：
+##### 2.3.2.3 LinearLayout属性：
 orientation：属性是指定线性布局的排列方向。
 horizontal 水平。线性布局默认的朝向是水平的。
 vertical 垂直
 
 
-#### 2.3.2 基本布局组件：
-在完成基本布局的理解上，再看看由View派生的布局组件，这些组件就是android默认提供的，特殊功能的布局，可以实现不同的基本功能，这些组件就像是可视化的功能积木，我们使用这些组件搭建界面功能模块。
+#### 2.3.3 布局组件：
+在完成基本布局的理解上，再看看由View和ViewGroup派生的功能布局，这些布局就是android默认提供的，特殊功能的布局，可以实现不同的基本功能，也可以称为布局组件。
+这些组件就像是可视化的功能积木，我们使用这些组件搭建界面功能模块。
 
 
-#### 2.3.3 布局之间的切换：
+
+#### 2.3.4 布局之间的切换：
 
 
 ### 2.4 Android应用程序代码框架：
