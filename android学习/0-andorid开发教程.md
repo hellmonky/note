@@ -252,7 +252,7 @@ java.lang.Object
 > - 4. TableLayout：表格布局，表格布局可以实现的.一般 可以使用 线性布局实现；
 > - 5. GridLayout：网格布局，是Android4.0增加的网格布局控件，与之前的TableLayout有些相似，它把整个容器划分为rows × columns个网格，每个网格可以放置一个组件；
 > - 6. ListLayout：列表布局，
-> - 6. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
+> - 7. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
 
 复杂的布局方式就是通过这些布局的不同组合来完成展示的。
 
@@ -272,12 +272,12 @@ java.lang.Object
 | android:layout_marginBottom   | This is the extra space on the bottom side of the layout.                                     |
 | android:layout_marginLeft     | This is the extra space on the left side of the layout.                                       |
 | android:layout_marginRight    | This is the extra space on the right side of the layout.                                      |
-| android:layout_x              | This specifies the x-coordinate of the layout.                                                |
-| android:layout_y              | This specifies the y-coordinate of the layout.                                                |
 | android:paddingLeft           | This is the left padding filled for the layout.                                               |
 | android:paddingRight          | This is the right padding filled for the layout.                                              |
 | android:paddingTop            | This is the top padding filled for the layout.                                                |
 | android:paddingBottom         | This is the bottom padding filled for the layout.                                             |
+| android:layout_x              | This specifies the x-coordinate of the layout.                                                |
+| android:layout_y              | This specifies the y-coordinate of the layout.                                                |
 
 可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。
 需要注意的是，在布局xml文件中，对已有资源的引用就是在：[资源文件在xml文件中的访问](#2.2.2.1)所介绍的使用的语法。
@@ -333,22 +333,22 @@ android:layout_gravity
 ```
 android:layout_gravity是用来设置该view相对与父view的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
 
-|Constant	        |Value	    |Description    |
-| ------------------|-----------|---------------|
-|top	            |0x30	    |Push object to the top of its container, not changing its size.|
-|bottom	            |0x50	    |Push object to the bottom of its container, not changing its size.|
-|left	            |0x03	    |Push object to the left of its container, not changing its size.|
-|right	            |0x05	    |Push object to the right of its container, not changing its size.|
-|center_vertical	|0x10	    |Place object in the vertical center of its container, not changing its size.|
-|fill_vertical	    |0x70	    |Grow the vertical size of the object if needed so it completely fills its container.|
-|center_horizontal	|0x01	    |Place object in the horizontal center of its container, not changing its size.|
-|fill_horizontal	|0x07	    |Grow the horizontal size of the object if needed so it completely fills its container.|
-|center	            |0x11	    |Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.|
-|fill	            |0x77	    |Grow the horizontal and vertical size of the object if needed so it completely fills its container.|
-|clip_vertical	    |0x80	    |Additional option that can be set to have the top and/or bottom edges of the child clipped to its container's bounds. The clip will be based on the vertical gravity: a top gravity will clip the bottom edge, a bottom gravity will clip the top edge, and neither will clip both edges.|
-|clip_horizontal	|0x08	    |Additional option that can be set to have the left and/or right edges of the child clipped to its container's bounds. The clip will be based on the horizontal gravity: a left gravity will clip the right edge, a right gravity will clip the left edge, and neither will clip both edges.|
-|start	            |0x00800003	|Push object to the beginning of its container, not changing its size.|
-|end	            |0x00800005	|Push object to the end of its container, not changing its size.|
+|Constant	        |Value	    |Description                                                                                                                                                                                                                                                                                    |
+| ------------------|-----------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|top	            |0x30	    |Push object to the top of its container, not changing its size.                                                                                                                                                                                                                                |
+|bottom	            |0x50	    |Push object to the bottom of its container, not changing its size.                                                                                                                                                                                                                             |
+|left	            |0x03	    |Push object to the left of its container, not changing its size.                                                                                                                                                                                                                               |
+|right	            |0x05	    |Push object to the right of its container, not changing its size.                                                                                                                                                                                                                              |
+|center_vertical	|0x10	    |Place object in the vertical center of its container, not changing its size.                                                                                                                                                                                                                   |
+|fill_vertical	    |0x70	    |Grow the vertical size of the object if needed so it completely fills its container.                                                                                                                                                                                                           |
+|center_horizontal	|0x01	    |Place object in the horizontal center of its container, not changing its size.                                                                                                                                                                                                                 |
+|fill_horizontal	|0x07	    |Grow the horizontal size of the object if needed so it completely fills its container.                                                                                                                                                                                                         |
+|center	            |0x11	    |Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.                                                                                                                                                                               |
+|fill	            |0x77	    |Grow the horizontal and vertical size of the object if needed so it completely fills its container.                                                                                                                                                                                            |
+|clip_vertical	    |0x80	    |Additional option that can be set to have the top and/or bottom edges of the child clipped to its container's bounds. The clip will be based on the vertical gravity: a top gravity will clip the bottom edge, a bottom gravity will clip the top edge, and neither will clip both edges.      |
+|clip_horizontal	|0x08	    |Additional option that can be set to have the left and/or right edges of the child clipped to its container's bounds. The clip will be based on the horizontal gravity: a left gravity will clip the right edge, a right gravity will clip the left edge, and neither will clip both edges.    |
+|start	            |0x00800003	|Push object to the beginning of its container, not changing its size.                                                                                                                                                                                                                          |
+|end	            |0x00800005	|Push object to the end of its container, not changing its size.                                                                                                                                                                                                                                |
 
 
 需要注意的是还有一个非常类似的属性：
@@ -454,13 +454,28 @@ android:layout_weight
 [坑爹的android:Layout_weight属性](https://www.oschina.net/question/272860_81867)
 
 
-##### 2.3.2.5 layout_marginTop属性：
-```xml
-android:layout_marginTop
+##### 2.3.2.5 layout margin类属性：
+根据官方API文档[ViewGroup.MarginLayoutParams](https://developer.android.com/reference/android/view/ViewGroup.MarginLayoutParams.html)：
 ```
-根据官方文档：[layout_marginTop](https://developer.android.com/reference/android/R.attr.html#layout_marginTop)，可知
+java.lang.Object
+   ↳	android.view.ViewGroup.LayoutParams
+ 	   ↳	android.view.ViewGroup.MarginLayoutParams
+```
+这个属性是属于ViewGroup的，而不属于组件。并且包含以下参数值：
+```xml
+android:layout_marginBottom Specifies extra space on the bottom side of this view. 
+android:layout_marginEnd	Specifies extra space on the end side of this view. 
+android:layout_marginLeft	Specifies extra space on the left side of this view. 
+android:layout_marginRight	Specifies extra space on the right side of this view. 
+android:layout_marginStart	Specifies extra space on the start side of this view. 
+android:layout_marginTop	Specifies extra space on the top side of this view. 
+```
+这些参数值的具体值可以从文档：[ViewGroup_MarginLayout](https://developer.android.com/reference/android/R.styleable.html#ViewGroup_MarginLayout)。
 
+margin就是指元素边界外的距离，那么这组属性就是用来设置ViewGroup中内部组件距离边界的参数。
 
+##### 2.3.2.6 layout padding类属性：
+padding属性和上面的margin类属性刚好相反，他用来定义元素边界内部的距离。
 
 
 
