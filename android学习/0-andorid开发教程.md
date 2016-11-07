@@ -326,7 +326,7 @@ dimension value     例如120dp，需要一个明确的大小值，一般不会�
 > match_parent指的是将当前View的大小设置为其父View的大小相同。
 > wrap_content指根据视图内部内容自动扩展以适应其大小，设置一个视图的尺寸为wrap_content将强制性地使视图扩展以显示全部内容。
 
-##### 2.3.2.3 重力
+##### 2.3.2.3 layout_gravity属性：
 ```xml
 android:layout_gravity
 ```
@@ -354,10 +354,21 @@ android:layout_gravity是用来设置该view相对与父view 的位置。根据�
 ```xml
 android:gravity
 ```
-这个属性的作用是设置View中内容相对于View组件的对齐方式。他可选的属性值有：
-
+这个属性的作用是设置View中内容相对于View组件的对齐方式。他可选的属性值，根据文档[gravity](https://developer.android.com/reference/android/R.attr.html#gravity)，和上述layout_gravity属性一致。
 
 也就是说：android:gravity用于设置View中内容相对于View组件的对齐方式，而android:layout_gravity用于设置View组件相对于Container的对齐方式。
+参考文档：
+[“android:gravity”和“android:layout_gravity”属性解释](http://www.jianshu.com/p/c8a00330a1b1)
+[在程序中设置android:gravity 和 android:layout_Gravity属性](http://blog.csdn.net/feng88724/article/details/6333809)
+
+
+##### 2.3.2.4 layout_weight属性：
+```xml
+android:layout_weight
+```
+根据官方文档[layout_weight](https://developer.android.com/reference/android/widget/LinearLayout.LayoutParams.html#attr_android:layout_weight)，也就是说：layout_weight属性用于分配LinearLayout中的的额外空间(extra space)。如果View不想拉伸的话，layout_weight值设置为0。否则的话这些像素会按比例分配到这些weight值大于0的所有View。
+
+
 
 
 
