@@ -333,20 +333,20 @@ android:layout_gravity
 android:layout_gravity是用来设置该view相对与父view 的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
 |Constant	        |Value	    |Description    |
 | ------------------|-----------|---------------|
-|top	            |0x30	    |Push object to the top of its container, not changing its size.
-|bottom	            |0x50	    |Push object to the bottom of its container, not changing its size.
-|left	            |0x03	    |Push object to the left of its container, not changing its size.
-|right	            |0x05	    |Push object to the right of its container, not changing its size.
-|center_vertical	|0x10	    |Place object in the vertical center of its container, not changing its size.
-|fill_vertical	    |0x70	    |Grow the vertical size of the object if needed so it completely fills its container.
-|center_horizontal	|0x01	    |Place object in the horizontal center of its container, not changing its size.
-|fill_horizontal	|0x07	    |Grow the horizontal size of the object if needed so it completely fills its container.
-|center	            |0x11	    |Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
-|fill	            |0x77	    |Grow the horizontal and vertical size of the object if needed so it completely fills its container.
-|clip_vertical	    |0x80	    |Additional option that can be set to have the top and/or bottom edges of the child clipped to its container's bounds. The clip will be based on the vertical gravity: a top gravity will clip the bottom edge, a bottom gravity will clip the top edge, and neither will clip both edges.
-|clip_horizontal	|0x08	    |Additional option that can be set to have the left and/or right edges of the child clipped to its container's bounds. The clip will be based on the horizontal gravity: a left gravity will clip the right edge, a right gravity will clip the left edge, and neither will clip both edges.
-|start	            |0x00800003	|Push object to the beginning of its container, not changing its size.
-|end	            |0x00800005	|Push object to the end of its container, not changing its size.
+|top	            |0x30	    |Push object to the top of its container, not changing its size.|
+|bottom	            |0x50	    |Push object to the bottom of its container, not changing its size.|
+|left	            |0x03	    |Push object to the left of its container, not changing its size.|
+|right	            |0x05	    |Push object to the right of its container, not changing its size.|
+|center_vertical	|0x10	    |Place object in the vertical center of its container, not changing its size.|
+|fill_vertical	    |0x70	    |Grow the vertical size of the object if needed so it completely fills its container.|
+|center_horizontal	|0x01	    |Place object in the horizontal center of its container, not changing its size.|
+|fill_horizontal	|0x07	    |Grow the horizontal size of the object if needed so it completely fills its container.|
+|center	            |0x11	    |Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.|
+|fill	            |0x77	    |Grow the horizontal and vertical size of the object if needed so it completely fills its container.|
+|clip_vertical	    |0x80	    |Additional option that can be set to have the top and/or bottom edges of the child clipped to its container's bounds. The clip will be based on the vertical gravity: a top gravity will clip the bottom edge, a bottom gravity will clip the top edge, and neither will clip both edges.|
+|clip_horizontal	|0x08	    |Additional option that can be set to have the left and/or right edges of the child clipped to its container's bounds. The clip will be based on the horizontal gravity: a left gravity will clip the right edge, a right gravity will clip the left edge, and neither will clip both edges.|
+|start	            |0x00800003	|Push object to the beginning of its container, not changing its size.|
+|end	            |0x00800005	|Push object to the end of its container, not changing its size.|
 
 
 需要注意的是还有一个非常类似的属性：
