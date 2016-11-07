@@ -359,8 +359,8 @@ android:gravity
 
 也就是说：android:gravity用于设置View中内容相对于View组件的对齐方式，而android:layout_gravity用于设置View组件相对于Container的对齐方式。
 参考文档：
-[“android:gravity”和“android:layout_gravity”属性解释](http://www.jianshu.com/p/c8a00330a1b1)
-[在程序中设置android:gravity 和 android:layout_Gravity属性](http://blog.csdn.net/feng88724/article/details/6333809)
+> - 1. [“android:gravity”和“android:layout_gravity”属性解释](http://www.jianshu.com/p/c8a00330a1b1)
+> - 2. [在程序中设置android:gravity 和 android:layout_Gravity属性](http://blog.csdn.net/feng88724/article/details/6333809)
 
 
 ##### 2.3.2.4 layout_weight属性：
@@ -450,11 +450,19 @@ android:layout_weight
 **从上述代码看来，这个属性不止针对于layout，还可以用于布局组件，上述列子就是从布局组件的角度来进行分析的。**
 
 参考文档：
-[Android 布局学习之——LinearLayout的layout_weight属性](http://www.cnblogs.com/JohnTsai/p/4077183.html)
-[坑爹的android:Layout_weight属性](https://www.oschina.net/question/272860_81867)
+> - 1. [Android 布局学习之——LinearLayout的layout_weight属性](http://www.cnblogs.com/JohnTsai/p/4077183.html)
+> - 2. [坑爹的android:Layout_weight属性](https://www.oschina.net/question/272860_81867)
 
 
-##### 2.3.2.5 layout margin类属性：
+##### 2.3.2.5 layout_margin类和padding类属性：
+根据官方文档[View - Size, padding and margins](https://developer.android.com/reference/android/view/View.html)，描述一个View的维度有两个方面的信息：
+**The size of a view is expressed with a width and a height. A view actually possess two pairs of width and height values.**
+padding和margin为第二种维度提供了明确的度量。
+
+为了更准确的控制View中内容的位置，我们使用盒模型来对布局进行描述：
+在Container（父控件）里面有一个子控件，假设是一个TextView控件。其中Margin是子控件与父控件之间的间隔大小。Border是子控件的边框，它是子控件和父控件的边界。Padding是指子控件中的内容(Content Area)与子控件Border的间隔大小。
+
+
 根据官方API文档[ViewGroup.MarginLayoutParams](https://developer.android.com/reference/android/view/ViewGroup.MarginLayoutParams.html)：
 ```
 java.lang.Object
@@ -474,32 +482,26 @@ android:layout_marginTop	Specifies extra space on the top side of this view.
 
 margin就是指元素边界外的距离，那么这组属性就是用来设置ViewGroup中内部组件距离边界的参数。
 
-##### 2.3.2.6 layout padding类属性：
 padding属性和上面的margin类属性刚好相反，他用来定义元素边界内部的距离。
+根据文档：[View](https://developer.android.com/reference/android/view/View.html)中的setPadding函数可知，padding属性的可选参数有：
+```
+android:padding
+android:paddingBottom
+android:paddingLeft
+android:paddingRight
+android:paddingTop
+```
+从[R的属性说明官方文档](https://developer.android.com/reference/android/R.attr.html#padding)中找到他所对应的整形值。
+
+参考文档：
+> - 1. [Android布局中涉及的一些属性](http://www.cnblogs.com/kissazi2/p/3309109.html)
+
+##### 2.3.2.6 layout_x和layout_y属性：
+android:layout_x 和 android:layout_y 只有在 AbsoluteLayout 布局中才会出效的。因为绝对布局方式已经不再推荐使用。故这个属性也不再需要被使用。
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-最终调整布局文件的样式为：
+##### 2.3.2.7 最终调整布局：
+根据上述一些共有的布局属性，调整目前的布局样式为：
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -549,28 +551,61 @@ padding属性和上面的margin类属性刚好相反，他用来定义元素边�
 并且在调整中可以看到不同的属性之间有相互的作用，都是从父节点到子节点逐步影响
 
 
-
-
-
-
-
-
 参考文档：
 > - 1. [Develop-API Guides-用户界面：布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)
 > - 2. [Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
 
 
-
 #### 2.3.3 七种基本布局特性参数介绍：
 熟悉了七种布局的共有属性之后，还需要针对每一种不同的布局的特性进行了解，这样才能方便的进行界面的调整。
 
-##### 2.3.3.1 LinearLayout属性：
-orientation：属性是指定线性布局的排列方向。
-horizontal 水平。线性布局默认的朝向是水平的。
-vertical 垂直
+##### 2.3.3.1 LinearLayout布局：
+也就是所谓的线性布局，是一个ViewGroup以线性方向显示它的子视图（view）元素，即垂直地或水平地。
+他最为关键的属性为：orientation，这个属性是指定线性布局的排列方向。包含以下两种参数：
+```shell
+horizontal      水平布局，线性布局默认的朝向是水平的。
+vertical        垂直布局
+```
+需要注意的是窗口长度超过屏幕长度，需要生成滚动条（srollbar）来进行显示，具体的方法为使用ScrollView包裹线性布局：
+```xml
+<ScrollView
+    android:layout_width="fill_parent"
+    android:layout_height="wrap_content">
+    
+    <!-- 这里放线性布局中的内容 start-->
+    <LinearLayout 
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+    </LinearLayout>
+    <!-- 这里放线性布局中的内容 end-->
+
+</ScrollView>
+```
+修改上述图像显示作为实例：
+```xml
+```
+
+##### 2.3.3.2 RelativeLayout布局：
+
+##### 2.3.3.3 FrameLayout布局：
+
+##### 2.3.3.4 TableLayout布局：
+
+##### 2.3.3.5 GridLayout布局：
+
+##### 2.3.3.6 ListLayout布局：
+
+##### 2.3.3.7 AbsoluteLayout布局：
+
 
 
 #### 2.3.4 布局组件：
+根据文档[输入控件](https://developer.android.com/guide/topics/ui/controls.html)可知，这儿的布局组件，也就是所谓的UI Controls，也称为输入控件，是应用用户界面中的交互式组件。
+他包含有一些通用控件，主要有：
+```xml
+```
+
 在完成基本布局的理解上，再看看由View和ViewGroup派生的功能布局，这些布局就是android默认提供的，特殊功能的布局，可以实现不同的基本功能，也可以称为布局组件。
 这些组件就像是可视化的功能积木，我们使用这些组件搭建界面功能模块。
 
@@ -578,9 +613,12 @@ vertical 垂直
 
 
 
-#### 2.3.5 布局之间的切换：
+#### 2.3.5 布局引用：
+完成基本布局的学习之后，可以通过这些基本布局搭建自己的显示最小组件，然后一个完整的复杂布局就可以通过这些自己定义的显示最小组件来进行组合，在提高复用率的同时，保证显示内容的一致性。
 
 
+参考文档：
+> - 1. [Android布局优化](http://www.infoq.com/cn/articles/android-optimise-layout)
 
 
 ### 2.4 Android应用程序代码框架：
