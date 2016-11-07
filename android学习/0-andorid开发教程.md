@@ -256,23 +256,21 @@ java.lang.Object
 为了对布局进行调整，ViewGroup类中有一个内部类[ViewGroup.LayoutParams](https://developer.android.com/reference/android/view/ViewGroup.LayoutParams.html)作为对Layout调整参数的基类。
 然后根据不同的ViewGroup子类，使用对应的LayoutParams的子类来构造布局参数，来告诉他的父View，自己所需要的布局效果，从而完成对不同的布局进进行参数调整。
 
-根据[ViewGroup Layout Attributes](https://developer.android.com/reference/android/R.styleable.html)中的列表，可以看到所有相关的参数说明。不同布局都从ViewGroup中派生而来，这些基本布局方式使用一些公共参数来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的17个公共参数为：
+根据[ViewGroup Layout Attributes](https://developer.android.com/reference/android/R.styleable.html)中的列表，可以看到所有相关的参数说明。不同布局都从ViewGroup中派生而来，这些基本布局方式使用一些公共参数来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的公共参数为：
 
 | Attribute                     | Description                                                                                   |
 | ----------------------------- |-----------------------------------------------------------------------------------------------|
 | android:id                    | This is the ID which uniquely identifies the view.                                            |
 | android:layout_width          | This is the width of the layout.                                                              |
 | android:layout_height         | This is the height of the layout.                                                             |
+| android:layout_gravity        | This specifies how child Views are positioned.                                                |
+| android:layout_weight         | This specifies how much of the extra space in the layout should be allocated to the View.     |
 | android:layout_marginTop      | This is the extra space on the top side of the layout.                                        |
 | android:layout_marginBottom   | This is the extra space on the bottom side of the layout.                                     |
 | android:layout_marginLeft     | This is the extra space on the left side of the layout.                                       |
 | android:layout_marginRight    | This is the extra space on the right side of the layout.                                      |
-| android:layout_gravity        | This specifies how child Views are positioned.                                                |
-| android:layout_weight         | This specifies how much of the extra space in the layout should be allocated to the View.     |
 | android:layout_x              | This specifies the x-coordinate of the layout.                                                |
 | android:layout_y              | This specifies the y-coordinate of the layout.                                                |
-| android:layout_width          | This is the width of the layout.                                                              |
-| android:layout_width          | This is the width of the layout.                                                              |
 | android:paddingLeft           | This is the left padding filled for the layout.                                               |
 | android:paddingRight          | This is the right padding filled for the layout.                                              |
 | android:paddingTop            | This is the top padding filled for the layout.                                                |
@@ -322,9 +320,9 @@ wrap_content        -2	The view should be only big enough to enclose its content
 dimension value     例如120dp，需要一个明确的大小值，一般不会这样设置，因为适配的屏幕大小不确定，这样带来外观的不可控。
 ```
 除了设置为具体的像素大小之后，其他三种属性值的含义为：
-> fill_parent将强制性地使构件扩展，以填充布局单元内尽可能多的空间。
-> match_parent指的是将当前View的大小设置为其父View的大小相同。
-> wrap_content指根据视图内部内容自动扩展以适应其大小，设置一个视图的尺寸为wrap_content将强制性地使视图扩展以显示全部内容。
+> - 1. fill_parent将强制性地使构件扩展，以填充布局单元内尽可能多的空间。
+> - 2. match_parent指的是将当前View的大小设置为其父View的大小相同。
+> - 3. wrap_content指根据视图内部内容自动扩展以适应其大小，设置一个视图的尺寸为wrap_content将强制性地使视图扩展以显示全部内容。
 
 ##### 2.3.2.3 layout_gravity属性：
 ```xml
@@ -367,6 +365,90 @@ android:gravity
 android:layout_weight
 ```
 根据官方文档[layout_weight](https://developer.android.com/reference/android/widget/LinearLayout.LayoutParams.html#attr_android:layout_weight)，也就是说：layout_weight属性用于分配LinearLayout中的的额外空间(extra space)。如果View不想拉伸的话，layout_weight值设置为0。否则的话这些像素会按比例分配到这些weight值大于0的所有View。
+为了方便展示这个效果，需要一个横向的布局文件来放两个组件，在上述布局的最下方添加一个线性布局，里面包含两个文本显示框：
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal" >
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#f00"
+        android:text="TextView1" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="#0f0"
+        android:text="LongLongTextView2"/>
+</LinearLayout>
+```
+这两个文本显示框横向排列，并且他们的父View设置为LinearLayout，宽度为当前主View相同，高度为自适应高度。这时，显示的的两个文本框因为内容的长度不同而显示长度不同。但是整个宽度范围除了这两个文本显示框，右侧布局还剩余很多空白空间。
+通过设置当前两个TextView的layout_weight属性，将他们这个空白空间进行分配：
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal" >
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="#f00"
+        android:text="TextView1" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="#0f0"
+        android:text="LongLongTextView2"/>
+</LinearLayout>
+```
+这个时候，虽然每个文本显示框中的文字不足以占据的空间，被按照1：1分配给了这两个文本显示框。
+
+可以看出，当前的主View，也就是LinearLayout的属性是horizontal布局的，也就是说内部两个子View的android:layout_weight参数是对外部父View对内部组件布局后的剩余空间进行调整的；
+也就是说关系到内部的布局的宽度。当前内部两个组件的宽度属性设置是android:layout_width="wrap_content"。通过对这个宽度属性的调整，发现：
+> android:layout_width设置为match_parent时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的一致；
+> android:layout_width设置为wrap_content时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的不一致；
+> android:layout_width设置为fill_parent时，android:layout_weight越小，占的空间越小，并且两个控件的比例和设置的一致。
+
+现在修改外部父View，也就是LinearLayout的属性是vertical布局的，然后看看这个时候内部View的android:layout_height属性会有对应的变化：
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical" >
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        android:background="#f00"
+        android:text="TextView1" />
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#0f0"
+        android:text="LongLongTextView2"/>
+</LinearLayout>
+```
+发现这种行为也是和width相同的。
+
+综合上述长和宽的变化，也就是说android:layout_weight属性是根据父View的布局的剩余空间进行分配，具体看是长度方向还是宽度方向的剩余来调整子View的布局，被调整方向的属性参数最好默认为0dp，这样不会干扰像素的缩放过程。
+
+
+所以根据官方推荐，使用android:layout_weight属性的时候，最好将android:layout_width设置为0dp，这样保证不会被按照像素拉伸。
+
+参考文档：
+[Android 布局学习之——LinearLayout的layout_weight属性](http://www.cnblogs.com/JohnTsai/p/4077183.html)
+[坑爹的android:Layout_weight属性](https://www.oschina.net/question/272860_81867)
+
 
 
 
