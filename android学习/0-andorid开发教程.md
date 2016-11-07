@@ -412,9 +412,10 @@ android:layout_weight
 
 可以看出，当前的主View，也就是LinearLayout的属性是horizontal布局的，也就是说内部两个子View的android:layout_weight参数是对外部父View对内部组件布局后的剩余空间进行调整的；
 也就是说关系到内部的布局的宽度。当前内部两个组件的宽度属性设置是android:layout_width="wrap_content"。通过对这个宽度属性的调整，发现：
-> android:layout_width设置为match_parent时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的一致；
-> android:layout_width设置为wrap_content时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的不一致；
-> android:layout_width设置为fill_parent时，android:layout_weight越小，占的空间越小，并且两个控件的比例和设置的一致。
+
+> - 1. android:layout_width设置为match_parent时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的一致；
+> - 2. android:layout_width设置为wrap_content时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的不一致；
+> - 3. android:layout_width设置为fill_parent时，android:layout_weight越小，占的空间越小，并且两个控件的比例和设置的一致。
 
 现在修改外部父View，也就是LinearLayout的属性是vertical布局的，然后看看这个时候内部View的android:layout_height属性会有对应的变化：
 ```xml
