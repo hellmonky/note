@@ -102,6 +102,7 @@ InputStream is = res .openRawResource(R.raw.filename);
 > 2. 解析速度更快。由于在二进制格式的XML文件中，所有的XML元素标签和属性等值都是使用整数来描述的，因此，在解析的过程中，就不再需要进行字符串解析，这样就可以提高解析速度。
 
 每一个res资源在编译的打包完成之后，都会被分配一个资源ID，这些资源ID被终会被定义为Java常量值，保存在一个R.java文件中，与应用程序的其它源文件一起被编译到程序中，这样我们就可以在程序或者资源文件中通过这些ID常量来访问指定的资源。
+这些常量值的具体值分配在官方文档：[R.attr](https://developer.android.com/reference/android/R.attr.html)都有明确的说明。
 
 关于android的资源管理，需要分析AssetManager模块来进行更为深入的理解。目前看来只需要知道：
 > 1. 资源的分类区别；
@@ -205,10 +206,21 @@ protected void onResume() {
 因为之前学习过Qt，所以对于这种使用xml的方式来组织布局的特点还是印象深刻的，Qt提供了多种组织布局的方式，包含ui文件和C++代码形式，其中ui文件本质上就是Qt Designer生成的xml文件。
 通过这种拆分，可以方便的将前台展示界面的调试和后台代码开发分离，这种思路和当前web开发的逻辑是一样的，也是一种更为合理有效的界面程序开发模式。
 
-Android系统提供了两种方法来设置视图：第一种也是我们最常用的的使用XML文件来配置View的相关属性，然后在程序启动时系统根据配置文件来创建相应的View视图。第二种是我们在代码中直接使用相应的类来创建视图。
-> 从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择，用户交互和逻辑代码实现的隔离可以简化开发流程。
+Android系统提供了两种方法来设置视图：
+> - 1. 第一种也是我们最常用的的使用XML文件来配置View的相关属性，然后在程序启动时系统根据配置文件来创建相应的View视图；
+> - 2. 第二种是我们在代码中直接使用相应的类来创建视图。
 
-由于程序的美观程度和美工相关，也需要非常专业的知识才能完成良好的用户交互，本节只通过介绍基于xml的android布局，初步分析一下界面布局常用的组件特性和布局方式，保证自己的测试程序能够将需要的信息正确的显示出来，而不关心美观问题。
+从更为广泛的意义上考虑，和Qt类似，将界面从代码中分离是一个非常不错的选择，用户交互和逻辑代码实现的隔离可以简化开发流程。
+
+我们本文只考虑通过xml来承载布局样式的方式来进行学习。
+更重要的是：**布局也是一种资源，属于第二章中res文件夹下的layout子文件夹归属，都会被映射到R.java文件中去，从而在逻辑代码中被使用。**
+关于从xml布局文件到View的转换过程，就是android默认提供的转换机制来保证的，具体可以参考：
+> - 1. [Android Inflate机制](https://developer.android.com/reference/android/view/LayoutInflater.html)
+> - 2. [Fragment-Lifecycle-onAttach(Activity)](https://developer.android.com/reference/android/app/Fragment.html)
+> - 3. [浅析 android 应用界面的展现流程（二）布局与视图的创建](http://3dobe.com/archives/119/)
+> - 4. [管理 Activity 生命周期](https://developer.android.com/training/basics/activity-lifecycle/index.html)
+
+从android生命周期的创建过程来综合理解。后续我们直接说到布局的时候会强调当前布局资源所在的位置，是在xml中，还是在逻辑代码中。
 
 #### 2.3.1 View布局概述：
 View对象是Android平台上表示用户界面的基本单元。View代表了用户界面组件的一块可绘制的空间块，它包含了用户交互和显示，和windows的窗口的概念非常类似。ViewGroup是View的子类，主要用于存放其他View（和ViewGroup）对象的布局容器。
@@ -230,15 +242,6 @@ java.lang.Object
 一定要和[App Widgets](https://developer.android.com/guide/topics/appwidgets/index.html)这个概念区分开来：an App Widget is a remote View hierarchy which is most commonly displayed on the user's home screen，更侧重于可展示和嵌入应用的完整交互界面而言。
 
 参考文档：[difference between view and widget](http://stackoverflow.com/questions/5168549/difference-between-view-and-widget/21541275)
-
-关于从xml布局文件到View的转换过程，就是android默认提供的转换机制来保证的，具体可以参考：
-> - 1. [Android Inflate机制](https://developer.android.com/reference/android/view/LayoutInflater.html)
-> - 2. [Fragment-Lifecycle-onAttach(Activity)](https://developer.android.com/reference/android/app/Fragment.html)
-> - 3. [浅析 android 应用界面的展现流程（二）布局与视图的创建](http://3dobe.com/archives/119/)
-> - 4. [管理 Activity 生命周期](https://developer.android.com/training/basics/activity-lifecycle/index.html)
-
-从android生命周期的创建过程来综合理解。后续章节会有更为详细的介绍。
-
 
 #### 2.3.2 七种基本布局的公共参数介绍：
 从ViewGroup类派生出来了很多不同样式的布局来对整体界面的显示进行控制。
@@ -328,7 +331,7 @@ dimension value     例如120dp，需要一个明确的大小值，一般不会�
 ```xml
 android:layout_gravity
 ```
-android:layout_gravity是用来设置该view相对与父view 的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
+android:layout_gravity是用来设置该view相对与父view的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
 
 |Constant	        |Value	    |Description    |
 | ------------------|-----------|---------------|
@@ -417,7 +420,9 @@ android:layout_weight
 > - 2. android:layout_width设置为wrap_content时，android:layout_weight越小，占的空间越大，并且两个控件的比例和设置的不一致；
 > - 3. android:layout_width设置为fill_parent时，android:layout_weight越小，占的空间越小，并且两个控件的比例和设置的一致。
 
-现在修改外部父View，也就是LinearLayout的属性是vertical布局的，然后看看这个时候内部View的android:layout_height属性会有对应的变化：
+所以根据官方推荐，使用android:layout_weight属性的时候，最好将android:layout_width设置为0dp，这样保证不会被按照像素拉伸。
+
+问题在于，这个现象只对width有效吗？现在修改外部父View，也就是LinearLayout的属性是vertical布局的，然后看看这个时候内部View的android:layout_height属性会有对应的变化：
 ```xml
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
@@ -442,13 +447,37 @@ android:layout_weight
 发现这种行为也是和width相同的。
 
 综合上述长和宽的变化，也就是说android:layout_weight属性是根据父View的布局的剩余空间进行分配，具体看是长度方向还是宽度方向的剩余来调整子View的布局，被调整方向的属性参数最好默认为0dp，这样不会干扰像素的缩放过程。
-
-
-所以根据官方推荐，使用android:layout_weight属性的时候，最好将android:layout_width设置为0dp，这样保证不会被按照像素拉伸。
+**从上述代码看来，这个属性不止针对于layout，还可以用于布局组件，上述列子就是从布局组件的角度来进行分析的。**
 
 参考文档：
 [Android 布局学习之——LinearLayout的layout_weight属性](http://www.cnblogs.com/JohnTsai/p/4077183.html)
 [坑爹的android:Layout_weight属性](https://www.oschina.net/question/272860_81867)
+
+
+##### 2.3.2.5 layout_marginTop属性：
+```xml
+android:layout_marginTop
+```
+根据官方文档：[layout_marginTop](https://developer.android.com/reference/android/R.attr.html#layout_marginTop)，可知
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
