@@ -331,6 +331,7 @@ dimension value     例如120dp，需要一个明确的大小值，一般不会�
 android:layout_gravity
 ```
 android:layout_gravity是用来设置该view相对与父view 的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
+
 |Constant	        |Value	    |Description    |
 | ------------------|-----------|---------------|
 |top	            |0x30	    |Push object to the top of its container, not changing its size.|
