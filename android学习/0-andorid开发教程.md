@@ -251,14 +251,12 @@ java.lang.Object
 > - 6. ListLayout：列表布局，
 > - 6. AbsoluteLayout：绝对布局，已经是废弃的状态，因为分辨率等复杂设备要求，这个布局不再采用。
 
-然后复杂的布局方式就是通过这四种（除去绝对布局）组合来完成的。
+复杂的布局方式就是通过这些布局的不同组合来完成展示的。
 
 为了对布局进行调整，ViewGroup类中有一个内部类[ViewGroup.LayoutParams](https://developer.android.com/reference/android/view/ViewGroup.LayoutParams.html)作为对Layout调整参数的基类。
-然后根据不同的ViewGroup子类，使用对应的LayoutParams的子类来构造布局参数，对不同的布局进进行调整。
+然后根据不同的ViewGroup子类，使用对应的LayoutParams的子类来构造布局参数，来告诉他的父View，自己所需要的布局效果，从而完成对不同的布局进进行参数调整。
 
-当前子类View使用LayoutParams来告诉他的父View，自己所需要的布局效果，根据[ViewGroup Layout Attributes](https://developer.android.com/reference/android/R.styleable.html)中的列表，可以看到所有相关的参数说明。
-
-不同布局都从ViewGroup中派生而来，这些基本布局方式使用一些公共参数来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的17个公共参数为：
+根据[ViewGroup Layout Attributes](https://developer.android.com/reference/android/R.styleable.html)中的列表，可以看到所有相关的参数说明。不同布局都从ViewGroup中派生而来，这些基本布局方式使用一些公共参数来确定具体布局方式，例如：width和height表示这个布局的长和高信息。更为详细的17个公共参数为：
 
 | Attribute                     | Description                                                                                   |
 | ----------------------------- |-----------------------------------------------------------------------------------------------|
@@ -306,7 +304,7 @@ android:id="@android:id/empty"
 ```
 @符号后的字符串的含义为：引用android软件包下的，类型为id的，标识符为empty的ID。例如在[资源文件在xml文件中的访问](#2.2.2.1)节中的：
 
-就是用字符串“edit_text”对当前的布局组件EditText添加了一个ID。
+上述代码就是用字符串“edit_text”对当前的布局组件EditText添加了一个ID。
 
 ##### 2.3.2.2 布局的长度和宽度参数：
 ```xml
@@ -321,9 +319,10 @@ android:layout_width="fill_parent"
 
 
 参考文档：
-> - 1. [Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
+> - 1. [Develop-API Guides-用户界面：布局](https://developer.android.com/guide/topics/ui/declaring-layout.html)
+> - 2. [Android - UI Layouts](https://www.tutorialspoint.com/android/android_user_interface_layouts.htm)
 
-后续小结将对这四种布局方式的特殊属性做一个详细的介绍。
+
 
 #### 2.3.3 七种基本布局特性参数介绍：
 熟悉了七种布局的共有属性之后，还需要针对每一种不同的布局的特性进行了解，这样才能方便的进行界面的调整。
