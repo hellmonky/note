@@ -278,7 +278,8 @@ java.lang.Object
 | android:paddingTop            | This is the top padding filled for the layout.                                                |
 | android:paddingBottom         | This is the bottom padding filled for the layout.                                             |
 
-可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。需要注意的是，在布局xml文件中，对已有资源的引用就是在：[资源文件在xml文件中的访问](#2.2.2.1)所介绍的使用的语法。
+可以看出基本布局方式的属性都是用android:开头的，然后后面接着描述属性的名称，然后用等号链接属性对应的值。
+需要注意的是，在布局xml文件中，对已有资源的引用就是在：[资源文件在xml文件中的访问](#2.2.2.1)所介绍的使用的语法。
 
 下面的小结中，将以：
 ```xml
@@ -307,10 +308,107 @@ android:id="@android:id/empty"
 上述代码就是用字符串“edit_text”对当前的布局组件EditText添加了一个ID。
 
 ##### 2.3.2.2 布局的长度和宽度参数：
+对应的xml中的设置为：
 ```xml
 android:layout_width="fill_parent"
+android:layout_height="fill_parent"
 ```
-表示这个布局的宽度特性值为"fill_parent"。
+这两个属性设置了对应View的基本长宽属性值，是每个View的必备属性。
+表示这个布局的宽度特性值为"fill_parent"。这个属性值可选参数根据文档[layout_width](https://developer.android.com/reference/android/R.attr.html#layout_width)有：
+```shell
+fill_parent         -1	The view should be as big as its parent (minus padding). This constant is deprecated starting from API Level 8 and is replaced by match_parent.
+match_parent        -1	The view should be as big as its parent (minus padding). Introduced in API Level 8.
+wrap_content        -2	The view should be only big enough to enclose its content (plus padding).
+dimension value     例如120dp，需要一个明确的大小值，一般不会这样设置，因为适配的屏幕大小不确定，这样带来外观的不可控。
+```
+除了设置为具体的像素大小之后，其他三种属性值的含义为：
+> fill_parent将强制性地使构件扩展，以填充布局单元内尽可能多的空间。
+> match_parent指的是将当前View的大小设置为其父View的大小相同。
+> wrap_content指根据视图内部内容自动扩展以适应其大小，设置一个视图的尺寸为wrap_content将强制性地使视图扩展以显示全部内容。
+
+##### 2.3.2.3 重力
+```xml
+android:layout_gravity
+```
+android:layout_gravity是用来设置该view相对与父view 的位置。根据文档[layout_gravity](https://developer.android.com/reference/android/R.attr.html#layout_gravity)，现有的可选项有：
+|Constant	        |Value	    |Description    |
+| ------------------|-----------|---------------|
+|top	            |0x30	    |Push object to the top of its container, not changing its size.
+|bottom	            |0x50	    |Push object to the bottom of its container, not changing its size.
+|left	            |0x03	    |Push object to the left of its container, not changing its size.
+|right	            |0x05	    |Push object to the right of its container, not changing its size.
+|center_vertical	|0x10	    |Place object in the vertical center of its container, not changing its size.
+|fill_vertical	    |0x70	    |Grow the vertical size of the object if needed so it completely fills its container.
+|center_horizontal	|0x01	    |Place object in the horizontal center of its container, not changing its size.
+|fill_horizontal	|0x07	    |Grow the horizontal size of the object if needed so it completely fills its container.
+|center	            |0x11	    |Place the object in the center of its container in both the vertical and horizontal axis, not changing its size.
+|fill	            |0x77	    |Grow the horizontal and vertical size of the object if needed so it completely fills its container.
+|clip_vertical	    |0x80	    |Additional option that can be set to have the top and/or bottom edges of the child clipped to its container's bounds. The clip will be based on the vertical gravity: a top gravity will clip the bottom edge, a bottom gravity will clip the top edge, and neither will clip both edges.
+|clip_horizontal	|0x08	    |Additional option that can be set to have the left and/or right edges of the child clipped to its container's bounds. The clip will be based on the horizontal gravity: a left gravity will clip the right edge, a right gravity will clip the left edge, and neither will clip both edges.
+|start	            |0x00800003	|Push object to the beginning of its container, not changing its size.
+|end	            |0x00800005	|Push object to the end of its container, not changing its size.
+
+
+需要注意的是还有一个非常类似的属性：
+```xml
+android:gravity
+```
+这个属性的作用是设置View中内容相对于View组件的对齐方式。他可选的属性值有：
+
+
+也就是说：android:gravity用于设置View中内容相对于View组件的对齐方式，而android:layout_gravity用于设置View组件相对于Container的对齐方式。
+
+
+
+最终调整布局文件的样式为：
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:id="@+id/layout"
+    android:weightSum="0">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_centerHorizontal="true"
+        android:layout_gravity="center"
+        android:textColor="@color/colorPrimaryDark"
+        android:text="OpenCV Test"
+        android:id="@+id/textView" />
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/img"
+        android:layout_centerInParent="true"
+        android:background="@drawable/xiaohui"
+        android:layout_weight="0.68" />
+
+    <Button
+        android:id="@+id/btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/img"
+        android:layout_centerHorizontal="true"
+        android:layout_gravity="center"
+        android:textColor="@color/colorPrimaryDark"
+        android:text="灰度化"/>"
+
+    <EditText xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/edit_text"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@color/opaque_red"
+        android:text="@string/hello" />
+
+</LinearLayout>
+```
+并且在调整中可以看到不同的属性之间有相互的作用，都是从父节点到子节点逐步影响
+
 
 
 
@@ -399,3 +497,11 @@ vertical 垂直
 <a name="id"> id对应的内容 </a>
 ```
 参考文档：[How to link to a named anchor in Multimarkdown?](http://stackoverflow.com/questions/6695439/how-to-link-to-a-named-anchor-in-multimarkdown)
+
+
+
+## 4 优秀的开源android第三方库：
+参考文档：
+> - 1. [一个2年Android开发者的18条忠告](https://news.cnblogs.com/n/556548/)
+> - 2. [awesome-android](https://snowdream.github.io/awesome-android/)
+> - 3. [open-source-android-apps](https://github.com/pcqpcq/open-source-android-apps)
