@@ -566,25 +566,60 @@ android:layout_x 和 android:layout_y 只有在 AbsoluteLayout 布局中才会�
 horizontal      水平布局，线性布局默认的朝向是水平的。
 vertical        垂直布局
 ```
-需要注意的是窗口长度超过屏幕长度，需要生成滚动条（srollbar）来进行显示，具体的方法为使用ScrollView包裹线性布局：
+需要注意的是窗口长度超过屏幕长度，需要生成滚动条（srollbar）来进行显示，具体的方法为使用ScrollView包裹线性布局，具体代码为：
 ```xml
 <ScrollView
     android:layout_width="fill_parent"
     android:layout_height="wrap_content">
     
-    <!-- 这里放线性布局中的内容 start-->
     <LinearLayout 
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical">
+        <!-- 这里放线性布局中的内容 -->
     </LinearLayout>
-    <!-- 这里放线性布局中的内容 end-->
-
 </ScrollView>
 ```
-修改上述图像显示作为实例：
-```xml
+根据官方文档[ScrollView](https://developer.android.com/reference/android/widget/ScrollView.html)：
+```java
+java.lang.Object
+   ↳	android.view.View
+ 	   ↳	android.view.ViewGroup
+ 	 	   ↳	android.widget.FrameLayout
+ 	 	 	   ↳	android.widget.ScrollView
+
 ```
+可以看到ScrollView是一个继承自FrameLayout的子类型。
+ScrollView只能包含一个子视图或视图组，在实际项目中，通常包含的是一个垂直的LinearLayout。
+值得注意的是，ScrollView不能和ListView一起使用，因为ListView已经对垂直方向的滚动做了处理，它会迫使如果ListView的内容大于物理视图的内容的时候，强制垂直滚动的效果，所以这里使用ScrollView和ListView混合使用是没有意义的。
+ScrollView还需要注意EditText自带的多行输入的滚动效果，也是不可以混合使用的，如果在ScrollView中包含了多行的EditText，那EditText中自带的滚动效果将失效。其中心思想就是ScrollView是一个滚动视图的容器，对于一些自带了滚动效果的控件，是无法和它一起被混合使用的。
+与ScrollView类似的还有一个HorizontalScrollView容器，这个容器与ScrollView的作用相反，主要适用于水平滚动，了解了ScrollView就基本上了解了HorizontalScrollView。在此不再深入下去。
+
+那么最后在上述显示框架中添加一个新的图像显示作为实例：
+```xml
+<ScrollView
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="垂直滚动视图"
+            android:textSize="30dp" />
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/vim" />
+    </LinearLayout>
+</ScrollView>
+```
+
+这部分内容属于不同的layout相互嵌套调用的过程，后续会有更多的说明。
+
 
 ##### 2.3.3.2 RelativeLayout布局：
 
