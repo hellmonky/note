@@ -95,16 +95,36 @@ http://localhost:8080/source
 [如何把 opengrok 安装在 windows上](http://blog.csdn.net/mickeyfirst/article/details/9044337)
 
 #### 1.2 使用IDEA搭建spring-framework源代码阅读环境：
-spring-framework官方也提供了导入到IDEA中进行源代码编译的文档，
+spring-framework官方默认使用eclipse来进行开发，并且提供了导入到eclipse的脚本来简化导入过程。但是现在也提供了导入到IDEA中进行源代码编译的文档，虽然没有eclipse那么方便，但是还是可以导入进行编译。
+本节将参考[官方文档](https://github.com/spring-projects/spring-framework/blob/master/import-into-idea.md)完成对Spring-framework在IDEA中的导入和编译。
 
 参考文档：
 > - 1. [intellij idea搭建spring源码阅读环境](http://blog.csdn.net/sw277378347/article/details/44978493)
 
 
 
+### 2 Spring的核心：
+要理解Spring的核心，首先需要明确Spring被设计之初的定位是什么，然后通过这个定位来分析要实现它所需要依赖的基本技术，这些基本技术就是整个Spring的核心技术。
+
+#### 2.1 Spring的设计理念：
+Spring handles the infrastructure so you can focus on your application.
+Spring目的：让对象与对象（模块与模块）之间的关系不通过代码来关联，而是通过配置类说明管理的（Spring根据这些配置 内部通过反射去动态的组装对象）。
+通过将对象之间的依赖关系通过配置文件表达和管理，也就是所谓的依赖注入机制，Spring框架为开发人员提供了便利性，让开发人员专注于业务逻辑的实现。
+
+整个java程序的运行可以看作是：构建一个数据结构，然后根据这个数据结构设计他的生存环境，并让它在这个环境中按照一定的规律在不停的运动，在它们的不停运动中设计一系列与环境或者与其他个体完成信息交换。
+Spring在这个过程中能够帮助我们完成个体之间的信息交换，我们只需要负责设计个体各自的运动轨迹就可以了。
 
 
-### 2 Spring的核心
+#### 2.2 Spring的核心技术：
+Spring就是面向java Bean的编程（BOP,Bean Oriented Programming），Bean在Spring中才是真正的主角。然后Spring从这个角度从下到上组织了如下三个核心技术模块：
+> - 1. Bean之间的依赖关系通过配置文件进行描述，这些配置文件描述了Bean之间的注入关系，然后被Spring用IoC来管理这些注入关系；
+> - 2. 为了方便Bean之间交互，还需要一些基本工具支持，Spring提供了Core组件，这个组件负责完成：发现、建立和维护每个Bean之间的关系所需要的一些列的工具，例如提供了统一的资源访问形式；
+> - 3. 围绕Bean之间的交互活动，还需要Bean的运行上下文来提供运行场景和记录轨迹，Spring的Context组件就是包裹了Bean和Core的IoC容器，包含着Bean之间的相互关系。
+
+根据上述三个基本层次化的组件就搭建了整个Spring的骨骼，其他Spring组件和框架都是建立在这三个组件的基础上的。
+
+
+
 
 Spring中最核心的理念就是提供服务，最典型的就是通过IoC来提供对基本java对象的管理，然后在这个基础上完成一些列的后续服务支持。
 IoC就是Inversion of Control，将用户自己创建所需要对象的过程，通过服务帮助自动完成，不用关心具体的构造过程。
@@ -116,8 +136,22 @@ IoC就是Inversion of Control，将用户自己创建所需要对象的过程，
 我们只需要在用到依赖对象的时候，他能够准备好就够了，完全不用考虑是自己准备的还是别人送过来。
 Spring虽然发展了很多年，但是其内核结构并没有发生重大变化，所以从Spring的实现的基础原理来理解整个Spring
 
+#### 2.3 Spring实现依赖的java技术要素：
+上述Spring设计理念中描述的内容，并不局限于java语言，那么为什么Spring是一个java框架，而不是一个C++或者Python框架？
+所以Spring的理念的实现也是需要一些语言特性支持的，我们来分析下要完成上述理念，一门包含哪些特性的语言可以实现一个Spring框架，以及是否真的有对应的框架已经被实现了。
 
 
+
+
+#### 2.4 Spring能被用来干什么：
+详细的了解了Spring的设计理念和核心技术，从技术的角度出发来看看Spring能够干什么，是非常有利于理解现在Spring正在干什么的。
+
+
+
+### 3 Spring的三个基础组件分析：
+
+
+### 4 关于建立在Spring框架上的java生态环境：
 
 
 
@@ -135,3 +169,8 @@ Spring虽然发展了很多年，但是其内核结构并没有发生重大变�
 
 关于SpringBoot中静态资源的访问：
 和传统的war包不同，现在使用的
+
+
+重要更改：
+（1）SaaS改为SOA，这两者之间的理念还是不同的，并且现在强调开发为微服务架构，有一个概念上的清晰理解；
+（2）强调对Spring和SpringBoot之间的演进关系的表述，根据项目时间来进行安排；
