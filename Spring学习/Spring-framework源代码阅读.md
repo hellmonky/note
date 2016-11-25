@@ -28,17 +28,74 @@ start at 2016年11月23日15:01:42
 现在以本文着力需要分析的[spring-framework](https://github.com/spring-projects/spring-framework)为例，就来尝试搭建网页端源代码浏览和编译环境浏览这两种方式。
 
 #### 1.1 使用OpenGrok搭建spring-framework源代码阅读环境：
-使用opengrok阅读代码：
-1 基本安装环境：
-java，web容器，例如：
+根据[OpenGrok的官方指导教程](https://github.com/OpenGrok/OpenGrok/blob/master/README.txt)可知，如果不编译OpenGrok本身，只是通过release的可执行文件来搭建源代码阅读环境，只需要一下系统组件：
+>Latest Java (At least 1.8)
+>A servlet container like Tomcat (8.x or later)
+>Exuberant Ctags or Universal Ctags
+>Source Code Management installation
 
+我已经安装好了：jdk1.8.0_102，apache-tomcat-8.5.8，ctag（已经添加到了系统环境变量中）和git for windows。
+
+然后就可以进行如下步骤：
+
+##### （1）下载OpenGrok最新release版本：
+从[官方release](https://github.com/OpenGrok/OpenGrok/releases)下载最新的tar.gz包到本地，到目前为止，最新为opengrok-0.13-rc4.tar.gz；
+将opengrok-0.13-rc4.tar.gz解压到指定路径，我这儿将解压缩到：
+```shell
+E:\0-bin\opengrok-0.13-rc4
+```
+文件夹下，然后将../opengrok-0.13-rc4/lib/source.war解压缩到apache-tomcat-8.5.8的webapp目录下。
+
+##### （2）编辑source.war的web.xml配置文件：
+使用编辑器打开../webapps/source.war/WEB-INF/web.xml，然后修改其中的配置项：
+```shell
+<context-param>
+    <description>Full path to the configuration file where OpenGrok can read its configuration</description>
+    <param-name>CONFIGURATION</param-name>
+    <param-value>E:\0-bin\opengrok-0.13-rc4\data\configuration.xml</param-value>
+</context-param>
+```
+保存后推出，将CONFIGURATION这个key的值设置为将要生成配置文件的路径，OpenGrok将会在这个路径下会生成configuration.xml文件。
+
+##### （3）在OpenGrok解压缩目录下创建文件夹：
+我们需要在OpenGrok的解压缩目录下创建文件夹来存放OpenGrok运行时需要的数据，创建data和source两个文件夹，这个时候的目录结构为：
+```shell
+-----
+    |-bin
+    |-data
+    |-doc
+    |-lib
+    |-Management
+    |-source
+```
+
+##### （4）在source文件夹下导入源代码：
+接下来就需要在上述创建的source文件夹下导入需要阅读的源代码包了，这个使用git获取最新的Spring-framework源代码包：
+```shell
+git clone https://github.com/spring-projects/spring-framework.git
+```
+也可以将下载的源代码压缩包解压到这个文件夹下。
+这儿有一个好处，在阅读linux代码的时候，由于windows不支持过多的目录层级导致linux源代码包无法在windows下正常解压，所以使用linux下的tomcat可以完美解决这个问题。
+
+##### （5）创建源代码的索引：
+在启动OpenGrok之前，需要使用ctag对当前导入在source文件夹下的源代码建立索引，并且将配置文件写入到data文件夹下，需要执行如下命令：
+```shell
 java -Xmx524m -jar opengrok.jar -W "E:\\0-bin\\opengrok-0.13-rc4\\data\\configuration.xml" -P -S -v -s "E:\\0-bin\\opengrok-0.13-rc4\\source" -d "E:\\0-bin\\opengrok-0.13-rc4\\data"
+```
+
+##### （6）启动OpenGrok：
+启动tomcat服务器，就可以在网页中输入：
+```shell
+http://localhost:8080/source
+```
+来访问了。
+
 
 参考文档：
 [如何把 opengrok 安装在 windows上](http://blog.csdn.net/mickeyfirst/article/details/9044337)
 
 #### 1.2 使用IDEA搭建spring-framework源代码阅读环境：
-
+spring-framework官方也提供了导入到IDEA中进行源代码编译的文档，
 
 参考文档：
 > - 1. [intellij idea搭建spring源码阅读环境](http://blog.csdn.net/sw277378347/article/details/44978493)
