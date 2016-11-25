@@ -560,8 +560,16 @@ android:layout_x 和 android:layout_y 只有在 AbsoluteLayout 布局中才会�
 熟悉了七种布局的共有属性之后，还需要针对每一种不同的布局的特性进行了解，这样才能方便的进行界面的调整。
 
 ##### 2.3.3.1 LinearLayout布局：
-也就是所谓的线性布局，是一个ViewGroup以线性方向显示它的子视图（view）元素，即垂直地或水平地。
-他最为关键的属性为：orientation，这个属性是指定线性布局的排列方向。包含以下两种参数：
+从官方文档[LinearLayout](https://developer.android.com/reference/android/widget/LinearLayout.html)：
+```java
+java.lang.Object
+   ↳	android.view.View
+ 	   ↳	android.view.ViewGroup
+ 	 	   ↳	android.widget.LinearLayout
+```
+可以看到LinearLayout继承自android.view.ViewGroup，并且被归类为widget。
+
+线性布局，是一个ViewGroup以线性方向显示它的子视图（view）元素，即垂直地或水平地。从上述文档中找到最为关键的属性为：android:orientation，这个属性是指定线性布局的排列方向。包含以下两种参数：
 ```shell
 horizontal      水平布局，线性布局默认的朝向是水平的。
 vertical        垂直布局
@@ -617,11 +625,153 @@ ScrollView还需要注意EditText自带的多行输入的滚动效果，也是�
     </LinearLayout>
 </ScrollView>
 ```
+但是这时候的显示结果中，嵌入的ScrollView在预览和安装的界面中，图像都因为超过界面而无法完整显示。
+只需要将布局文件的顶层布局设置成ScrollView即可显示全部组件。这个时候完整的布局代码为：
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content">
 
-这部分内容属于不同的layout相互嵌套调用的过程，后续会有更多的说明。
+    <LinearLayout
+        android:id="@+id/layout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:weightSum="0">
 
+        <TextView
+            android:id="@+id/textView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentTop="true"
+            android:layout_centerHorizontal="true"
+            android:layout_gravity="center"
+            android:text="OpenCV Test"
+            android:textColor="@color/colorPrimaryDark" />
+
+        <ImageView
+            android:id="@+id/img"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:layout_weight="0.68"
+            android:background="@drawable/xiaohui" />
+
+        <Button
+            android:id="@+id/btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/img"
+            android:layout_centerHorizontal="true"
+            android:layout_gravity="center"
+            android:text="灰度化"
+            android:textColor="@color/colorPrimaryDark" />"
+
+        <EditText xmlns:android="http://schemas.android.com/apk/res/android"
+            android:id="@+id/edit_text"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/hello"
+            android:textColor="@color/opaque_red" />
+
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="垂直滚动视图"
+            android:textSize="30dp" />
+
+        <ImageView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:src="@drawable/vim" />
+
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:background="#f00"
+            android:text="TextView1" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="#0f0"
+            android:text="LongLongTextView2" />
+    </LinearLayout>
+</ScrollView>
+```
+> 这部分内容属于不同的layout相互嵌套调用的过程，后续会有更多的说明。
+
+参考文档：
+> - 1. [Android--UI之ScrollView](http://www.cnblogs.com/plokmju/p/android_ScrollView.html)
 
 ##### 2.3.3.2 RelativeLayout布局：
+根据官方文档[RelativeLayout](https://developer.android.com/reference/android/widget/RelativeLayout.html):
+```java
+java.lang.Object
+   ↳	android.view.View
+ 	   ↳	android.view.ViewGroup
+ 	 	   ↳	android.widget.RelativeLayout
+```
+可以看到相对布局继承自android.view.ViewGroup，和LinearLayout并列，并且被归类为widget。
+
+相对布局，子控件的位置关系可以通过子控件与父控件、子控件与子控件来确定，子控件之间位置可以重叠,后面的控件会盖在前面控件之上，拓展性好，灵活方便，是使用最多的布局方式。
+相对布局是设计用户界面的有力工具，因为它消除了嵌套视图组。如果你发现你使用了多个嵌套的LinearLayout视图组后，你可以考虑使用一个RelativeLayout视图组了。
+
+从上述文档中查看对应的参数文档：[RelativeLayout.LayoutParams](https://developer.android.com/reference/android/widget/RelativeLayout.LayoutParams.html)，有以下几个相关参数：
+```xml
+android:layout_toLeftOf             该组件位于引用组件的左方  
+android:layout_toRightOf            该组件位于引用组件的右方  
+android:layout_above                该组件位于引用组件的上方  
+android:layout_below                该组件位于引用组件的下方  
+android:layout_alignParentLeft      该组件是否对齐父组件的左端  
+android:layout_alignParentRight     该组件是否齐其父组件的右端  
+android:layout_alignParentTop       该组件是否对齐父组件的顶部  
+android:layout_alignParentBottom    该组件是否对齐父组件的底部  
+android:layout_centerInParent       该组件是否相对于父组件居中  
+android:layout_centerHorizontal     该组件是否横向居中  
+android:layout_centerVertical       该组件是否垂直居中  
+```
+使用相对布局方式中就是使用这些类似的属性来定位视图到你想要的位置，它们的值是你参照的视图的id。
+现在还是举例说明，现在准备如下代码片段：
+```xml
+<RelativeLayout
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent">
+    <TextView
+        android:id="@+id/label"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="Type here:"/>
+    <EditText 
+        android:id="@+id/entry"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:drawable/editbox_background"
+        android:layout_below="@id/label"/>
+    <Button 
+        android:id="@+id/ok" 
+        android:layout_width="wrap_content" 
+        android:layout_height="wrap_content" 
+        android:layout_below="@id/entry"
+       android:layout_alignParentRight="true"
+        android:layout_marginLeft="10dip" 
+        android:text="OK" /> 
+    <Button 
+        android:layout_width="wrap_content" 
+        android:layout_height="wrap_content" 
+        android:layout_toLeftOf="@id/ok"
+        android:layout_alignTop="@id/ok"
+        android:text="Cancel" /> 
+</RelativeLayout> 
+```
+这个视图组包含一个TextView、一个EditView、两个Button。
+其中TextView位于最上方，他没有被设置为相对位置；接着是
+
 
 ##### 2.3.3.3 FrameLayout布局：
 
