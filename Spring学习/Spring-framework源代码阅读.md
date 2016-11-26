@@ -114,6 +114,7 @@ Spring目的：让对象与对象（模块与模块）之间的关系不通过�
 整个java程序的运行可以看作是：构建一个数据结构，然后根据这个数据结构设计他的生存环境，并让它在这个环境中按照一定的规律在不停的运动，在它们的不停运动中设计一系列与环境或者与其他个体完成信息交换。
 Spring在这个过程中能够帮助我们完成个体之间的信息交换，我们只需要负责设计个体各自的运动轨迹就可以了。
 
+Spring是一个容器，凡是在容器里的对象才会有Spring所提供的这些服务和功能。
 
 #### 2.2 Spring的核心技术：
 Spring就是面向java Bean的编程（BOP,Bean Oriented Programming），Bean在Spring中才是真正的主角。然后Spring从这个角度从下到上组织了如下三个核心技术模块：
@@ -123,24 +124,70 @@ Spring就是面向java Bean的编程（BOP,Bean Oriented Programming），Bean�
 
 根据上述三个基本层次化的组件就搭建了整个Spring的骨骼，其他Spring组件和框架都是建立在这三个组件的基础上的。
 
+##### 2.2.1 Bean组件：
+Bean组件实现了将对象通过配置文件的方式，由Spring来管理对象存储空间，生命周期的分配。通过依赖注入的方式，可以实现将对象注入到指定的业务逻辑类中。这些注入关系，由Ioc容器来管理。
+因此，Spring的核心思想常常被称作BOP(Bean Oriented Programming)，面向Bean编程。
+Bean组件定义在Spring的org.springframework.beans包下，解决了以下几个问题：
+> 1. Bean的定义
+> 2. Bean的创建
+> 3. Bean的解析
+
+使用者只需要关注Bean的创建，其他两个过程由Spring内部完成，对用户来说是透明的。
+
+Spring Bean的整体架构是典型的工厂模式，顶层的接口是BeanFactory，定义在：../spring-framework/spring-beans/src/main/java/org/springframework/beans/factory/BeanFactory.java 这个文件中。
+ListableBeanFactory、HierarchicalBeanFactory和AutowireCapableBean是其三个直接子类，目的是为了区分Spring内部对象处理和转化的数据限制。
+
+> 1. ListableBeanFactory: 表示这些Bean是可列表的
+> 2. HierarchicalBeanFactory: 表示这些Bean有继承关系
+> 3. AutowireCapableBeanFactory: 定义Bean的自动装配规则
+
+这几个接口分别定义了Bean的集合、Bean的关系和Bean的行为。
+
+###### <1> Bean的定义：
+Bean的定义类层次核心是RootBeanDefinition，在源码的位置是：../spring-framework/spring-beans/src/main/java/org/springframework/beans/factory/support/RootBeanDefinition.java
+Spring的配置文件中定义的<bean/>节点，成功解析后都会被转化为BeanDefinition对象，之后所有的操作都会在BeanDefinition对象之上进行。
+
+
+###### <2> Bean的解析：
+Bean解析的主要任务是：对Spring的配置文件进行解析，最后生成BeanDefinition对象。解析过程非常复杂，包括配置文件里所有的tag。
+
+
+##### 2.2.2 Context组件：
+Bean包装的是一个个Object，Object中存储着业务所需的数据。所以，如何给这些数据及之间的关系提供生存、运行环境（即保存对象的状态），就是Context要解决的问题。Context实际上就是Bean关系的集合，又称之为Ioc容器。
+ApplicationContext是Context最上层的接口。
+
+ApplicationContext能够标识一个应用环境的基本信息。其上继承了5个接口，用于拓展Context的功能，其中BeanFactory用于创建Bean，同时继承了ResourceLoader接口，用于访问任何外部资源。
+
+
+##### 2.2.3 Core组件：
 
 
 
-Spring中最核心的理念就是提供服务，最典型的就是通过IoC来提供对基本java对象的管理，然后在这个基础上完成一些列的后续服务支持。
-IoC就是Inversion of Control，将用户自己创建所需要对象的过程，通过服务帮助自动完成，不用关心具体的构造过程。
-关键概念：
-被注入对象：就是当前需要调用其它类完成功能的类；
-被依赖对象：就是被调用的类。
-正常状态下被注入的对象会直接依赖于被依赖的对象，需要我们主动获取被依赖的对象；IoC帮助我们管理被依赖的对象，然后帮我们自动注入到被注入的对象中去。
 
-我们只需要在用到依赖对象的时候，他能够准备好就够了，完全不用考虑是自己准备的还是别人送过来。
-Spring虽然发展了很多年，但是其内核结构并没有发生重大变化，所以从Spring的实现的基础原理来理解整个Spring
+参考文档：
+[](https://segmentfault.com/a/1190000007356573)
+
+
 
 #### 2.3 Spring实现依赖的java技术要素：
 上述Spring设计理念中描述的内容，并不局限于java语言，那么为什么Spring是一个java框架，而不是一个C++或者Python框架？
 所以Spring的理念的实现也是需要一些语言特性支持的，我们来分析下要完成上述理念，一门包含哪些特性的语言可以实现一个Spring框架，以及是否真的有对应的框架已经被实现了。
 
+**使用java实现的Spring-framework最基本的需求就是IoC，而IoC依赖于DI（Dependency Injection），而DI又需要GC的（Garbage Collection）支持。**
+要理解这点，我们从头进行梳理。
 
+##### 2.3.1 Spring最基本的对Bean的管理：
+Spring-framework在管理Bean的时候，使用配置文件也好，使用注解也好，都是将这个Bean的创建方法（也就是Bean的定义的class文件）进行了记录，然后Spring-framework能够通过在需要的时候找到这个Bean的时候然后创建出这个Bean来。
+这儿就使用了java的反射来完成运行时的Bean的动态创建：通过Spring中的配置文件或者注解，找到这个Bean对应的class文件，然后动态生成Bean的实例，然后调用对象中的方法。
+
+##### 2.3.2 Spring的DI：
+Spring-framework还通过配置文件或者注解，记录了Bean之间的相互依赖关系（注入关系），然后通过这个关系描述，将运行时动态生成的
+
+
+
+
+
+http://stackoverflow.com/questions/352885/dependency-injection-in-c
 
 
 #### 2.4 Spring能被用来干什么：
@@ -171,6 +218,22 @@ Spring虽然发展了很多年，但是其内核结构并没有发生重大变�
 和传统的war包不同，现在使用的
 
 
+Spring中最核心的理念就是提供服务，最典型的就是通过IoC来提供对基本java对象的管理，然后在这个基础上完成一些列的后续服务支持。
+IoC就是Inversion of Control，将用户自己创建所需要对象的过程，通过服务帮助自动完成，不用关心具体的构造过程。
+关键概念：
+被注入对象：就是当前需要调用其它类完成功能的类；
+被依赖对象：就是被调用的类。
+正常状态下被注入的对象会直接依赖于被依赖的对象，需要我们主动获取被依赖的对象；IoC帮助我们管理被依赖的对象，然后帮我们自动注入到被注入的对象中去。
+
+我们只需要在用到依赖对象的时候，他能够准备好就够了，完全不用考虑是自己准备的还是别人送过来。
+Spring虽然发展了很多年，但是其内核结构并没有发生重大变化，所以从Spring的实现的基础原理来理解整个Spring
+
+
 重要更改：
 （1）SaaS改为SOA，这两者之间的理念还是不同的，并且现在强调开发为微服务架构，有一个概念上的清晰理解；
 （2）强调对Spring和SpringBoot之间的演进关系的表述，根据项目时间来进行安排；
+这个可以参考：[为什么做java的web开发我们会使用struts2，springMVC和spring这样的框架?](http://www.cnblogs.com/sharpxiajun/p/3936268.html)
+（3）对于大数据方面的描述不够多，并且不确切，需要一个完整的思路展现；
+
+
+
