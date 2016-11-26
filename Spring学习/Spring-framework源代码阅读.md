@@ -135,8 +135,10 @@ Bean组件定义在Spring的org.springframework.beans包下，解决了以下几
 使用者只需要关注Bean的创建，其他两个过程由Spring内部完成，对用户来说是透明的。
 
 Spring Bean的整体架构是典型的工厂模式，顶层的接口是BeanFactory，定义在：../spring-framework/spring-beans/src/main/java/org/springframework/beans/factory/BeanFactory.java 这个文件中。
-ListableBeanFactory、HierarchicalBeanFactory和AutowireCapableBean是其三个直接子类，目的是为了区分Spring内部对象处理和转化的数据限制。
+具体的继承细节为：
+![Bean 工厂的继承关系](./2.2.1_Bean组件接口继承.png)
 
+ListableBeanFactory、HierarchicalBeanFactory和AutowireCapableBean是其三个直接子类，目的是为了区分Spring内部对象处理和转化的数据限制。
 > 1. ListableBeanFactory: 表示这些Bean是可列表的
 > 2. HierarchicalBeanFactory: 表示这些Bean有继承关系
 > 3. AutowireCapableBeanFactory: 定义Bean的自动装配规则
