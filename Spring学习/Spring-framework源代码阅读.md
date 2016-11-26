@@ -147,6 +147,9 @@ ListableBeanFactory、HierarchicalBeanFactory和AutowireCapableBean是其三个�
 
 ###### 2.2.1.1 Bean的定义：
 Bean的定义类层次核心是RootBeanDefinition，在源码的位置是：../spring-framework/spring-beans/src/main/java/org/springframework/beans/factory/support/RootBeanDefinition.java
+继承关系为：
+![Bean的定义](./2.2.1.1_Bean的定义.png)
+
 Spring的配置文件中定义的<bean/>节点，成功解析后都会被转化为BeanDefinition对象，之后所有的操作都会在BeanDefinition对象之上进行。
 
 
