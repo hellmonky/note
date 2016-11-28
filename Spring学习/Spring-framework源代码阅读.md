@@ -270,7 +270,7 @@ protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
 		return beanFactory;
 	}
 ```
-obtainFreshBeanFactory()方法中调用的子类实现的refreshBeanFactory()方法位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractRefreshableApplicationContext.java 文件中，具体函数实现为：
+obtainFreshBeanFactory()方法中调用的子类实现的AbstractApplicationContext的抽象方法refreshBeanFactory()方法，具体代码位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractRefreshableApplicationContext.java 文件中，具体函数实现为：
 ```java
     protected final void refreshBeanFactory() throws BeansException {
 		if (hasBeanFactory()) {
@@ -291,17 +291,81 @@ obtainFreshBeanFactory()方法中调用的子类实现的refreshBeanFactory()方
 		}
 	}
 ```
-这个方法实现了AbstractApplicationContext的抽象方法refreshBeanFactory，这段代码清楚的说明了BeanFactory的创建过程。
-注意 BeanFactory 对象的类型的变化，前面介绍了他有很多子类，在什么情况下使用不同的子类这非常关键。BeanFactory 的原始对象是 DefaultListableBeanFactory，这个非常关键，因为他设计到后面对这个对象的多种操作，下面看一下这个类的继承层次类图：
+这段代码清楚的说明了BeanFactory的创建过程。
+这儿需要注意BeanFactory对象的类型的变化，前面介绍了他有很多子类（例如三个直接子类：ListableBeanFactory、HierarchicalBeanFactory 和 AutowireCapableBeanFactory），在什么情况下使用不同的子类这非常关键。
+BeanFactory的原始对象是DefaultListableBeanFactory，这个非常关键，因为他涉及到后面对这个对象的多种操作。
+
+下面看一下DefaultListableBeanFactory类的继承层次类图：
+![DefaultListableBeanFactory类的继承层次类图](./2.2.4.1_DefaultListableBeanFactory类的继承层次类图.png)
+
+从这个图中发现除了BeanFactory相关的类外，还发现了与Bean组件的register相关。
+这在上述代码中的refreshBeanFactory()方法中的oadBeanDefinitions(beanFactory)将找到答案，这个方法将开始加载、解析Bean的定义，也就是把用户定义的数据结构转化为Ioc容器中的特定数据结构。
+![创建BeanFactory时序图](./2.2.4.1_创建BeanFactory时序图.png)
+
+
+###### 2.2.4.2 Bean的解析和注册：
+上述过程中，完成了构建BeanFactory的标准初始化过程。解析来需要进一步分析如何解析和注册用户定义的Bean。
+DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将用户自定义的Bean定义加载和解析为默认DefaultListableBeanFactory类型的IoC容器中的数据结构。
+调用了代码位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractXmlApplicationContext.java 文件中AbstractXmlApplicationContext类的loadBeanDefinitions(DefaultListableBeanFactory beanFactory)方法：
+```java
+    protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
+		// Create a new XmlBeanDefinitionReader for the given BeanFactory.
+		XmlBeanDefinitionReader beanDefinitionReader = new XmlBeanDefinitionReader(beanFactory);
+
+		// Configure the bean definition reader with this context's
+		// resource loading environment.
+		beanDefinitionReader.setEnvironment(this.getEnvironment());
+		beanDefinitionReader.setResourceLoader(this);
+		beanDefinitionReader.setEntityResolver(new ResourceEntityResolver(this));
+
+		// Allow a subclass to provide custom initialization of the reader,
+		// then proceed with actually loading the bean definitions.
+		initBeanDefinitionReader(beanDefinitionReader);
+		loadBeanDefinitions(beanDefinitionReader);
+	}
+```
+最后通过AbstractXmlApplicationContext类的loadBeanDefinitions(XmlBeanDefinitionReader reader)方法来根据指定的XmlBeanDefinitionReader来加载我们的Bean定义：
+```java
+    protected void loadBeanDefinitions(XmlBeanDefinitionReader reader) throws BeansException, IOException {
+		Resource[] configResources = getConfigResources();
+		if (configResources != null) {
+			reader.loadBeanDefinitions(configResources);
+		}
+		String[] configLocations = getConfigLocations();
+		if (configLocations != null) {
+			reader.loadBeanDefinitions(configLocations);
+		}
+	}
+```
+函数中根据资源文件和路径来加载Bean的定义。在这里，一般只会执行其中的一个if语句。如果通过指定XML文件来说明Bean定义，那么这儿就对应的只设置了configLocations值，并没有设置configResources属性值，就会直接执行第二个if语句。
+这里就会调用XmlBeanDefinitionReader的父类AbstractBeanDefinitionReader的一个重载方法loadBeanDefinitions()方法，这个最终是调用子类XmlBeanDefinitionReader的loadBeanDefinitions()方法来加载和解析用户定义的Bean。
+标准Bean解析注册的时序图如下：
+![标准Bean解析注册的时序图](./2.2.4.2_标准Bean解析注册的时序图.png)
+
+
+
+
+具体代码为：
+```java
+```
+
+
 
 
 
 
 PS:关于这个Context，其实只要构造一个完整的语言的解析环境，语言的上下文就是无法避免的东西，例如在实现Scheme解析器中，就需要实现一个上下文环境，整个过程和上述过程是非常类似的。
+并且在IDEA中可以将上述所有类继承关系图描述清楚。
 
 
 参考文档：
-> - 1. [](https://segmentfault.com/a/1190000007356573)
+> - 1. [Spring 框架的设计理念与设计模式分析](https://www.ibm.com/developerworks/cn/java/j-lo-spring-principle/)
+> - 2. [Spring的IOC容器创建过程深入剖析](http://computerdragon.blog.51cto.com/6235984/1244016)
+[spring加载过程，源码带你理解从初始化到bean注入](http://zk-chs.iteye.com/blog/2293013)
+[Spring IoC实现解析](http://wanglizhi.github.io/2016/07/19/Spring-Ioc/)
+[]()
+
+
 
 #### 2.3 Spring实现的核心技术要点和设计模式：
 明白了Spring-framework的核心框架后，我们更为详细的看看在完成这个框架搭建过程中使用的java技术要点和涉及到的设计模式。
