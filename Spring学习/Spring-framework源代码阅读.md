@@ -119,8 +119,9 @@ Spring是一个容器，凡是在容器里的对象才会有Spring所提供的�
 #### 2.2 Spring的核心技术：
 Spring就是面向java Bean的编程（BOP,Bean Oriented Programming），Bean在Spring中才是真正的主角。然后Spring从这个角度从下到上组织了如下三个核心技术模块：
 > - 1. Bean之间的依赖关系通过配置文件进行描述，这些配置文件描述了Bean之间的注入关系，然后被Spring用IoC来管理这些注入关系；
-> - 2. 为了方便Bean之间交互，还需要一些基本工具支持，Spring提供了Core组件，这个组件负责完成：发现、建立和维护每个Bean之间的关系所需要的一些列的工具，例如提供了统一的资源访问形式；
-> - 3. 围绕Bean之间的交互活动，还需要Bean的运行上下文来提供运行场景和记录轨迹，Spring的Context组件就是包裹了Bean和Core的IoC容器，包含着Bean之间的相互关系。
+> - 2. 围绕Bean之间的交互活动，还需要Bean的运行上下文来提供运行场景和记录轨迹，Spring的Context组件就是包裹了Bean和Core的IoC容器，包含着Bean之间的相互关系；
+> - 3. 为了方便Bean之间交互，还需要一些基本工具支持，Spring提供了Core组件，这个组件负责完成：发现、建立和维护每个Bean之间的关系所需要的一些列的工具，例如提供了统一的资源访问形式。
+
 
 根据上述三个基本层次化的组件就搭建了整个Spring的骨骼，其他Spring组件和框架都是建立在这三个组件的基础上的。
 
