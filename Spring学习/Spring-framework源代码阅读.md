@@ -160,10 +160,13 @@ Bean 的解析过程非常复杂，功能被分的很细，因为这里需要被
 ![Bean的解析](./2.2.1.2_Bean的解析.png)
 
 ##### 2.2.2 Context组件：
-Bean包装的是一个个Object，Object中存储着业务所需的数据。所以，如何给这些数据及之间的关系提供生存、运行环境（即保存对象的状态），就是Context要解决的问题。Context实际上就是Bean关系的集合，又称之为Ioc容器。
-ApplicationContext是Context最上层的接口。
+Bean包装的是一个个Object，Object中存储着业务所需的数据。所以，如何给这些数据及之间的关系提供生存、运行环境（即保存对象的状态），就是Context要解决的问题。
+Context组件在Spring中的作用，他实际上就是给Spring提供一个运行时的环境，用以保存各个对象的状态。Context实际上就是Bean关系的集合，又称之为Ioc容器。
+ApplicationContext是Context最上层的接口，层次关系如下：
+![ApplicationContext类层次继承关系](./2.2.2_ApplicationContext类层次继承关系.png)
 
-ApplicationContext能够标识一个应用环境的基本信息。其上继承了5个接口，用于拓展Context的功能，其中BeanFactory用于创建Bean，同时继承了ResourceLoader接口，用于访问任何外部资源。
+从上述类继承层次关系图上可以看出，ApplicationContext标识了一个应用环境的基本信息。
+其上继承了5个接口，用于拓展Context的功能，其中BeanFactory用于创建Bean，同时继承了ResourceLoader接口，用于访问任何外部资源。
 
 
 ##### 2.2.3 Core组件：
