@@ -116,7 +116,7 @@ Spring在这个过程中能够帮助我们完成个体之间的信息交换，�
 
 Spring是一个容器，凡是在容器里的对象才会有Spring所提供的这些服务和功能。
 
-#### 2.2 Spring的核心技术：
+#### 2.2 Spring的核心框架：
 Spring就是面向java Bean的编程（BOP,Bean Oriented Programming），Bean在Spring中才是真正的主角。然后Spring从这个角度从下到上组织了如下三个核心技术模块：
 > - 1. Bean之间的依赖关系通过配置文件进行描述，这些配置文件描述了Bean之间的注入关系，然后被Spring用IoC来管理这些注入关系；
 > - 2. 围绕Bean之间的交互活动，还需要Bean的运行上下文来提供运行场景和记录轨迹，Spring的Context组件就是包裹了Bean和Core的IoC容器，包含着Bean之间的相互关系；
@@ -153,7 +153,6 @@ Bean的定义类层次核心是RootBeanDefinition，在源码的位置是：../s
 
 Spring的配置文件中定义的<bean/>节点，成功解析后都会被转化为BeanDefinition对象，之后所有的操作都会在BeanDefinition对象之上进行。
 
-
 ###### 2.2.1.2 Bean的解析：
 Bean解析的主要任务是：对Spring的配置文件进行解析，最后生成BeanDefinition对象。解析过程非常复杂，包括配置文件里所有的tag。
 Bean 的解析过程非常复杂，功能被分的很细，因为这里需要被扩展的地方很多，必须保证有足够的灵活性，以应对可能的变化。Bean 的解析主要就是对 Spring 配置文件的解析。这个解析过程主要通过下图中的类完成：
@@ -173,23 +172,183 @@ ApplicationContext的子类主要包含两个方面：
 > - 1. ConfigurableApplicationContext表示该Context是可修改的，也就是在构建Context中用户可以动态添加或修改已有的配置信息，它下面又有多个子类，其中最经常使用的是可更新的Context，即AbstractRefreshableApplicationContext类；
 > - 2. WebApplicationContext顾名思义，就是为web准备的Context他可以直接访问到ServletContext，通常情况下，这个接口使用的少。
 
-再往下分就是按照构建 Context 的文件类型，接着就是访问 Context 的方式。这样一级一级构成了完整的 Context 等级层次。
+再往下分就是按照构建 Context 的文件类型，接着就是访问 Context 的方式。这样一级一级构成了完整的 Context 等级层次。总体来说 ApplicationContext 必须要完成以下几件事：
+> - 标识一个应用环境
+> - 利用 BeanFactory 创建 Bean 对象
+> - 保存对象关系表
+> - 能够捕获各种事件
 
-下面看一下这个环境是如何构建的。
-
-
+Context 作为 Spring 的 Ioc 容器，基本上整合了 Spring 的大部分功能，或者说是大部分功能的基础。
 
 ##### 2.2.3 Core组件：
+Core组件作为Spring的核心组件，他其中包含了很多的关键类，其中一个重要组成部分就是定义了资源的访问方式。这种把所有资源都抽象成一个接口的方式很值得在以后的设计中拿来学习。
+下面就重要看一下这个部分在Spring的作用。
+首先看看Resource相关的类结构图：
+![Resource相关的类结构图](./2.2.3_Resource相关的类结构图.png)
+
+从上图可以看出Resource接口封装了各种可能的资源类型，也就是对使用者来说屏蔽了文件类型的不同。
+对资源的提供者来说，如何把资源包装起来交给其他人用这也是一个问题，我们看到Resource接口继承了InputStreamSource接口，这个接口中有个getInputStream方法，返回的是InputStream类。这样所有的资源都被可以通过InputStream这个类来获取，所以也屏蔽了资源的提供者。另外还有一个问题就是加载资源的问题，也就是资源的加载者要统一，从上图中可以看出这个任务是由ResourceLoader接口完成，他屏蔽了所有的资源加载者的差异，只需要实现这个接口就可以加载所有的资源，他的默认实现是DefaultResourceLoader。
+
+那么Context和Resource是如何建立关系的？首先看一下他们的类关系图：
+![Context和Resource类关系图](./2.2.3_Context和Resource类关系图.png)
+
+从上图可以看出，Context是把资源的加载、解析和描述工作委托给了ResourcePatternResolver类来完成，他相当于一个接头人，他把资源的加载、解析和资源的定义整合在一起便于其他组件使用。
+Core组件中还有很多类似的方式。
+
+##### 2.2.4 三大组件的相互关系：
+在基本了解了Spring-framework的三大组件的基本功能之后，我们需要将这三个组件的关联关系梳理一下。
+**Ioc容器实际上就是Context组件结合Bean和Core这两个组件共同构建了一个Bean关系网。**
+如何构建这个关系网？构建的入口就在AbstractApplicationContext类的refresh方法中，位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractApplicationContext.java 文件中。我们将AbstractApplicationContext中的refresh方法简化提取出来：
+```java
+public void refresh() throws BeansException, IllegalStateException { 
+    synchronized (this.startupShutdownMonitor) { 
+        // 准备上下文用于刷新 
+        prepareRefresh(); 
+        // 在子类中启动refreshBeanFactory 
+        ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory(); 
+        // 为该上下文配置已经生成的BeanFactory
+        prepareBeanFactory(beanFactory); 
+        try { 
+            // 设置BeanFactory的后置处理
+            postProcessBeanFactory(beanFactory); 
+            // 调用BeanFactory的后处理器，这些后处理器是在Bean定义中向容器注册的，可以调用用户自定义的BeanFactory来对已经生成的BeanFactory进行修改
+            invokeBeanFactoryPostProcessors(beanFactory); 
+            // 注册Bean的后处理器，在Bean创建过程中调用，可以对以后再创建Bean实例对象添加一些自定义操作
+            registerBeanPostProcessors(beanFactory); 
+            // 对上下文的消息源进行初始化
+            initMessageSource(); 
+            // 初始化上下文中的事件机制
+            initApplicationEventMulticaster(); 
+            // 初始化其他的特殊Bean 
+            onRefresh(); 
+            // 检查监听Bean并且将这些Bean向容器注册
+            registerListeners(); 
+            // 实例化所有(non-lazy-init)单件 
+            finishBeanFactoryInitialization(beanFactory); 
+            // 发布容器事件，结束Refresh过程 
+            finishRefresh(); 
+        } 
+        catch (BeansException ex) { 
+            // Destroy already created singletons to avoid dangling resources. 
+            destroyBeans(); 
+            // Reset 'active' flag. 
+            cancelRefresh(ex); 
+            // Propagate exception to caller. 
+            throw ex; 
+        } 
+    } 
+}
+```
+整个方法代码使用的就是模板方式设计模式，工厂方法模式等，这个函数包含了整个Ioc容器过程的完整的代码。所以refresh是构建IOC的入口点。了解了里面的每一行代码基本上就了解大部分Spring的原理和功能了。
+这段代码主要包含这样几个步骤：
+> - 1. 构建 BeanFactory，以便于产生所需的“演员”
+> - 2. 注册可能感兴趣的事件
+> - 3. 创建 Bean 实例对象
+> - 4. 触发被监听的事件
+
+下面就结合上述代码，逐一分析这几个过程：
+
+###### 2.2.4.1 创建和配置BeanFactory：
+相关代码为：
+```java
+// Prepare this context for refreshing. 
+prepareRefresh(); 
+// 在子类中启动refreshBeanFactory 
+ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory(); 
+```
+这两句是在创建和配置BeanFactory。
+
+BeanFactory创建是在AbstractApplicationContext的obtainFreshBeanFactory()方法中完成的。在该方法中，会调用子类实现了的refreshBeanFactory的方法，刷新子类，如果BeanFactory存在则刷新，如果不存在就创建一个新的BeanFactory。最终默认的创建BeanFactory就是由DefaultListableBeanFactory来完成的。
+代码为：
+```java
+protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
+		refreshBeanFactory();
+		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		if (logger.isDebugEnabled()) {
+			logger.debug("Bean factory for " + getDisplayName() + ": " + beanFactory);
+		}
+		return beanFactory;
+	}
+```
+obtainFreshBeanFactory()方法中调用的子类实现的refreshBeanFactory()方法位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractRefreshableApplicationContext.java 文件中，具体函数实现为：
+```java
+    protected final void refreshBeanFactory() throws BeansException {
+		if (hasBeanFactory()) {
+			destroyBeans();
+			closeBeanFactory();
+		}
+		try {
+			DefaultListableBeanFactory beanFactory = createBeanFactory();
+			beanFactory.setSerializationId(getId());
+			customizeBeanFactory(beanFactory);
+			loadBeanDefinitions(beanFactory);
+			synchronized (this.beanFactoryMonitor) {
+				this.beanFactory = beanFactory;
+			}
+		}
+		catch (IOException ex) {
+			throw new ApplicationContextException("I/O error parsing bean definition source for " + getDisplayName(), ex);
+		}
+	}
+```
+这个方法实现了AbstractApplicationContext的抽象方法refreshBeanFactory，这段代码清楚的说明了BeanFactory的创建过程。
+注意 BeanFactory 对象的类型的变化，前面介绍了他有很多子类，在什么情况下使用不同的子类这非常关键。BeanFactory 的原始对象是 DefaultListableBeanFactory，这个非常关键，因为他设计到后面对这个对象的多种操作，下面看一下这个类的继承层次类图：
 
 
+
+
+PS:关于这个Context，其实只要构造一个完整的语言的解析环境，语言的上下文就是无法避免的东西，例如在实现Scheme解析器中，就需要实现一个上下文环境，整个过程和上述过程是非常类似的。
 
 
 参考文档：
-[](https://segmentfault.com/a/1190000007356573)
+> - 1. [](https://segmentfault.com/a/1190000007356573)
+
+#### 2.3 Spring实现的核心技术要点和设计模式：
+明白了Spring-framework的核心框架后，我们更为详细的看看在完成这个框架搭建过程中使用的java技术要点和涉及到的设计模式。
+设计模式是经过长时间编码之后，经过系统性的总结所提出的针对某一类问题的最佳解决方案，又称之为最佳实践。Spring作为一个成熟的框架，在设计的时候就使用了大量的设计模式来帮助梳理整个代码结构的组织形式。
+
+
+##### 2.3.1 Bean组件相关：
+将AbstractBeanDefinition的代码简化提取出来为：
+```java
+public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
+ private volatile Object beanClass;
+    private String scope;//默认scope为“”，相当于单例 
+    private boolean singleton;//bean默认为单例的
+    private boolean prototype;//bean默认不是原型的  
+    private boolean abstractFlag;//bean默认不是抽象的 
+    private boolean lazyInit;//bean默认不开启延迟初始化
+    private int autowireMode;//bean默认自动装配功能是关闭的
+    private int dependencyCheck;//bean的默认依赖检查方式 
+    private String[] dependsOn;//这个bean要初始化依赖的bean名称数组 
+    private boolean autowireCandidate;//自动装配候选者  
+    private boolean primary;//默认不是主要候选者
+    private final Map<String, AutowireCandidateQualifier> qualifiers;//用于记录Qualifier，对应子元素qualifier
+    private boolean nonPublicAccessAllowed;//允许访问非公开的构造器和方法
+    private boolean lenientConstructorResolution;//是否以一种宽松的模式解析构造函数，默认true
+    private ConstructorArgumentValues constructorArgumentValues;//记录构造函数注入属性，对应bean属性constructor-arg
+    private MutablePropertyValues propertyValues;//普通属性集合
+    private MethodOverrides methodOverrides;//方法重写持有者
+    private String factoryBeanName;// 对应bean属性: factory-bean
+    private String factoryMethodName;//对应bean属性: factory-method
+    private String initMethodName;//初始化方法，对应bean属性: init-method
+    private String destroyMethodName;// 销毁方法，对应destory-method
+    private boolean enforceInitMethod;// 是否执行init-method
+    private boolean enforceDestroyMethod;//是否执行destory-method
+    private boolean synthetic;//是否是用户定义的而不是应用程序本身定义的
+    private int role;//定义这个bean的应用
+    private String description;// bean的描述
+    private Resource resource; //bean定义的资源
+}
+```
+
+参考文档：
+> - 1. [Spring IoC实现解析](http://wanglizhi.github.io/2016/07/19/Spring-Ioc/)
 
 
 
-#### 2.3 Spring实现依赖的java技术要素：
+
+#### 2.4 Spring实现依赖的程序设计语言要素：
 上述Spring设计理念中描述的内容，并不局限于java语言，那么为什么Spring是一个java框架，而不是一个C++或者Python框架？
 所以Spring的理念的实现也是需要一些语言特性支持的，我们来分析下要完成上述理念，一门包含哪些特性的语言可以实现一个Spring框架，以及是否真的有对应的框架已经被实现了。
 
@@ -210,7 +369,7 @@ Spring-framework还通过配置文件或者注解，记录了Bean之间的相互
 http://stackoverflow.com/questions/352885/dependency-injection-in-c
 
 
-#### 2.4 Spring能被用来干什么：
+#### 2.5 Spring能被用来干什么：
 详细的了解了Spring的设计理念和核心技术，从技术的角度出发来看看Spring能够干什么，是非常有利于理解现在Spring正在干什么的。
 
 
