@@ -1,7 +1,7 @@
 # Spring源代码和原理分析
 
-assembled by hellmonky 
-start at 2016年11月23日15:01:42
+> - assembled by hellmonky 
+> - start at 2016年11月23日15:01:42
 
 
 ## 一 基本概念和准备
@@ -11,14 +11,14 @@ start at 2016年11月23日15:01:42
 ### 1 关于源代码阅读
 一个开源框架在学习的过程中，最重要的就是理解了原理然后使用，在理解原理和使用的过程中能够方便的查看源代码是非常重要的。
 以往主要有以下三种方式阅读规模庞大的源代码：
-> 1.本地软件完成对源代码的索引和阅读，例如sourceInsight；
-> 2.通过互联网上提供的网站来进行代码索引和阅读；
-> 3.搭建编译环境，将需要阅读的代码实际进行编译，然后在IDE中进行代码的索引和阅读；
+> - 1.本地软件完成对源代码的索引和阅读，例如sourceInsight；
+> - 2.通过互联网上提供的网站来进行代码索引和阅读；
+> - 3.搭建编译环境，将需要阅读的代码实际进行编译，然后在IDE中进行代码的索引和阅读；
 
 上述三种方法，都有各自的明显的特点：
-> 1.第一种因为本地软件的匮乏和功能的不完善，并不能完整的覆盖需要阅读源代码的种类和范围，并且软件往往收费，个人用户使用成本高；
-> 2.第二种需要别人搭建好的网站提供服务，只能查询当前是否有人支持；
-> 3.第三种需要的资源很多，搭建过程比较复杂，但是搭建后可以修改代码进行编译，通过编译器调试可以方便动态理解整个源代码的流程。
+> - 1.第一种因为本地软件的匮乏和功能的不完善，并不能完整的覆盖需要阅读源代码的种类和范围，并且软件往往收费，个人用户使用成本高；
+> - 2.第二种需要别人搭建好的网站提供服务，只能查询当前是否有人支持；
+> - 3.第三种需要的资源很多，搭建过程比较复杂，但是搭建后可以修改代码进行编译，通过编译器调试可以方便动态理解整个源代码的流程。
 
 综上所述，第一种方式已经趋向于淘汰；第二种方式虽然方便阅读，但是需要有对应的网络提供商支持，除了最热门的代码，小众代码并没有支持；第三种方式在需要实际编译的时候更为合适，如果只是简单阅读，成本太高。
 
@@ -29,10 +29,10 @@ start at 2016年11月23日15:01:42
 
 #### 1.1 使用OpenGrok搭建spring-framework源代码阅读环境：
 根据[OpenGrok的官方指导教程](https://github.com/OpenGrok/OpenGrok/blob/master/README.txt)可知，如果不编译OpenGrok本身，只是通过release的可执行文件来搭建源代码阅读环境，只需要一下系统组件：
->Latest Java (At least 1.8)
->A servlet container like Tomcat (8.x or later)
->Exuberant Ctags or Universal Ctags
->Source Code Management installation
+> - Latest Java (At least 1.8)
+> - A servlet container like Tomcat (8.x or later)
+> - Exuberant Ctags or Universal Ctags
+> - Source Code Management installation
 
 我已经安装好了：jdk1.8.0_102，apache-tomcat-8.5.8，ctag（已经添加到了系统环境变量中）和git for windows。
 
@@ -162,11 +162,21 @@ Bean 的解析过程非常复杂，功能被分的很细，因为这里需要被
 ##### 2.2.2 Context组件：
 Bean包装的是一个个Object，Object中存储着业务所需的数据。所以，如何给这些数据及之间的关系提供生存、运行环境（即保存对象的状态），就是Context要解决的问题。
 Context组件在Spring中的作用，他实际上就是给Spring提供一个运行时的环境，用以保存各个对象的状态。Context实际上就是Bean关系的集合，又称之为Ioc容器。
-ApplicationContext是Context最上层的接口，层次关系如下：
+ApplicationContext是Context的顶级父类接口，ApplicationContext标识了一个应用环境的基本信息。
+层次关系如下：
 ![ApplicationContext类层次继承关系](./2.2.2_ApplicationContext类层次继承关系.png)
 
-从上述类继承层次关系图上可以看出，ApplicationContext标识了一个应用环境的基本信息。
-其上继承了5个接口，用于拓展Context的功能，其中BeanFactory用于创建Bean，同时继承了ResourceLoader接口，用于访问任何外部资源。
+从上述类继承层次关系图上可以看出：
+ApplicationContext还继承了5个接口，用于拓展Context的功能，其中BeanFactory用于创建Bean，同时继承了ResourceLoader接口，用于访问任何外部资源。
+
+ApplicationContext的子类主要包含两个方面：
+> - 1. ConfigurableApplicationContext表示该Context是可修改的，也就是在构建Context中用户可以动态添加或修改已有的配置信息，它下面又有多个子类，其中最经常使用的是可更新的Context，即AbstractRefreshableApplicationContext类；
+> - 2. WebApplicationContext顾名思义，就是为web准备的Context他可以直接访问到ServletContext，通常情况下，这个接口使用的少。
+
+再往下分就是按照构建 Context 的文件类型，接着就是访问 Context 的方式。这样一级一级构成了完整的 Context 等级层次。
+
+下面看一下这个环境是如何构建的。
+
 
 
 ##### 2.2.3 Core组件：
