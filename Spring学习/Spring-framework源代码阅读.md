@@ -474,7 +474,18 @@ if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
 判断当前beanFactory中是否有三个名称对应的Bean，如果没有这个对象注册对应名字的单例bean到当前环境中。
 
 
-###### 2.2.4.4 Spring工具类的加载：
+###### 2.2.4.4 其它初始化与准备过程：
+在BeanFactory创建完成后，我们定义的Bean仅仅是已经被解析和注册了，实际上还没真正的创建他们的实例对象。当obtainFreshBeanFactory()方法返回后，就会为该上下文配置刚刚已经生成的BeanFactory，如果我们要想扩展Spring的IOC容器，AbstractApplicationContext中接下来的三行代码对Spring的功能扩展性起了至关重要的作用，我们可以通过下面的三个代码处进行自定义操作：
+```java
+// Allows post-processing of the bean factory in context subclasses.
+postProcessBeanFactory(beanFactory);
+// Invoke factory processors registered as beans in the context.
+invokeBeanFactoryPostProcessors(beanFactory);
+// Register bean processors that intercept bean creation.
+registerBeanPostProcessors(beanFactory);
+```
+总体上，前两行主要是让你现在可以对已经构建的BeanFactory的配置做修改，后面一行就是让你可以对以后再创建Bean的实例对象时添加一些自定义的操作。
+
 
 
 
@@ -497,9 +508,14 @@ PS:关于这个Context，其实只要构造一个完整的语言的解析环境�
 参考文档：
 > - 1. [Spring 框架的设计理念与设计模式分析](https://www.ibm.com/developerworks/cn/java/j-lo-spring-principle/)
 > - 2. [Spring的IOC容器创建过程深入剖析](http://computerdragon.blog.51cto.com/6235984/1244016)
-[spring加载过程，源码带你理解从初始化到bean注入](http://zk-chs.iteye.com/blog/2293013)
-[Spring IoC实现解析](http://wanglizhi.github.io/2016/07/19/Spring-Ioc/)
-[]()
+> - 3. [spring加载过程，源码带你理解从初始化到bean注入](http://zk-chs.iteye.com/blog/2293013)
+> - 4. [Spring IoC实现解析](http://wanglizhi.github.io/2016/07/19/Spring-Ioc/)
+> - 5. [spring源码学习笔记-初始化（一）-概览](http://blog.csdn.net/yalier888/article/details/9311981)
+> - 6. [spring源码学习笔记-初始化（二）-BeanFactory](http://blog.csdn.net/yalier888/article/details/9311997)
+> - 7. [spring源码学习笔记-初始化（三）-BeanFactory](http://blog.csdn.net/yalier888/article/details/9312037)
+> - 8. [spring源码学习笔记-初始化（四）-PostProcessor](http://blog.csdn.net/yalier888/article/details/9312077)
+> - 9. [spring源码学习笔记-初始化（五）-MessageSource/事件监听器](http://blog.csdn.net/yalier888/article/details/9312083)
+> - 10. [spring源码学习笔记-初始化（六）-完成及异常处理](http://blog.csdn.net/yalier888/article/details/9312095)
 
 
 
