@@ -303,7 +303,7 @@ BeanFactory的原始对象是DefaultListableBeanFactory，这个非常关键，�
 ![创建BeanFactory时序图](./2.2.4.1_创建BeanFactory时序图.png)
 
 
-###### 2.2.4.2 Bean的解析和注册：
+###### 2.2.4.2 用户自定义Bean的解析和注册：
 上述过程中，完成了构建BeanFactory的标准初始化过程。解析来需要进一步分析如何解析和注册用户定义的Bean。
 DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将用户自定义的Bean定义加载和解析为默认DefaultListableBeanFactory类型的IoC容器中的数据结构。
 调用了代码位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractXmlApplicationContext.java 文件中AbstractXmlApplicationContext类的loadBeanDefinitions(DefaultListableBeanFactory beanFactory)方法：
@@ -344,10 +344,146 @@ DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将�
 
 
 
-
-具体代码为：
+###### 2.2.4.3 Spring工具类的加载：
+完成BeanFactory的初始化，完成用户自定义的Bean的加载、解析和注册之后，还需要调用prepareBeanFactory方法，添加一些Spring本身需要的一些工具类。
+通过调用AbstractApplicationContext类中prepareBeanFactory()方法来完成：
 ```java
+    protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
+		// Tell the internal bean factory to use the context's class loader etc.
+		beanFactory.setBeanClassLoader(getClassLoader());
+		beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
+
+		// Configure the bean factory with context callbacks.
+		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+		beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
+		beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
+		beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationEventPublisherAware.class);
+		beanFactory.ignoreDependencyInterface(MessageSourceAware.class);
+		beanFactory.ignoreDependencyInterface(ApplicationContextAware.class);
+
+		// BeanFactory interface not registered as resolvable type in a plain factory.
+		// MessageSource registered (and found for autowiring) as a bean.
+		beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
+		beanFactory.registerResolvableDependency(ResourceLoader.class, this);
+		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
+		beanFactory.registerResolvableDependency(ApplicationContext.class, this);
+
+		// Register early post-processor for detecting inner beans as ApplicationListeners.
+		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
+
+		// Detect a LoadTimeWeaver and prepare for weaving, if found.
+		if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+			// Set a temporary ClassLoader for type matching.
+			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+		}
+
+		// Register default environment beans.
+		if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
+			beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
+		}
+		if (!beanFactory.containsLocalBean(SYSTEM_PROPERTIES_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_PROPERTIES_BEAN_NAME, getEnvironment().getSystemProperties());
+		}
+		if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
+			beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
+		}
+	}
 ```
+在这个方法中，为容器配置了ClassLoader、PropertyEditor和BeanPost-Processor等，从而为容器的启动做好了必要的准备工作。
+
+该方法主要分成四部分：
+####### 第一部分：
+第一步，设置类加载器：
+```java
+beanFactory.setBeanClassLoader(getClassLoader());
+```
+首先设置class loader，默认是当前context线程的class loader。在实例化context class(默认：XmlWebApplicationContext)的时候会在父类DefaultResourceLoader的构造方法中定义了设置class loader的方法。默认调用ClassUtils.getDefaultClassLoader()方法设置，或者是由自定义的context class赋予。
+
+第二步，设置设置beanFactory的表达式语言处理器：
+```java
+beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
+```
+spring3增加了表达式语言的支持，默认可以使用#{bean.xxx}的形式来调用相关属性值。
+
+第三步，设置属性编辑器注册类，用来注册相关的属性编辑器：
+```java
+beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
+```
+为BeanFactory添加一个属性编辑器注册表(PropertyEditorRegistrar),默认是一个ResourceEditorRegistrar编辑器注册表。
+ResourceEditorRegistrar类，注册的属性编辑器如下：
+
+第四步，设置内置的BeanPostProcessor：
+```java
+beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+```
+添加了一个处理aware相关接口的beanPostProcessor扩展，主要是使用beanPostProcessor的postProcessBeforeInitialization()前置处理方法实现aware相关接口的功能，aware接口是用来给bean注入一些资源的接口，例如实现BeanFactoryAware的Bean在初始化后，Spring容器将会注入BeanFactory的实例相应的还有ApplicationContextAware、ResourceLoaderAware、ServletContextAware等等。
+然后设置了几个忽略自动装配的接口，因为这些接口已经通过ApplicationContextAwareProcessor注入了。默认只有BeanFactoryAware被忽略，其他的都要自行设置，这里设置了ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware和ApplicationContextAware：
+```java
+beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
+beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
+beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
+beanFactory.ignoreDependencyInterface(ApplicationEventPublisherAware.class);
+beanFactory.ignoreDependencyInterface(MessageSourceAware.class);
+beanFactory.ignoreDependencyInterface(ApplicationContextAware.class);
+```
+
+第五步，设置了几个自动装配的特殊规则：
+```java
+beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
+beanFactory.registerResolvableDependency(ResourceLoader.class, this);
+beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
+beanFactory.registerResolvableDependency(ApplicationContext.class, this);
+```
+如果是BeanFactory类型，则注入beanFactory对象，如果是ResourceLoader、ApplicationEventPublisher、ApplicationContext类型则注入当前对象（applicationContext对象）。
+
+####### 第二部分：
+```java
+beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
+```
+该方法是spring的一个扩展点之一，是一个空方法，留给子类去扩展。子类可以重写该方法，对已经构建的BeanFactory的配置根据需要进行修改。
+例如调用beanFactory.registerResolvableDependency，注入特殊的类。
+扩展点是在bean等配置都已经加载但还没有进行实例化的时候。
+例如上面说到的aware相关接口自动装配设置，假如是web项目，使用的是spring的webApplicationcontext，这时需要一些ServletContextAware相关的自动装配忽略及配置等，就需要在webApplicationContext里重写这个方法来实现相应功能。
+
+####### 第三部分：
+```java
+if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+    beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+    // Set a temporary ClassLoader for type matching.
+    beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+}
+```
+这部分判断是否定义了名为loadTimeWeaver的bean，如果定义了则添加loadTimeWeaver功能的beanPostProcessor扩展，并且创建一个临时的classLoader来让其处理真正的bean。
+spring的loadTimeWeaver主要是通过 instrumentation 的动态字节码增强在装载期注入依赖。
+
+####### 第四部分：
+```java
+if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
+    beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
+}
+if (!beanFactory.containsLocalBean(SYSTEM_PROPERTIES_BEAN_NAME)) {
+    beanFactory.registerSingleton(SYSTEM_PROPERTIES_BEAN_NAME, getEnvironment().getSystemProperties());
+}
+if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
+    beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
+}
+```
+判断当前beanFactory中是否有三个名称对应的Bean，如果没有这个对象注册对应名字的单例bean到当前环境中。
+
+
+###### 2.2.4.4 Spring工具类的加载：
+
+
+
+
+
+
+
+
+
 
 
 
@@ -477,6 +613,8 @@ Spring虽然发展了很多年，但是其内核结构并没有发生重大变�
 （2）强调对Spring和SpringBoot之间的演进关系的表述，根据项目时间来进行安排；
 这个可以参考：[为什么做java的web开发我们会使用struts2，springMVC和spring这样的框架?](http://www.cnblogs.com/sharpxiajun/p/3936268.html)
 （3）对于大数据方面的描述不够多，并且不确切，需要一个完整的思路展现；
+（4）面向对象设计中的思路展示：需要描述一个要实现的目标，然后使用接口来组织较为复杂的类继承关系层次结构来完成满足要求的整体设计。
+这一点在Spring整体框架中就非常明显，并且给出了一个非常好的实例来学习。
 
 
 
