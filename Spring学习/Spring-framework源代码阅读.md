@@ -402,24 +402,49 @@ beanFactory.setBeanClassLoader(getClassLoader());
 ```
 首先设置class loader，默认是当前context线程的class loader。在实例化context class(默认：XmlWebApplicationContext)的时候会在父类DefaultResourceLoader的构造方法中定义了设置class loader的方法。默认调用ClassUtils.getDefaultClassLoader()方法设置，或者是由自定义的context class赋予。
 
-第二步，设置设置beanFactory的表达式语言处理器：
+第二步，设置EL表达式处理器StandardBeanExpressionResolver：
 ```java
 beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 ```
 spring3增加了表达式语言的支持，默认可以使用#{bean.xxx}的形式来调用相关属性值。
+
 
 第三步，设置属性编辑器注册类，用来注册相关的属性编辑器：
 ```java
 beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 ```
 为BeanFactory添加一个属性编辑器注册表(PropertyEditorRegistrar),默认是一个ResourceEditorRegistrar编辑器注册表。
-ResourceEditorRegistrar类，注册的属性编辑器如下：
 
-第四步，设置内置的BeanPostProcessor：
+第四步，注册Aware接口处理器ApplicationContextAwareProcessor：
 ```java
 beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
 ```
 添加了一个处理aware相关接口的beanPostProcessor扩展，主要是使用beanPostProcessor的postProcessBeforeInitialization()前置处理方法实现aware相关接口的功能，aware接口是用来给bean注入一些资源的接口，例如实现BeanFactoryAware的Bean在初始化后，Spring容器将会注入BeanFactory的实例相应的还有ApplicationContextAware、ResourceLoaderAware、ServletContextAware等等。
+这儿的ApplicationContextAwareProcessor的职责是在bean创建完成之后触发该bean实现的所有Aware接口，比如ApplicationContextAware接口的setApplicationContext方法，EnvironmentAware接口的setEnvironment，xxxAware接口可以让应用代码持有容器中关键对象（比如ApplicationContext、Environment等）的引用，核心代码在ApplicationContextAwareProcessor的postProcessBeforeInitialization函数调用的invokeAwareInterfaces方法：
+```java
+    private void invokeAwareInterfaces(Object bean) {
+		if (bean instanceof Aware) {
+			if (bean instanceof EnvironmentAware) {
+				((EnvironmentAware) bean).setEnvironment(this.applicationContext.getEnvironment());
+			}
+			if (bean instanceof EmbeddedValueResolverAware) {
+				((EmbeddedValueResolverAware) bean).setEmbeddedValueResolver(this.embeddedValueResolver);
+			}
+			if (bean instanceof ResourceLoaderAware) {
+				((ResourceLoaderAware) bean).setResourceLoader(this.applicationContext);
+			}
+			if (bean instanceof ApplicationEventPublisherAware) {
+				((ApplicationEventPublisherAware) bean).setApplicationEventPublisher(this.applicationContext);
+			}
+			if (bean instanceof MessageSourceAware) {
+				((MessageSourceAware) bean).setMessageSource(this.applicationContext);
+			}
+			if (bean instanceof ApplicationContextAware) {
+				((ApplicationContextAware) bean).setApplicationContext(this.applicationContext);
+			}
+		}
+	}
+```
 然后设置了几个忽略自动装配的接口，因为这些接口已经通过ApplicationContextAwareProcessor注入了。默认只有BeanFactoryAware被忽略，其他的都要自行设置，这里设置了ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware和ApplicationContextAware：
 ```java
 beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
@@ -438,15 +463,73 @@ beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
 beanFactory.registerResolvableDependency(ApplicationContext.class, this);
 ```
 如果是BeanFactory类型，则注入beanFactory对象，如果是ResourceLoader、ApplicationEventPublisher、ApplicationContext类型则注入当前对象（applicationContext对象）。
+这样的话容器就把bean工厂和ApplicationContext跟上面几个类型绑定了，在应用代码就可以通过类型自动装配把工厂实例和ApplicationContext实例设置到自定义bean的属性中。
+像下面的例子，beanFactory、resourceLoader、appContext、appEventPublisher这几个属性都会被自动设置，虽然没有在显示的在bean定义xml中注入它们：
+```java
+public class AutowireByTypeBean {  
+  
+    private Bean1 bean1;  
+    private BeanFactory beanFactory;  
+    private ResourceLoader resourceLoader;  
+    private ApplicationEventPublisher appEventPublisher;  
+    private ApplicationContext appContext;  
+  
+    public BeanFactory getBeanFactory() {  
+        return beanFactory;  
+    }  
+  
+    public void setBeanFactory(BeanFactory beanFactory) {  
+        this.beanFactory = beanFactory;  
+    }  
+  
+    public ResourceLoader getResourceLoader() {  
+        return resourceLoader;  
+    }  
+  
+    public void setResourceLoader(ResourceLoader resourceLoader) {  
+        this.resourceLoader = resourceLoader;  
+    }  
+  
+    public ApplicationEventPublisher getAppEventPublisher() {  
+        return appEventPublisher;  
+    }  
+  
+    public void setAppEventPublisher(ApplicationEventPublisher appEventPublisher) {  
+        this.appEventPublisher = appEventPublisher;  
+    }  
+  
+    public ApplicationContext getAppContext() {  
+        return appContext;  
+    }  
+  
+    public void setAppContext(ApplicationContext appContext) {  
+        this.appContext = appContext;  
+    }  
+  
+    public Bean1 getBean1() {  
+        return bean1;  
+    }  
+  
+    public void setBean1(Bean1 bean1) {  
+        this.bean1 = bean1;  
+    }  
+  
+}  
+<bean id="autowireBean" class="spring.beans.autowire.AutowireByTypeBean"  
+    autowire="byType"></bean>  
+<bean id="bean1111" class="spring.beans.autowire.Bean1">  
+    <property name="id" value="1"></property>  
+</bean>
+```
+
 
 ####### 第二部分：
 ```java
 beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 ```
-该方法是spring的一个扩展点之一，是一个空方法，留给子类去扩展。子类可以重写该方法，对已经构建的BeanFactory的配置根据需要进行修改。
-例如调用beanFactory.registerResolvableDependency，注入特殊的类。
-扩展点是在bean等配置都已经加载但还没有进行实例化的时候。
-例如上面说到的aware相关接口自动装配设置，假如是web项目，使用的是spring的webApplicationcontext，这时需要一些ServletContextAware相关的自动装配忽略及配置等，就需要在webApplicationContext里重写这个方法来实现相应功能。
+这儿添加了一个处理ApplicationListener相关接口的beanPostProcessor扩展。
+ApplicationListenerDetector实现了DestructionAwareBeanPostProcessor和MergedBeanDefinitionPostProcessor这两个接口。用来检测所有实现了ApplicationListener接口的bean并把它们注册到Application时间广播器中，当容器事件被激活时事件会传递到这些实现了ApplicationListener接口的bean。
+
 
 ####### 第三部分：
 ```java
@@ -456,8 +539,10 @@ if (beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
     beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
 }
 ```
+处理LTW（LoadTimeWeaver）aware接口，增加一个bean后处理器LoadTimeWeaverAwareProcessor，让所有实现了LoadTimeWeaverAware接口的bean都可以持有LTW实例。
+
 这部分判断是否定义了名为loadTimeWeaver的bean，如果定义了则添加loadTimeWeaver功能的beanPostProcessor扩展，并且创建一个临时的classLoader来让其处理真正的bean。
-spring的loadTimeWeaver主要是通过 instrumentation 的动态字节码增强在装载期注入依赖。
+spring的loadTimeWeaver主要是通过instrumentation的动态字节码增强在装载期注入依赖。
 
 ####### 第四部分：
 ```java
@@ -471,7 +556,11 @@ if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
     beanFactory.registerSingleton(SYSTEM_ENVIRONMENT_BEAN_NAME, getEnvironment().getSystemEnvironment());
 }
 ```
-判断当前beanFactory中是否有三个名称对应的Bean，如果没有这个对象注册对应名字的单例bean到当前环境中。
+注册环境Bean：
+> - 检查当前Context是否定义了id为environment的bean，如果没有定义，把StandardEnvironment注册到容器中，id为environment，这个bean包含了所有系统变量和环境变量
+> - 检查当前Context是否定义了id为systemProperties，如果没有定义，把系统变量Map注册到容器中，id为systemProperties
+> - 检查当前Context是否定义了id为systemEnvironment，如果没有定义，把环境变量Map注册到容器中，id为systemEnvironment
+
 
 
 ###### 2.2.4.4 其它初始化与准备过程：
@@ -485,12 +574,223 @@ invokeBeanFactoryPostProcessors(beanFactory);
 registerBeanPostProcessors(beanFactory);
 ```
 总体上，前两行主要是让你现在可以对已经构建的BeanFactory的配置做修改，后面一行就是让你可以对以后再创建Bean的实例对象时添加一些自定义的操作。
+需要注意，在后面两行中，传入的beanFactory为上面的context中的DefaultListableBeanFactory。
+
+####### 自定义扩展点：
+```java
+postProcessBeanFactory(beanFactory);
+```
+该方法是spring的一个扩展点之一，是一个空方法，留给子类去扩展。子类可以重写该方法，对已经构建的BeanFactory的配置根据需要进行修改。
+例如调用beanFactory.registerResolvableDependency，注入特殊的类。
+扩展点是在bean等配置都已经加载但还没有进行实例化的时候。
+例如上面说到的aware相关接口自动装配设置，假如是web项目，使用的是spring的webApplicationcontext，这时需要一些ServletContextAware相关的自动装配忽略及配置等，就需要在webApplicationContext里重写这个方法来实现相应功能。
+
+####### 从spring配置文件中，获取实现BeanFactoryPostProcessor接口的bean：
+```java
+invokeBeanFactoryPostProcessors(beanFactory);
+```
+它的参数是 beanFactory，说明可以对 beanFactory 做修改，这里注意这个 beanFactory 是 ConfigurableListableBeanFactory 类型的，这也印证了前面介绍的不同 BeanFactory 所使用的场合不同，这里只能是可配置的 BeanFactory，防止一些数据被用户随意修改。
+该方法的主要功能就是从spring配置文件中，获取实现 BeanFactoryPostProcessor 接口的bean，然后按不同的优先级顺序，依次执行BeanFactoryPostProcessor的 postProcessBeanFactory 方法。
+
+通过这个调用，激活所有BeanFactoryPostProcessor接口，包括容器内置的和应用自定义的，所有的BFPP实现了PriorityOrdered接口归类并排序，实现了Ordered接口的归类并排序，未实现排序接口的归类，先按顺序执行实现了PriorityOrdered接口的BFPP，然后按顺序执行实现了Ordered接口的BFPP，最后执行未实现排序接口的BFPP。
+其中还有个特殊的BFPP BeanDefinitionRegistryPostProcessor接口，它是用来扩展一些特殊的Bean定义，比如有个实现ConfigurationClassPostProcessor，它是用来处理@Configuration注解描述的bean定义，在bean定义文件中定义了<context:annotation-config />标签之后，容器会自动注册一个ConfigurationClassPostProcessor来对指定包中包含@Configuration注解的类进行解析。
+
+
+跳转到这个方法在AbstractApplicationContext中的实现为：
+```java
+    protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
+
+		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
+		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
+		if (beanFactory.getTempClassLoader() == null && beanFactory.containsBean(LOAD_TIME_WEAVER_BEAN_NAME)) {
+			beanFactory.addBeanPostProcessor(new LoadTimeWeaverAwareProcessor(beanFactory));
+			beanFactory.setTempClassLoader(new ContextTypeMatchClassLoader(beanFactory.getBeanClassLoader()));
+		}
+	}
+```
+发现在调用invokeBeanFactoryPostProcessors函数后，该函数又将实现的步骤委托给PostProcessorRegistrationDelegate类：
+```java
+PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors())
+```
+进入位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\PostProcessorRegistrationDelegate.java，可以看到其的实现：
+```java
+    public static void invokeBeanFactoryPostProcessors(
+			ConfigurableListableBeanFactory beanFactory, List<BeanFactoryPostProcessor> beanFactoryPostProcessors) {
+
+		// Invoke BeanDefinitionRegistryPostProcessors first, if any.
+		Set<String> processedBeans = new HashSet<>();
+
+		if (beanFactory instanceof BeanDefinitionRegistry) {
+			BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
+			List<BeanFactoryPostProcessor> regularPostProcessors = new LinkedList<>();
+			List<BeanDefinitionRegistryPostProcessor> registryPostProcessors =
+					new LinkedList<>();
+
+			for (BeanFactoryPostProcessor postProcessor : beanFactoryPostProcessors) {
+				if (postProcessor instanceof BeanDefinitionRegistryPostProcessor) {
+					BeanDefinitionRegistryPostProcessor registryPostProcessor =
+							(BeanDefinitionRegistryPostProcessor) postProcessor;
+					registryPostProcessor.postProcessBeanDefinitionRegistry(registry);
+					registryPostProcessors.add(registryPostProcessor);
+				}
+				else {
+					regularPostProcessors.add(postProcessor);
+				}
+			}
+
+			// Do not initialize FactoryBeans here: We need to leave all regular beans
+			// uninitialized to let the bean factory post-processors apply to them!
+			// Separate between BeanDefinitionRegistryPostProcessors that implement
+			// PriorityOrdered, Ordered, and the rest.
+			String[] postProcessorNames =
+					beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
+
+			// First, invoke the BeanDefinitionRegistryPostProcessors that implement PriorityOrdered.
+			List<BeanDefinitionRegistryPostProcessor> priorityOrderedPostProcessors = new ArrayList<>();
+			for (String ppName : postProcessorNames) {
+				if (beanFactory.isTypeMatch(ppName, PriorityOrdered.class)) {
+					priorityOrderedPostProcessors.add(beanFactory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class));
+					processedBeans.add(ppName);
+				}
+			}
+			sortPostProcessors(beanFactory, priorityOrderedPostProcessors);
+			registryPostProcessors.addAll(priorityOrderedPostProcessors);
+			invokeBeanDefinitionRegistryPostProcessors(priorityOrderedPostProcessors, registry);
+
+			// Next, invoke the BeanDefinitionRegistryPostProcessors that implement Ordered.
+			postProcessorNames = beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
+			List<BeanDefinitionRegistryPostProcessor> orderedPostProcessors = new ArrayList<>();
+			for (String ppName : postProcessorNames) {
+				if (!processedBeans.contains(ppName) && beanFactory.isTypeMatch(ppName, Ordered.class)) {
+					orderedPostProcessors.add(beanFactory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class));
+					processedBeans.add(ppName);
+				}
+			}
+			sortPostProcessors(beanFactory, orderedPostProcessors);
+			registryPostProcessors.addAll(orderedPostProcessors);
+			invokeBeanDefinitionRegistryPostProcessors(orderedPostProcessors, registry);
+
+			// Finally, invoke all other BeanDefinitionRegistryPostProcessors until no further ones appear.
+			boolean reiterate = true;
+			while (reiterate) {
+				reiterate = false;
+				postProcessorNames = beanFactory.getBeanNamesForType(BeanDefinitionRegistryPostProcessor.class, true, false);
+				for (String ppName : postProcessorNames) {
+					if (!processedBeans.contains(ppName)) {
+						BeanDefinitionRegistryPostProcessor pp = beanFactory.getBean(ppName, BeanDefinitionRegistryPostProcessor.class);
+						registryPostProcessors.add(pp);
+						processedBeans.add(ppName);
+						pp.postProcessBeanDefinitionRegistry(registry);
+						reiterate = true;
+					}
+				}
+			}
+
+			// Now, invoke the postProcessBeanFactory callback of all processors handled so far.
+			invokeBeanFactoryPostProcessors(registryPostProcessors, beanFactory);
+			invokeBeanFactoryPostProcessors(regularPostProcessors, beanFactory);
+		}
+
+		else {
+			// Invoke factory processors registered with the context instance.
+			invokeBeanFactoryPostProcessors(beanFactoryPostProcessors, beanFactory);
+		}
+
+		// Do not initialize FactoryBeans here: We need to leave all regular beans
+		// uninitialized to let the bean factory post-processors apply to them!
+		String[] postProcessorNames =
+				beanFactory.getBeanNamesForType(BeanFactoryPostProcessor.class, true, false);
+
+		// Separate between BeanFactoryPostProcessors that implement PriorityOrdered,
+		// Ordered, and the rest.
+		List<BeanFactoryPostProcessor> priorityOrderedPostProcessors = new ArrayList<>();
+		List<String> orderedPostProcessorNames = new ArrayList<>();
+		List<String> nonOrderedPostProcessorNames = new ArrayList<>();
+		for (String ppName : postProcessorNames) {
+			if (processedBeans.contains(ppName)) {
+				// skip - already processed in first phase above
+			}
+			else if (beanFactory.isTypeMatch(ppName, PriorityOrdered.class)) {
+				priorityOrderedPostProcessors.add(beanFactory.getBean(ppName, BeanFactoryPostProcessor.class));
+			}
+			else if (beanFactory.isTypeMatch(ppName, Ordered.class)) {
+				orderedPostProcessorNames.add(ppName);
+			}
+			else {
+				nonOrderedPostProcessorNames.add(ppName);
+			}
+		}
+
+		// First, invoke the BeanFactoryPostProcessors that implement PriorityOrdered.
+		sortPostProcessors(beanFactory, priorityOrderedPostProcessors);
+		invokeBeanFactoryPostProcessors(priorityOrderedPostProcessors, beanFactory);
+
+		// Next, invoke the BeanFactoryPostProcessors that implement Ordered.
+		List<BeanFactoryPostProcessor> orderedPostProcessors = new ArrayList<>();
+		for (String postProcessorName : orderedPostProcessorNames) {
+			orderedPostProcessors.add(beanFactory.getBean(postProcessorName, BeanFactoryPostProcessor.class));
+		}
+		sortPostProcessors(beanFactory, orderedPostProcessors);
+		invokeBeanFactoryPostProcessors(orderedPostProcessors, beanFactory);
+
+		// Finally, invoke all other BeanFactoryPostProcessors.
+		List<BeanFactoryPostProcessor> nonOrderedPostProcessors = new ArrayList<>();
+		for (String postProcessorName : nonOrderedPostProcessorNames) {
+			nonOrderedPostProcessors.add(beanFactory.getBean(postProcessorName, BeanFactoryPostProcessor.class));
+		}
+		invokeBeanFactoryPostProcessors(nonOrderedPostProcessors, beanFactory);
+
+		// Clear cached merged bean definitions since the post-processors might have
+		// modified the original metadata, e.g. replacing placeholders in values...
+		beanFactory.clearMetadataCache();
+	}
+```
+这个实现比较长，上面的处理的方法有点多，不过我们可以总结如下：
+> - 1. 对BeanFactoryRegistry类型的处理
+> - 2. 硬编码注册的后处理器
+> - 3. 配置注册的后处理器
+> - 4. 对于配置中读取的BeanFactoryPostProcessor的处理
+> - 5. 进行相应的排序处理
+
+其中的调用invokeBeanFactoryPostProcessors方法：
+```java
+    private static void invokeBeanFactoryPostProcessors(
+			Collection<? extends BeanFactoryPostProcessor> postProcessors, ConfigurableListableBeanFactory beanFactory) {
+
+		for (BeanFactoryPostProcessor postProcessor : postProcessors) {
+			postProcessor.postProcessBeanFactory(beanFactory);
+		}
+	}
+```
+可以看到这个方法主要是获取实现 BeanFactoryPostProcessor 接口的子类，并执行它的 postProcessBeanFactory 方法。
 
 
 
 
 
+####### 将所有实现BeanPostProcessor接口的bean注册到工厂中：
+```java
+registerBeanPostProcessors(beanFactory);
+```
+把所有实现BeanPostProcessor接口的bean注册到工厂中，为后面激活这些BPP做准备，所有实现了PriorityOrdered接口的归类并排序，实现了Ordered接口的归类并排序，未实现排序接口的归类，还有一个BPP扩展MergedBeanDefinitionPostProcessor接口，实现了这个接口的bean也单独归类，这个接口在容器中有一些实现：AutowiredAnnotationBeanPostProcessor、InitDestroyAnnotationBeanPostProcessor、RequiredAnnotationBeanPostProcessor、ApplicationListenerDetector，它们分别处理@Autowired、@PostConstructed和@PreDestroy注解、@Required注解、检测ApplicationListener接口。容器会额外注册一个ApplicationListenerDetector BPP用来检测所有实现了ApplicationListener接口的bean并把它们注册到Application时间广播器中，当容器事件被激活时事件会传递到这些实现了ApplicationListener接口的bean。
 
+
+
+###### 2.2.4.5 创建 Bean 实例并构建 Bean 的关系网：
+```java
+// Initialize message source for this context.
+initMessageSource();
+
+// Initialize event multicaster for this context.
+initApplicationEventMulticaster();
+
+// Initialize other special beans in specific context subclasses.
+onRefresh();
+
+// Check for listener beans and register them.
+registerListeners();
+```
 
 
 
@@ -631,6 +931,8 @@ Spring虽然发展了很多年，但是其内核结构并没有发生重大变�
 （3）对于大数据方面的描述不够多，并且不确切，需要一个完整的思路展现；
 （4）面向对象设计中的思路展示：需要描述一个要实现的目标，然后使用接口来组织较为复杂的类继承关系层次结构来完成满足要求的整体设计。
 这一点在Spring整体框架中就非常明显，并且给出了一个非常好的实例来学习。
+
+
 
 
 
