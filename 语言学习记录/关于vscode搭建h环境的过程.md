@@ -578,6 +578,7 @@ stack intall ghc-mod
 掌握了上述内容，就基本可以使用该语言进行程序的开发了，本节的内容也是从这两点出发，进行一些学习。因为篇幅相关，本节不会非常的详细，但是一定会将必须的内容给予分析和展示。
 
 下面的小结会根据[Haskell 98 Report](https://www.haskell.org/onlinereport/index98.html)文档给出的程序的基本组成结构进行安排，然后结合[十分钟学会_Haskell](https://wiki.haskell.org/Cn/%E5%8D%81%E5%88%86%E9%92%9F%E5%AD%A6%E4%BC%9A_Haskell)这篇文章给出明确的例子方便复习整理。
+> 也可以根据[官方wiki](https://wiki.haskell.org/Language_and_library_specification)查看参考：[Haskell 2010 Language Report](https://www.haskell.org/onlinereport/haskell2010/)
 
 ### 4.1 haskell语言的基本特点：
 haskell被设计作为一个通用函数式程序设计语言，但是和之前自己熟悉的命令式程序设计语言（C系）却非常不同，haskell还被设计定位于一门结合当前许多程序设计语言理论学术成果的纯函数式程序设计语言有关。
@@ -629,7 +630,7 @@ haskell中的错误语义等价于"_|_"。从技术实现来说，错误和非�
 - 不能在同一范围内使用相同的标识符命名类型构造函数和类。
 
 ### 4.3 haskell程序结构的梳理和展现：
-上一节从整体的haskell程序构建上梳理了整个程序设计中的逐步递进的结构关系。这一节将从底层最小的结构到整个软件构件的结构的角度，对上述四个层次进行展开。
+上一节从整体的haskell程序构建上梳理了整个程序设计中的逐步递进的结构关系。这一节将从底层最小的结构到整个软件构件的结构的角度，对上述四个层次进行展开。也就是from bottom to top的方式进行整个语言的展现和分析。
 
 #### 4.3.1 词法结构（Lexical Structure）：
 词法结构是一套基础性规则，用来描述如何使用haskell来编写程序。
