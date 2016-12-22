@@ -1,4 +1,4 @@
-### Spring实现原理和使用解析：
+### Spring框架基本原理和使用解析：
 Spring作为javaEE的开发框架被广泛的使用，那么作为一个java开发者，如果使用Spring，最好彻底的理解这个框架的基本原理，这样才能方便自己根据实际需求定制开发。
 #### IoC：
 
@@ -643,4 +643,344 @@ public class Client {
 }
 ```
 发现saySorry() 方法原来是可以被 greetingImpl 对象来直接调用的，只需将其强制转换为该接口即可。
+
+##### SpringBoot中的AOP：
+通过上述实例可以看到，在Spring中使用AOP编程需要进行xml配置的设置，SpringBoot设置的目标就是简化配置，那么现在看看在SpringBoot中怎么使用AOP编程。
+我们以一个场景进行描述：一个是如何在Spring Boot中引入Aop功能，二是如何使用Aop做切面去统一处理Web请求的日志。
+
+（1）引入SpringBoot工程的AOP支持组件：
+本文主要参考：
+> - [Spring Boot中使用AOP统一处理Web请求日志](http://didispace.com/springbootaoplog/)
+
+在gradle构建脚本中加入：
+
+```gradle
+dependencies {
+    compile("org.springframework.boot:spring-boot-starter-aop")
+}
+```
+在完成了引入AOP依赖包后，一般来说并不需要去做其他配置。也许在Spring中使用过注解配置方式的人会问是否需要在程序主类中增加@EnableAspectJAutoProxy来启用，实际并不需要。
+可以看下面关于AOP的默认配置属性，其中spring.aop.auto属性默认是开启的，也就是说只要引入了AOP依赖后，默认已经增加了@EnableAspectJAutoProxy。
+
+```config
+# AOP
+spring.aop.auto=true # Add @EnableAspectJAutoProxy.
+spring.aop.proxy-target-class=false # Whether subclass-based (CGLIB) proxies are to be created (true) as opposed to standard Java interface-based proxies (false).
+```
+而当我们需要使用CGLIB来实现AOP的时候，需要在当前工程的application.property中配置spring.aop.proxy-target-class=true，不然默认使用的是标准Java的实现。
+
+（2）实现Web层的日志切面测试：
+我们在一个标准的SpringBoot欢迎页面来进行AOP注入：
+
+首先在当前工程中设置application.property文件，来指定访问地址和端口，以及主路径：
+```application.property
+# IDENTITY
+spring.application.name=hellmonky
+# EMBEDDED SERVER CONFIGURATION
+#server.address=127.0.0.1
+server.context-path=/hellmonky
+server.port=8080
+server.session.timeout=500
+```
+
+然后实现一个controller层：
+
+```java
+package cn.ac.iscas.controller;
+
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Created by wentao on 2016/12/20.
+ *
+ * web访问的Welcome页面回显
+ *
+ */
+
+@RestController
+@RequestMapping("/")
+public class Welcome {
+
+    @RequestMapping(value = "/version", method = RequestMethod.GET)
+    String version(){
+        return "Welcome";
+    }
+}
+```
+实现AOP的切面主要有以下几个要素：
+> - 使用@Aspect注解将一个java类定义为切面类
+> - 使用@Pointcut定义一个切入点，可以是一个规则表达式，比如下例中某个package下的所有函数，也可以是一个注解等。
+
+根据需要在切入点不同位置的切入内容“
+> - 使用@Before在切入点开始处切入内容
+> - 使用@After在切入点结尾处切入内容
+> - 使用@AfterReturning在切入点return内容之后切入内容（可以用来对处理返回值做一些加工处理）
+> - 使用@Around在切入点前后切入内容，并自己控制何时执行切入点自身的内容
+> - 使用@AfterThrowing用来处理当切入内容部分抛出异常之后的处理逻辑
+
+根据上述这些基本概念的了解，现在来进行注入。
+我们新建一个类，名字为WelcomeAspectService，表示用于给上面的Welcome进行切面注入服务：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.bean.logBean.InfoLogBean;
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+
+/**
+ * Created by wentao on 2016/12/20.
+ *
+ * Welcome请求AOP处理
+ *
+ */
+
+@Aspect
+@Component
+public class WelcomeAspectService {
+
+    private static LogService logService = LogService.getInstance();
+
+    public WelcomeAspectService(){}
+
+    @Pointcut("execution(public * cn.ac.iscas.controller.Welcome..*.*(..))")
+    public void welcomeLog(){}
+
+    @Before("welcomeLog()")
+    public void doBefore(){
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("doBefore log service");
+        this.logService.info(bean);
+    }
+
+    @AfterReturning(returning = "ret", pointcut = "welcomeLog()")
+    public void doAfterReturning(Object ret){
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("doAfterReturning log service:"+ret);
+        this.logService.info(bean);
+    }
+}
+```
+在上面的代码中，我们通过@Pointcut定义的切入点为cn.ac.iscas.controller.Welcome类下的所有函数。（这个切入点设置存在问题，没有正确进入）
+也可以指定为包路径来对对web层所有请求处理做切入点：
+
+```java
+@Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+```
+然后通过@Before实现，对请求内容的日志记录（本文只是说明过程，可以根据需要调整内容），最后通过@AfterReturning记录请求返回的对象。
+需要注意的是，必须在AOP类中加入：
+```java
+@Component
+```
+表示用Spring来进行初始化这个类，相当于Spring中的XML配置关系，否则因为无法让Spring扫描管理，无法实现Aspect编程。
+
+现在重启服务，访问：
+http://localhost:8080/hellmonky/version
+查看日志是否正确输出。
+
+（3）关于Spring中使用AOP的一些优化：
+在WelcomeAOP切面中，分别通过doBefore和doAfterReturning两个独立函数实现了切点头部和切点返回后执行的内容，若我们想统计请求的处理时间，就需要在doBefore处记录时间，并在doAfterReturning处通过当前时间与开始处记录的时间计算得到请求处理的消耗时间。
+那么我们是否可以在WebLogAspect切面中定义一个成员变量来给doBefore和doAfterReturning一起访问呢？是否会有同步问题呢？
+的确，直接在这里定义基本类型会有同步问题，所以我们可以引入ThreadLocal对象，保证同步的正确性。
+现在添加后的代码为：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.bean.logBean.InfoLogBean;
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.stereotype.Component;
+
+/**
+ * Created by wentao on 2016/12/20.
+ *
+ * Welcome请求AOP处理
+ *
+ */
+
+@Aspect
+@Component
+public class WelcomeAspectService {
+
+    // 日志记录调用
+    private static LogService logService = LogService.getInstance();
+
+    // 支持同步的计时器，表明是当前线程自有变量：
+    ThreadLocal<Long> startTime = new ThreadLocal<>();
+
+    public WelcomeAspectService(){}
+
+    //@Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    @Pointcut("execution(public * cn.ac.iscas.controller.Welcome..*.*(..))")
+    public void welcomeLog(){}
+
+    @Before("welcomeLog()")
+    public void doBefore(){
+        startTime.set(System.currentTimeMillis());
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("doBefore log service");
+        this.logService.info(bean);
+    }
+
+    @AfterReturning(returning = "ret", pointcut = "welcomeLog()")
+    public void doAfterReturning(Object ret){
+        Long currentSpendTime = System.currentTimeMillis() - startTime.get();
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("doAfterReturning log service:"+ret+" with time:"+currentSpendTime);
+        this.logService.info(bean);
+    }
+}
+```
+
+由于通过AOP实现，程序得到了很好的解耦，但是也会带来一些问题，比如：我们可能会对Web层做多个切面，校验用户，校验头信息等等，这个时候经常会碰到切面的处理顺序问题。
+所以，我们需要定义每个切面的优先级，我们需要@Order(i)注解来标识切面的优先级。i的值越小，优先级越高。
+如果我们再写一个AOP处理，假定为：CheckNameAspect，用来对当前登陆用户进行效验，保证被授权的用户才能继续访问，那么这个AOP就需要被记录到日志中，我们设置其@Order(10)，然后设置WelcomeAOP为@Order(5)，那么执行的时候的顺序为：
+> - 在@Before中优先执行@Order(5)的内容，再执行@Order(10)的内容；
+> - 在@After和@AfterReturning中优先执行@Order(10)的内容，再执行@Order(5)的内容。
+
+用于用户登录的AOP具体的代码为：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.bean.logBean.InfoLogBean;
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+/**
+ * Created by wentao on 2016/12/20.
+ *
+ * 用户登入授权校验AOP
+ *
+ */
+
+
+@Aspect
+@Component
+@Order(10)
+public class UserLoginAspectService {
+
+    // 日志记录调用
+    private static LogService logService = LogService.getInstance();
+    // 线程安全的计时器：
+    private ThreadLocal<Long> timer = new ThreadLocal<>();
+
+    public UserLoginAspectService(){}
+
+    // 对所有controller层都进行检查：
+    @Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    public void userloginCheck(){}
+
+    @Before("userloginCheck()")
+    public void doBefore(){
+        timer.set(System.currentTimeMillis());
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("user login check start");
+        this.logService.info(bean);
+    }
+
+    @AfterReturning(returning = "ret", pointcut = "userloginCheck()")
+    public void doAfterReturning(Object ret){
+        Long currentSpendTime = System.currentTimeMillis() - timer.get();
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("user login check success:"+ret+" with time:"+currentSpendTime);
+        this.logService.info(bean);
+    }
+}
+```
+
+所以总结为：
+> - 在切入点前的操作，按order的值由小到大执行
+> - 在切入点后的操作，按order的值由大到小执行
+
+（4）Spring中多个切面的合并：
+上述例子中的用户登录和日志分开为两个切面进行，其实可以将不同的切面进行合并。
+我们新建一个计时类来完成对http地址和controller层的方法分别进行计时统计的类ExecutionTimeLoggerService：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.Around;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.util.StopWatch;
+
+/**
+ * Created by wentao on 2016/12/22.
+ */
+
+@Aspect
+@Component
+public class ExecutionTimeLoggerService {
+
+    private static LogService logService = LogService.getInstance();
+
+    public ExecutionTimeLoggerService(){};
+
+
+    @Pointcut("@annotation(org.springframework.web.bind.annotation.RequestMapping)")
+    public void requestMapping() {}
+
+    @Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    public void methodPointcut() {}
+
+    @Around("requestMapping() && methodPointcut()")
+    public Object profile(ProceedingJoinPoint pjp) throws Throwable {
+        StopWatch sw = new StopWatch();
+        String name = pjp.getSignature().getName();
+        try {
+            sw.start();
+            return pjp.proceed();
+        } finally {
+            sw.stop();
+            logService.info("STOPWATCH: " + sw.getTotalTimeMillis() + " millis, while calling: " + name);
+        }
+    }
+}
+```
+在这个类中，requestMapping()表示了对HTTP访问的切面，methodPointcut()表示了对于controller层的所有方法的切面。
+最终上述这两个切面都会被一个环绕增强来进行计时统计。
+这个时候，最终的日志为：
+```log
+2016-12-22 10:03:24,406  INFO LogService:46 - doBefore log service
+2016-12-22 10:03:31,286  INFO LogService:46 - user login check start
+2016-12-22 10:03:39,325  INFO LogService:46 - STOPWATCH: 1484 millis, while calling: version
+2016-12-22 10:03:43,489  INFO LogService:46 - user login check success:Welcome version 1.0 with time:12203
+2016-12-22 10:03:45,309  INFO LogService:46 - doAfterReturning log service:Welcome version 1.0 with time:20903
+```
+
+（5）关于SpringBoot中使用AOP的一些基本注解编写：
+本节主要参考：
+> - [【spring-boot】spring aop 面向切面编程初接触](http://www.cnblogs.com/lic309/p/4079194.html)
+
+在实际使用测试了具体的代码之后，我们来对一些基本概念进行解释和梳理：
+
+> - 切面（Aspect）：一个关注点的模块化，这个关注点可能会横切多个对象。事务管理是J2EE应用中一个关于横切关注点的很好的例子。在Spring AOP中，切面可以使用基于模式或者基于@Aspect注解的方式来实现。
+> - 连接点（Joinpoint）：在程序执行过程中某个特定的点，比如某方法调用的时候或者处理异常的时候。在Spring AOP中，一个连接点总是表示一个方法的执行。
+> - 通知（Advice）：在切面的某个特定的连接点上执行的动作。其中包括了“around”、“before”和“after”等不同类型的通知（通知的类型将在后面部分进行讨论）。许多AOP框架（包括Spring）都是以拦截器做通知模型，并维护一个以连接点为中心的拦截器链。
+> - 切入点（Pointcut）：匹配连接点的断言。通知和一个切入点表达式关联，并在满足这个切入点的连接点上运行（例如，当执行某个特定名称的方法时）。切入点表达式如何和连接点匹配是AOP的核心：Spring缺省使用AspectJ切入点语法。
+> - 引入（Introduction）：用来给一个类型声明额外的方法或属性（也被称为连接类型声明（inter-type declaration））。Spring允许引入新的接口（以及一个对应的实现）到任何被代理的对象。例如，你可以使用引入来使一个bean实现IsModified接口，以便简化缓存机制。
+> - 目标对象（Target Object）：被一个或者多个切面所通知的对象。也被称做被通知（advised）对象。既然Spring AOP是通过运行时代理实现的，这个对象永远是一个被代理（proxied）对象。
+> - AOP代理（AOP Proxy）：AOP框架创建的对象，用来实现切面契约（例如通知方法执行等等）。在Spring中，AOP代理可以是JDK动态代理或者CGLIB代理。
+> - 织入（Weaving）：把切面连接到其它的应用程序类型或者对象上，并创建一个被通知的对象。这些可以在编译时（例如使用AspectJ编译器），类加载时和运行时完成。Spring和其他纯Java AOP框架一样，在运行时完成织入。
+
+上述就是在使用Spring中必须要明确的概念。
+
+这些概念在SpringBoot中的体现为注解，现在我们详细看一下对应的注解方式。
+
 

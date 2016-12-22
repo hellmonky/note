@@ -199,6 +199,7 @@ Core组件中还有很多类似的方式。
 在基本了解了Spring-framework的三大组件的基本功能之后，我们需要将这三个组件的关联关系梳理一下。
 **Ioc容器实际上就是Context组件结合Bean和Core这两个组件共同构建了一个Bean关系网。**
 如何构建这个关系网？构建的入口就在AbstractApplicationContext类的refresh方法中，位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractApplicationContext.java 文件中。我们将AbstractApplicationContext中的refresh方法简化提取出来：
+
 ```java
 public void refresh() throws BeansException, IllegalStateException { 
     synchronized (this.startupShutdownMonitor) { 
@@ -250,6 +251,7 @@ public void refresh() throws BeansException, IllegalStateException {
 
 ###### 2.2.4.1 创建和配置BeanFactory：
 相关代码为：
+
 ```java
 // Prepare this context for refreshing. 
 prepareRefresh(); 
@@ -260,6 +262,7 @@ ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 BeanFactory创建是在AbstractApplicationContext的obtainFreshBeanFactory()方法中完成的。在该方法中，会调用子类实现了的refreshBeanFactory的方法，刷新子类，如果BeanFactory存在则刷新，如果不存在就创建一个新的BeanFactory。最终默认的创建BeanFactory就是由DefaultListableBeanFactory来完成的。
 代码为：
+
 ```java
 protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
 		refreshBeanFactory();
@@ -271,6 +274,7 @@ protected ConfigurableListableBeanFactory obtainFreshBeanFactory() {
 	}
 ```
 obtainFreshBeanFactory()方法中调用的子类实现的AbstractApplicationContext的抽象方法refreshBeanFactory()方法，具体代码位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractRefreshableApplicationContext.java 文件中，具体函数实现为：
+
 ```java
     protected final void refreshBeanFactory() throws BeansException {
 		if (hasBeanFactory()) {
@@ -307,6 +311,7 @@ BeanFactory的原始对象是DefaultListableBeanFactory，这个非常关键，�
 上述过程中，完成了构建BeanFactory的标准初始化过程。解析来需要进一步分析如何解析和注册用户定义的Bean。
 DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将用户自定义的Bean定义加载和解析为默认DefaultListableBeanFactory类型的IoC容器中的数据结构。
 调用了代码位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\AbstractXmlApplicationContext.java 文件中AbstractXmlApplicationContext类的loadBeanDefinitions(DefaultListableBeanFactory beanFactory)方法：
+
 ```java
     protected void loadBeanDefinitions(DefaultListableBeanFactory beanFactory) throws BeansException, IOException {
 		// Create a new XmlBeanDefinitionReader for the given BeanFactory.
@@ -325,6 +330,7 @@ DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将�
 	}
 ```
 最后通过AbstractXmlApplicationContext类的loadBeanDefinitions(XmlBeanDefinitionReader reader)方法来根据指定的XmlBeanDefinitionReader来加载我们的Bean定义：
+
 ```java
     protected void loadBeanDefinitions(XmlBeanDefinitionReader reader) throws BeansException, IOException {
 		Resource[] configResources = getConfigResources();
@@ -347,6 +353,7 @@ DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将�
 ###### 2.2.4.3 Spring工具类的加载：
 完成BeanFactory的初始化，完成用户自定义的Bean的加载、解析和注册之后，还需要调用prepareBeanFactory方法，添加一些Spring本身需要的一些工具类。
 通过调用AbstractApplicationContext类中prepareBeanFactory()方法来完成：
+
 ```java
     protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
@@ -397,12 +404,14 @@ DefaultListableBeanFactory类中的loadBeanDefinitions(beanFactory)函数，将�
 该方法主要分成四部分：
 ####### 第一部分：
 第一步，设置类加载器：
+
 ```java
 beanFactory.setBeanClassLoader(getClassLoader());
 ```
 首先设置class loader，默认是当前context线程的class loader。在实例化context class(默认：XmlWebApplicationContext)的时候会在父类DefaultResourceLoader的构造方法中定义了设置class loader的方法。默认调用ClassUtils.getDefaultClassLoader()方法设置，或者是由自定义的context class赋予。
 
 第二步，设置EL表达式处理器StandardBeanExpressionResolver：
+
 ```java
 beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 ```
@@ -410,17 +419,20 @@ spring3增加了表达式语言的支持，默认可以使用#{bean.xxx}的形�
 
 
 第三步，设置属性编辑器注册类，用来注册相关的属性编辑器：
+
 ```java
 beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 ```
 为BeanFactory添加一个属性编辑器注册表(PropertyEditorRegistrar),默认是一个ResourceEditorRegistrar编辑器注册表。
 
 第四步，注册Aware接口处理器ApplicationContextAwareProcessor：
+
 ```java
 beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
 ```
 添加了一个处理aware相关接口的beanPostProcessor扩展，主要是使用beanPostProcessor的postProcessBeforeInitialization()前置处理方法实现aware相关接口的功能，aware接口是用来给bean注入一些资源的接口，例如实现BeanFactoryAware的Bean在初始化后，Spring容器将会注入BeanFactory的实例相应的还有ApplicationContextAware、ResourceLoaderAware、ServletContextAware等等。
 这儿的ApplicationContextAwareProcessor的职责是在bean创建完成之后触发该bean实现的所有Aware接口，比如ApplicationContextAware接口的setApplicationContext方法，EnvironmentAware接口的setEnvironment，xxxAware接口可以让应用代码持有容器中关键对象（比如ApplicationContext、Environment等）的引用，核心代码在ApplicationContextAwareProcessor的postProcessBeforeInitialization函数调用的invokeAwareInterfaces方法：
+
 ```java
     private void invokeAwareInterfaces(Object bean) {
 		if (bean instanceof Aware) {
@@ -446,6 +458,7 @@ beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
 	}
 ```
 然后设置了几个忽略自动装配的接口，因为这些接口已经通过ApplicationContextAwareProcessor注入了。默认只有BeanFactoryAware被忽略，其他的都要自行设置，这里设置了ResourceLoaderAware、ApplicationEventPublisherAware、MessageSourceAware和ApplicationContextAware：
+
 ```java
 beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
 beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
@@ -456,6 +469,7 @@ beanFactory.ignoreDependencyInterface(ApplicationContextAware.class);
 ```
 
 第五步，设置了几个自动装配的特殊规则：
+
 ```java
 beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
 beanFactory.registerResolvableDependency(ResourceLoader.class, this);
@@ -465,6 +479,7 @@ beanFactory.registerResolvableDependency(ApplicationContext.class, this);
 如果是BeanFactory类型，则注入beanFactory对象，如果是ResourceLoader、ApplicationEventPublisher、ApplicationContext类型则注入当前对象（applicationContext对象）。
 这样的话容器就把bean工厂和ApplicationContext跟上面几个类型绑定了，在应用代码就可以通过类型自动装配把工厂实例和ApplicationContext实例设置到自定义bean的属性中。
 像下面的例子，beanFactory、resourceLoader、appContext、appEventPublisher这几个属性都会被自动设置，虽然没有在显示的在bean定义xml中注入它们：
+
 ```java
 public class AutowireByTypeBean {  
   
@@ -565,6 +580,7 @@ if (!beanFactory.containsLocalBean(SYSTEM_ENVIRONMENT_BEAN_NAME)) {
 
 ###### 2.2.4.4 其它初始化与准备过程：
 在BeanFactory创建完成后，我们定义的Bean仅仅是已经被解析和注册了，实际上还没真正的创建他们的实例对象。当obtainFreshBeanFactory()方法返回后，就会为该上下文配置刚刚已经生成的BeanFactory，如果我们要想扩展Spring的IOC容器，AbstractApplicationContext中接下来的三行代码对Spring的功能扩展性起了至关重要的作用，我们可以通过下面的三个代码处进行自定义操作：
+
 ```java
 // Allows post-processing of the bean factory in context subclasses.
 postProcessBeanFactory(beanFactory);
@@ -595,8 +611,8 @@ invokeBeanFactoryPostProcessors(beanFactory);
 通过这个调用，激活所有BeanFactoryPostProcessor接口，包括容器内置的和应用自定义的，所有的BFPP实现了PriorityOrdered接口归类并排序，实现了Ordered接口的归类并排序，未实现排序接口的归类，先按顺序执行实现了PriorityOrdered接口的BFPP，然后按顺序执行实现了Ordered接口的BFPP，最后执行未实现排序接口的BFPP。
 其中还有个特殊的BFPP BeanDefinitionRegistryPostProcessor接口，它是用来扩展一些特殊的Bean定义，比如有个实现ConfigurationClassPostProcessor，它是用来处理@Configuration注解描述的bean定义，在bean定义文件中定义了<context:annotation-config />标签之后，容器会自动注册一个ConfigurationClassPostProcessor来对指定包中包含@Configuration注解的类进行解析。
 
-
 跳转到这个方法在AbstractApplicationContext中的实现为：
+
 ```java
     protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
@@ -610,10 +626,12 @@ invokeBeanFactoryPostProcessors(beanFactory);
 	}
 ```
 发现在调用invokeBeanFactoryPostProcessors函数后，该函数又将实现的步骤委托给PostProcessorRegistrationDelegate类：
+
 ```java
 PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors())
 ```
 进入位于：..\spring-framework\spring-context\src\main\java\org\springframework\context\support\PostProcessorRegistrationDelegate.java，可以看到其的实现：
+
 ```java
     public static void invokeBeanFactoryPostProcessors(
 			ConfigurableListableBeanFactory beanFactory, List<BeanFactoryPostProcessor> beanFactoryPostProcessors) {
@@ -754,6 +772,7 @@ PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, g
 > - 5. 进行相应的排序处理
 
 其中的调用invokeBeanFactoryPostProcessors方法：
+
 ```java
     private static void invokeBeanFactoryPostProcessors(
 			Collection<? extends BeanFactoryPostProcessor> postProcessors, ConfigurableListableBeanFactory beanFactory) {
@@ -764,9 +783,6 @@ PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, g
 	}
 ```
 可以看到这个方法主要是获取实现 BeanFactoryPostProcessor 接口的子类，并执行它的 postProcessBeanFactory 方法。
-
-
-
 
 
 ####### 将所有实现BeanPostProcessor接口的bean注册到工厂中：
@@ -826,6 +842,7 @@ PS:关于这个Context，其实只要构造一个完整的语言的解析环境�
 
 ##### 2.3.1 Bean组件相关：
 将AbstractBeanDefinition的代码简化提取出来为：
+
 ```java
 public abstract class AbstractBeanDefinition extends BeanMetadataAttributeAccessor implements BeanDefinition, Cloneable {
  private volatile Object beanClass;
