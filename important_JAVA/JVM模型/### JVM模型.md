@@ -2,7 +2,60 @@
 java代码可以编译为class文件，然后在运行时通过将这个class文件加载到JVM（Java virtual machine）中来执行代码，通过这种方式，JVM屏蔽了与具体平台相关的信息，使Java语言编译程序只需要生成在JVM上运行的目标字节码（.class）,就可以在多种平台上不加修改地运行。JVM 是编译后的Java程序（.class文件）和硬件系统之间的接口。
 并且JVM设计之初就考虑到了语言无关性，只要能够编译为class文件，就能使用JVM执行。
 
-#### （1）JVM的组成：
+#### java程序运行原理：
+
+##### java程序从编译到运行流程：
+java的一大特色就是”write once, run anywhere” 即 “一次编译，到处运行”。就是说你不用专门为每个平台写一份代码，你写的Java程序在任何平台都能跑起来。
+它的实现原理是在系统层面上又增加了一层虚拟机（Java Virtual Machine，简称JVM），且为每个平台都定制了对应的虚拟机。然后Java程序是在虚拟机上跑的，因此平台无关。
+![java程序编译运行流程](java程序编译运行流程.png)
+
+Java的运行流程是：程序员写了源代码（Source Code，.java后缀，跨平台），然后经过编译器编译成字节码（Byte Code，.class后缀，二进制文件，跨平台），字节码是所有虚拟机都能理解的中间文件。然后交给虚拟机（不跨平台，每个平台都有对应的虚拟机）去运行。 所以对“write once, run anywhere”更准确的理解是，“一次编译，到处装虚拟机，所以到处运行”。
+
+Java代码的编译时用java编译器完成的，输出的结果是jvm可识别的字节码：
+![java程序编译为字节码](java程序编译为字节码.jpg)
+
+编译完毕的字节码交给JVM来进行加载和执行：
+![jvm执行字节码流程](jvm执行字节码流程.jpg)
+
+通过上述步骤可以看出完整的流程为：
+![java程序编译执行完整流程](java程序编译执行完整流程.png)
+
+
+##### java程序的入口main函数：
+在java中，main()方法是java应用程序的入口方法。java虚拟机通过main方法找到需要启动的运行程序，并且检查main函数所在类是否被java虚拟机装载。如果没有装载，那么就装载该类，并且装载所有相关的其他类。因此程序在运行的时候，第一个执行的方法就是main()方法。通常情况下， 如果要运行一个类的方法，必须首先实例化出来这个类的一个对象，然后通过"对象名.方法名()"的方式来运行方法，但是因为main是程序的入口，这时候还没有实例化对象，因此将main方法声明为static的，这样这个方法就可以直接通过“类名.方法名()”的方式来调用。
+
+虚拟机通过调用某个指定类的方法main启动，传递给main一个字符串数组参数，使指定的类被装载，同时链接该类所使用的其它的类型，并且初始化它们。
+例如：
+
+```java
+public class HelloApp {
+    public static void main(String[] args) {
+        System.out.println("Hello World!");
+        for (int i = 0; i < args.length; i++) {
+            System.out.println(args);
+        }
+    }
+}
+```
+编译后在命令行模式下键入： java HelloApp run virtual machine
+将通过调用HelloApp的方法main来启动java虚拟机，传递给main一个包含三个字符串"run"、"virtual"、"machine"的数组。现在我们略述虚拟机在执行HelloApp时可能采取的步骤：
+（1）开始试图执行类HelloApp的main方法，发现该类并没有被装载，也就是说虚拟机当前不包含该类的二进制代表，于是虚拟机使用ClassLoader试图寻找这样的二进制代表。如果这个进程失败，则抛出一个异常。
+（2）如果找到了这个类，那就就使用类加载器对HelloApp字节码进行装载。
+（3）类被装载后同时在main方法被调用之前，必须对类HelloApp与其它类型进行链接然后初始化：
+链接包含三个阶段：检验，准备和解析。检验检查被装载的主类的符号和语义，准备则创建类或接口的静态域以及把这些域初始化为标准的默认值，解析负责检查主类对其它类或接口的符号引用，在这一步它是可选的。
+类的初始化是对类中声明的静态初始化函数和静态域的初始化构造方法的执行。一个类在初始化之前它的父类必须被初始化。
+（4）完成HelloApp类和他需要的相关类的加载后，就可以调用main函数了，因为main是静态的，所以已经被初始化，可以顺利被调用。
+
+流程图为：
+![javamain函数执行流程](javamain函数执行流程.jpg)
+
+##### java程序的main函数的执行原理：
+这部分内容涉及到jvm的实现原理，可以参考文章：
+[Java Main如何被执行？](http://www.cnblogs.com/iceAeterNa/p/4876940.html)
+
+
+
+#### JVM的组成：
 整个JVM 分为四部分：ClassLoader（类加载器）、Execution Engine（执行引擎）、Native Interface（本地接口）和Runtime data area（运行数据区）。
 [JVM 的 工作原理，层次结构 以及 GC工作原理](https://segmentfault.com/a/1190000002579346)
 
