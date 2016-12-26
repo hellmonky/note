@@ -7,9 +7,26 @@ Spring作为javaEE的开发框架被广泛的使用，那么作为一个java开�
     - [IoC：](#ioc)
     - [AOP：](#aop)
         - [通过实例理解AOP：](#%E9%80%9A%E8%BF%87%E5%AE%9E%E4%BE%8B%E7%90%86%E8%A7%A3aop)
+            - [（1）一个坏的例子：](#1%E4%B8%80%E4%B8%AA%E5%9D%8F%E7%9A%84%E4%BE%8B%E5%AD%90)
+            - [（2）方案一：静态代理](#2%E6%96%B9%E6%A1%88%E4%B8%80%E9%9D%99%E6%80%81%E4%BB%A3%E7%90%86)
+            - [（3）方案二：动态代理](#3%E6%96%B9%E6%A1%88%E4%BA%8C%E5%8A%A8%E6%80%81%E4%BB%A3%E7%90%86)
+            - [（4）方案三：使用cglib动态代理](#4%E6%96%B9%E6%A1%88%E4%B8%89%E4%BD%BF%E7%94%A8cglib%E5%8A%A8%E6%80%81%E4%BB%A3%E7%90%86)
         - [Spring中的AOP应用：](#spring%E4%B8%AD%E7%9A%84aop%E5%BA%94%E7%94%A8)
+            - [（1）前置增强、后置增强和环绕增强的基本用法样例：](#1%E5%89%8D%E7%BD%AE%E5%A2%9E%E5%BC%BA%E5%90%8E%E7%BD%AE%E5%A2%9E%E5%BC%BA%E5%92%8C%E7%8E%AF%E7%BB%95%E5%A2%9E%E5%BC%BA%E7%9A%84%E5%9F%BA%E6%9C%AC%E7%94%A8%E6%B3%95%E6%A0%B7%E4%BE%8B)
+            - [（2）使用Spring配置文件来完成增强：](#2%E4%BD%BF%E7%94%A8spring%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E6%9D%A5%E5%AE%8C%E6%88%90%E5%A2%9E%E5%BC%BA)
+            - [（3）Spring AOP的应用：抛出增强](#3spring-aop%E7%9A%84%E5%BA%94%E7%94%A8%E6%8A%9B%E5%87%BA%E5%A2%9E%E5%BC%BA)
+            - [（4）Spring AOP的应用：对类的增强](#4spring-aop%E7%9A%84%E5%BA%94%E7%94%A8%E5%AF%B9%E7%B1%BB%E7%9A%84%E5%A2%9E%E5%BC%BA)
         - [SpringBoot中的AOP应用：](#springboot%E4%B8%AD%E7%9A%84aop%E5%BA%94%E7%94%A8)
+            - [（1）引入SpringBoot工程的AOP支持组件：](#1%E5%BC%95%E5%85%A5springboot%E5%B7%A5%E7%A8%8B%E7%9A%84aop%E6%94%AF%E6%8C%81%E7%BB%84%E4%BB%B6)
+            - [（2）实现Web层的日志切面测试：](#2%E5%AE%9E%E7%8E%B0web%E5%B1%82%E7%9A%84%E6%97%A5%E5%BF%97%E5%88%87%E9%9D%A2%E6%B5%8B%E8%AF%95)
+            - [（3）关于Spring中使用AOP的一些优化：](#3%E5%85%B3%E4%BA%8Espring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E4%B8%80%E4%BA%9B%E4%BC%98%E5%8C%96)
+            - [（4）Spring中多个切面的合并：](#4spring%E4%B8%AD%E5%A4%9A%E4%B8%AA%E5%88%87%E9%9D%A2%E7%9A%84%E5%90%88%E5%B9%B6)
+            - [（5）切面中获取目标方法的信息：](#5%E5%88%87%E9%9D%A2%E4%B8%AD%E8%8E%B7%E5%8F%96%E7%9B%AE%E6%A0%87%E6%96%B9%E6%B3%95%E7%9A%84%E4%BF%A1%E6%81%AF)
         - [Spring中使用AOP的注解和语法汇总说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E6%B3%A8%E8%A7%A3%E5%92%8C%E8%AF%AD%E6%B3%95%E6%B1%87%E6%80%BB%E8%AF%B4%E6%98%8E)
+            - [（1）涉及到的注解：](#1%E6%B6%89%E5%8F%8A%E5%88%B0%E7%9A%84%E6%B3%A8%E8%A7%A3)
+            - [（2）重点注解的用法：](#2%E9%87%8D%E7%82%B9%E6%B3%A8%E8%A7%A3%E7%9A%84%E7%94%A8%E6%B3%95)
+            - [（3）通知参数：](#3%E9%80%9A%E7%9F%A5%E5%8F%82%E6%95%B0)
+            - [（4）切入点定义：](#4%E5%88%87%E5%85%A5%E7%82%B9%E5%AE%9A%E4%B9%89)
 
 <!-- /TOC -->
 
@@ -36,7 +53,7 @@ AOP在编程历史上可以说是里程碑式的，对OOP编程是一种十分�
 
 ##### 通过实例理解AOP：
 我们可以看一些实际的例子来帮助理解为什么要使用AOP：
-（1）一个坏的例子：
+###### （1）一个坏的例子：
 先定义一个接口，用于描述要实现的功能的特性：
 
 ```java
@@ -72,7 +89,7 @@ public class GreetingImpl implements Greeting {
 我们要写一个 JDBC 程序，那是不是也要在方法的开头去连接数据库，方法的末尾去关闭数据库连接呢？
 如果都按照这个样子去进行编写，工作量会非常大，并且代码的维护需要对分散在各个实现中的类来进行。那么如何对这种情况给出比较良好的方案实现去耦合？
 
-（2）方案一：静态代理
+###### （2）方案一：静态代理
 最简单的解决方案就是使用静态代理模式了，我们单独为 GreetingImpl 这个类写一个代理类，这个代理也实现接口：
 
 ```java
@@ -126,7 +143,7 @@ public class Client {
 如何才能将这些代理类尽可能减少呢？
 最好只有一个代理类。借用JDK提供的动态代理来完成。
 
-（3）方案二：动态代理
+###### （3）方案二：动态代理
 与静态代理类对照的是动态代理类，动态代理类的字节码在程序运行时由Java反射机制动态生成，无需程序员手工编写它的源代码。动态代理类不仅简化了编程工作，而且提高了软件系统的可扩展性，因为Java 反射机制可以生成任意类型的动态代理类。java.lang.reflect 包中的Proxy类和InvocationHandler 接口提供了生成动态代理类的能力。 
 JDK动态代理中包含一个类和一个接口： 
 <1> InvocationHandler接口： 
@@ -218,7 +235,7 @@ public class Client {
 通过这个JDKDynamicProxy，所有的代理类都合并到动态代理类中了，只需要将不同的接口实现传入就能生成对应的代理。
 但这样做仍然存在一个问题：JDK 给我们提供的动态代理只能代理接口，而不能代理没有接口的类。有什么方法可以解决呢？
 
-（4）方案三：使用cglib动态代理
+###### （4）方案三：使用cglib动态代理
 JDK的动态代理机制只能代理实现了接口的类，而不能实现接口的类就不能实现JDK的动态代理，cglib是针对类来实现代理的，他的原理是对指定的目标类生成一个子类，并覆盖其中方法实现增强，但因为采用的是继承，所以不能对final修饰的类进行代理。 
 还是继续实现Greeting接口：
 
@@ -282,7 +299,7 @@ Spring的基石即使IoC和AOP，所以让我们看看Spring中的AOP到底是�
 上面例子中提到的 before() 方法，在 Spring AOP 里就叫 Before Advice（前置增强）。像 after() 这样的方法就叫 After Advice（后置增强），因为它放在后面来增强代码的功能。如果能把 before() 与 after() 合并在一起，那就叫 Around Advice（环绕增强）。
 回顾上面的Greeting接口，在代理中，我们需要编写具体的before和after函数来完成环境的设置，那么既然这个是环境，那么就不应该固化在代码中完成硬编码，而是需要通过外部环境来动态确定，那么我们也通过组合来将这些容易变化的部分抽取出来。通过Spring来看看怎么编写相关的代码：
 
-（1）前置增强、后置增强和环绕增强的基本用法样例：
+###### （1）前置增强、后置增强和环绕增强的基本用法样例：
 还是用之前的Greeting的例子，但是使用Spring的AOP包来进行处理。
 先来一个前置增强类吧：
 
@@ -400,7 +417,7 @@ public class GreetingAroundAdvice implements MethodInterceptor {
 环绕增强类需要实现 org.aopalliance.intercept.MethodInterceptor 接口。注意，这个接口不是 Spring 提供的，它是 AOP 联盟写的，Spring 只是借用了它。
 这个时候的客户端还是一样的调用方式。
 
-（2）使用Spring配置文件来完成增强：
+###### （2）使用Spring配置文件来完成增强：
 刚刚的用法只是一个简单的库的使用方法举例，并不是Spring AOP应该有的用法。Spring强调通过配置来完成自动化，通过xml配置文件来解耦代码。
 看一下一个具体的配置：
 
@@ -506,7 +523,7 @@ greetingProxy就是配置文件中设置的代理的id；
 最后得到的效果就是：
 代码只关注于业务逻辑，将配置性的代码放入配置文件，这样去除代码中耦合的同时也有助于后期维护。
 
-（3）Spring AOP的应用：抛出增强
+###### （3）Spring AOP的应用：抛出增强
 除了上述的前置增强、后置增强和环绕增强，还有一种增强用于目标方法抛出异常后实施增强，叫做抛出增强。
 程序报错，抛出异常了，一般的做法是打印到控制台或日志文件中，这样很多地方都得去处理，有没有一个一劳永逸的方法呢？那就是 Throws Advice（抛出增强）。
 改写Greeting接口的实现，增加一个异常抛出：
@@ -570,7 +587,7 @@ public class Client {
 ```
 还是通过xml配置文件中关联的增强器来进行调用。
 
-（4）Spring AOP的应用：对类的增强
+###### （4）Spring AOP的应用：对类的增强
 上述应用都是针对类的方法进行增强的，那么能不能对一个类进行增强？根据AOP的实现原理可以知道，这个没有什么问题的，完全可以。
 现在我们就来看看如何对一个类进行增强。
 用 AOP 的行话来讲，对方法的增强叫做 Weaving（织入），而对类的增强叫做 Introduction（引入）。而 Introduction Advice（引入增强）就是对类的功能增强，它也是 Spring AOP 提供的最后一种增强。
@@ -661,7 +678,7 @@ public class Client {
 通过上述实例可以看到，在Spring中使用AOP编程需要进行xml配置的设置，SpringBoot设置的目标就是简化配置，那么现在看看在SpringBoot中怎么使用AOP编程。
 我们以一个场景进行描述：一个是如何在Spring Boot中引入Aop功能，二是如何使用Aop做切面去统一处理Web请求的日志。
 
-（1）引入SpringBoot工程的AOP支持组件：
+###### （1）引入SpringBoot工程的AOP支持组件：
 本文主要参考：
 > - [Spring Boot中使用AOP统一处理Web请求日志](http://didispace.com/springbootaoplog/)
 
@@ -682,7 +699,7 @@ spring.aop.proxy-target-class=false # Whether subclass-based (CGLIB) proxies are
 ```
 而当我们需要使用CGLIB来实现AOP的时候，需要在当前工程的application.property中配置spring.aop.proxy-target-class=true，不然默认使用的是标准Java的实现。
 
-（2）实现Web层的日志切面测试：
+###### （2）实现Web层的日志切面测试：
 我们在一个标准的SpringBoot欢迎页面来进行AOP注入：
 
 首先在当前工程中设置application.property文件，来指定访问地址和端口，以及主路径：
@@ -798,7 +815,7 @@ public class WelcomeAspectService {
 http://localhost:8080/hellmonky/version
 查看日志是否正确输出。
 
-（3）关于Spring中使用AOP的一些优化：
+###### （3）关于Spring中使用AOP的一些优化：
 在WelcomeAOP切面中，分别通过doBefore和doAfterReturning两个独立函数实现了切点头部和切点返回后执行的内容，若我们想统计请求的处理时间，就需要在doBefore处记录时间，并在doAfterReturning处通过当前时间与开始处记录的时间计算得到请求处理的消耗时间。
 那么我们是否可以在WebLogAspect切面中定义一个成员变量来给doBefore和doAfterReturning一起访问呢？是否会有同步问题呢？
 的确，直接在这里定义基本类型会有同步问题，所以我们可以引入ThreadLocal对象，保证同步的正确性。
@@ -926,7 +943,7 @@ public class UserLoginAspectService {
 > - 在切入点前的操作，按order的值由小到大执行
 > - 在切入点后的操作，按order的值由大到小执行
 
-（4）Spring中多个切面的合并：
+###### （4）Spring中多个切面的合并：
 上述例子中的用户登录和日志分开为两个切面进行，其实可以将不同的切面进行合并。
 我们新建一个计时类来完成对http地址和controller层的方法分别进行计时统计的类ExecutionTimeLoggerService：
 
@@ -983,7 +1000,7 @@ public class ExecutionTimeLoggerService {
 2016-12-22 10:03:45,309  INFO LogService:46 - doAfterReturning log service:Welcome version 1.0 with time:20903
 ```
 
-（5）切面中获取目标方法的信息：
+###### （5）切面中获取目标方法的信息：
 参考：
 > - [Spring中的AOP（五）——在Advice方法中获取目标方法的参数](https://my.oschina.net/itblog/blog/211693)
 
@@ -1191,7 +1208,7 @@ public void access(Date time, String name, Object returnValue)
 上述就是在使用Spring中必须要明确的概念。
 > - 关于Spirng的Annotation，根据不同的版本查看官网文档最为合适：[]()
 
-（1）涉及到的注解：
+###### （1）涉及到的注解：
 这些概念在SpringBoot中的体现为注解，现在我们详细看一下对应的注解方式。
 <1> @Aspect:
 定义在：aspectjweaver.jar\org\aspectj\lang\annotation\Aspect.java
@@ -1241,7 +1258,7 @@ Spring还提供有：@Repository、@Service、@Controller和@Component都可以�
 ```
 其中ProceedingJoinPoint pjp就是代理参数。
 
-（2）重点注解的用法：
+###### （2）重点注解的用法：
 我们在SpringBoot中已经用了相关的注解完成了Spring对AOP的配置支持，我们现在更为详细的看一下注解的用法。
 <1> @Aspect注解：
 当我们定义了一个切面类，一定要通过这个注解告诉Spring，让他完成对应的加载操作。
@@ -1265,18 +1282,38 @@ args - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行
 其中execution使用最频繁，即某方法执行时进行切入。定义切入点中有一个重要的知识，即切入点表达式，我们一会在解释怎么写切入点表达式。
 切入点意思就是在什么时候切入什么方法，定义一个切入点就相当于定义了一个“变量”，具体什么时间使用这个变量就需要一个通知。即将切面与目标对象连接起来。
 
-（3）通知参数：
+###### （3）通知参数：
 有时候我们定义切面的时候，切面中需要使用到目标对象的某个参数，要使切面能得到目标对象的参数就需要引入通知参数。
 任何通知方法可以将第一个参数定义为org.aspectj.lang.JoinPoint类型（环绕通知需要定义第一个参数为ProceedingJoinPoint类型，它是 JoinPoint 的一个子类）。
 JoinPoint接口提供了一系列有用的方法，比如 getArgs()（返回方法参数）、getThis()（返回代理对象）、getTarget()（返回目标）、getSignature()（返回正在被通知的方法相关信息）和 toString()（打印出正在被通知的方法的有用信息）。
 然后在切面函数中就可以通过这个类提供的方法来完成对目标对象信息的访问。
 
-（4）切入点表达式：
+###### （4）切入点定义：
+在上述实例中，我们使用了一个入口函数作为切入点的代理，然后在不同的增强函数中使用这个切入点来进行增强说明。
+所谓定义切入点，其实质就是为一个切入点表达式起一个名称，从而允许在多个增强处理中重用该名称。
+切入点定义包含两个部分：
+> - 一个切入点表达式：用于指定切入点和哪些方法进行匹配
+> - 一个包含名字和任意参数的方法签名：将作为切入点的名称
+
+
 上述切入点注解中，可以用切入点表达式来完成对要进行织入对象的定位，从而让Spring准确的找到需要进行织入的对象。
 切入点表达式的格式：
 ```java
 execution([可见性] 返回类型 [声明类型].方法名(参数) [异常])
 ``
+其中：
+```shell
+[] : 表示其中的内容为可选的
+*  : 表示可以匹配所有字符
+.. : 一般用于匹配多个包，多个参数
++  : 表示类及其子类
+```
+运算符有：
+```shell
+&& : 表示与，表示两个条件都需要满足
+|| : 表示或，两个条件满足一个即可
+!  : 表示否定
+```
 
 
 

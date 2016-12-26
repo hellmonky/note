@@ -65,6 +65,7 @@ public class HelloApp {
 Java默认提供的三个ClassLoader:
 （1）BootStrap ClassLoader：称为启动类加载器，是Java类加载层次中最顶层的类加载器，不继承任何类，由当前系统的开发语言实现，负责加载JDK中的核心类库：默认为%JAVA_HOME%/lib，目录中或-Xbootclasspath中参数指定的路径中的，并且是虚拟机识别的（按名称）类库加载到JVM中。一般情况下，只要安装了Java运行环境（JRE），那么扩展目录为%JAVA_HOME%\jre\lib\。
 可通过如下程序获得该类加载器从哪些地方加载了相关的jar或class文件：
+
 ```java
 URL[] urls = sun.misc.Launcher.getBootstrapClassPath().getURLs();  
 for (int i = 0; i < urls.length; i++) {  
@@ -111,6 +112,7 @@ ClassLoader使用的是双亲委派模型（Parent Delegation Model）来搜索�
 通过这散布就完成了查询和新类的加载过程。
 
 双亲委派模型的实现比较简单，在java.lang.ClassLoader的loadClass方法中：
+
 ```java
 protected Class<?> loadClass(String name, boolean resolve)
         throws ClassNotFoundException
