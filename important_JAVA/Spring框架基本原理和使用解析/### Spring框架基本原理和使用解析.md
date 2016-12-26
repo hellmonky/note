@@ -8,9 +8,8 @@ Spring作为javaEE的开发框架被广泛的使用，那么作为一个java开�
     - [AOP：](#aop)
         - [通过实例理解AOP：](#%E9%80%9A%E8%BF%87%E5%AE%9E%E4%BE%8B%E7%90%86%E8%A7%A3aop)
         - [Spring中的AOP应用：](#spring%E4%B8%AD%E7%9A%84aop%E5%BA%94%E7%94%A8)
-        - [SpringBoot中的AOP：](#springboot%E4%B8%AD%E7%9A%84aop)
-        - [Spring中使用AOP的一些基本注解说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E4%B8%80%E4%BA%9B%E5%9F%BA%E6%9C%AC%E6%B3%A8%E8%A7%A3%E8%AF%B4%E6%98%8E)
-        - [Spring中使用AOP需要依赖的jar包说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E9%9C%80%E8%A6%81%E4%BE%9D%E8%B5%96%E7%9A%84jar%E5%8C%85%E8%AF%B4%E6%98%8E)
+        - [SpringBoot中的AOP应用：](#springboot%E4%B8%AD%E7%9A%84aop%E5%BA%94%E7%94%A8)
+        - [Spring中使用AOP的注解和语法汇总说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E6%B3%A8%E8%A7%A3%E5%92%8C%E8%AF%AD%E6%B3%95%E6%B1%87%E6%80%BB%E8%AF%B4%E6%98%8E)
 
 <!-- /TOC -->
 
@@ -658,7 +657,7 @@ public class Client {
 ```
 发现saySorry() 方法原来是可以被 greetingImpl 对象来直接调用的，只需将其强制转换为该接口即可。
 
-##### SpringBoot中的AOP：
+##### SpringBoot中的AOP应用：
 通过上述实例可以看到，在Spring中使用AOP编程需要进行xml配置的设置，SpringBoot设置的目标就是简化配置，那么现在看看在SpringBoot中怎么使用AOP编程。
 我们以一个场景进行描述：一个是如何在Spring Boot中引入Aop功能，二是如何使用Aop做切面去统一处理Web请求的日志。
 
@@ -984,7 +983,10 @@ public class ExecutionTimeLoggerService {
 2016-12-22 10:03:45,309  INFO LogService:46 - doAfterReturning log service:Welcome version 1.0 with time:20903
 ```
 
-（5）获取目标方法的信息：
+（5）切面中获取目标方法的信息：
+参考：
+> - [Spring中的AOP（五）——在Advice方法中获取目标方法的参数](https://my.oschina.net/itblog/blog/211693)
+
 上述例子中，我们的切面只是单纯的织入到连接点上，没有进行参数的交互。但是往往切面还需要根据连接点的参数才能完成功能。
 例如，我们需要在Welcome类的Aspect中记录当前被访问的HTTP接口传入了什么参数，以这个例子来看怎么样获取参数。
 首先对Welcome增加一个获取参数的方法：
@@ -1171,7 +1173,7 @@ public void access(Date time, String name, Object returnValue)
 ```
 只需要满足另外的参数名的顺序和pointcut中args(param1, param2)的顺序相同即可。
 
-##### Spring中使用AOP的一些基本注解说明：
+##### Spring中使用AOP的注解和语法汇总说明：
 本节主要参考：
 > - [【spring-boot】spring aop 面向切面编程初接触](http://www.cnblogs.com/lic309/p/4079194.html)
 
@@ -1239,18 +1241,15 @@ Spring还提供有：@Repository、@Service、@Controller和@Component都可以�
 ```
 其中ProceedingJoinPoint pjp就是代理参数。
 
-（2）通知参数：
-有时候我们定义切面的时候，切面中需要使用到目标对象的某个参数，如何使切面能得到目标对象的参数。
-这个时候我们就需要使用通知参数：
-任何通知方法可以将第一个参数定义为org.aspectj.lang.JoinPoint类型（环绕通知需要定义第一个参数为ProceedingJoinPoint类型，它是 JoinPoint 的一个子类）。
-JoinPoint接口提供了一系列有用的方法，比如 getArgs()（返回方法参数）、getThis()（返回代理对象）、getTarget()（返回目标）、getSignature()（返回正在被通知的方法相关信息）和 toString()（打印出正在被通知的方法的有用信息）。
+（2）重点注解的用法：
+我们在SpringBoot中已经用了相关的注解完成了Spring对AOP的配置支持，我们现在更为详细的看一下注解的用法。
+<1> @Aspect注解：
+当我们定义了一个切面类，一定要通过这个注解告诉Spring，让他完成对应的加载操作。
 
-
-
-
-（3）Pointcut这个注解的使用语法：
+<2> @Pointcut注解：
 Spring AOP只支持Spring bean的方法执行连接点。所以你可以把切入点看做是Spring bean上方法执行的匹配。一个切入点声明有两个部分：一个包含名字和任意参数的签名，还有一个切入点表达式，该表达式决定了我们关注那个方法的执行。
 并且作为切入点签名的方法必须返回void 类型。例如上述代码中的：requestMapping()函数。
+
 Spring AOP支持在切入点表达式中使用如下的切入点指示符：
 ```note
 execution - 匹配方法执行的连接点，这是你将会用到的Spring的最主要的切入点指示符。
@@ -1263,8 +1262,23 @@ args - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行
 @within - 限定匹配特定的连接点，其中连接点所在类型已指定注解（在使用Spring AOP的时候，所执行的方法所在类型已指定注解）。
 @annotation - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行），其中连接点的主题持有指定的注解。
 ```
+其中execution使用最频繁，即某方法执行时进行切入。定义切入点中有一个重要的知识，即切入点表达式，我们一会在解释怎么写切入点表达式。
+切入点意思就是在什么时候切入什么方法，定义一个切入点就相当于定义了一个“变量”，具体什么时间使用这个变量就需要一个通知。即将切面与目标对象连接起来。
 
-（4）
+（3）通知参数：
+有时候我们定义切面的时候，切面中需要使用到目标对象的某个参数，要使切面能得到目标对象的参数就需要引入通知参数。
+任何通知方法可以将第一个参数定义为org.aspectj.lang.JoinPoint类型（环绕通知需要定义第一个参数为ProceedingJoinPoint类型，它是 JoinPoint 的一个子类）。
+JoinPoint接口提供了一系列有用的方法，比如 getArgs()（返回方法参数）、getThis()（返回代理对象）、getTarget()（返回目标）、getSignature()（返回正在被通知的方法相关信息）和 toString()（打印出正在被通知的方法的有用信息）。
+然后在切面函数中就可以通过这个类提供的方法来完成对目标对象信息的访问。
+
+（4）切入点表达式：
+上述切入点注解中，可以用切入点表达式来完成对要进行织入对象的定位，从而让Spring准确的找到需要进行织入的对象。
+切入点表达式的格式：
+```java
+execution([可见性] 返回类型 [声明类型].方法名(参数) [异常])
+``
+
+
 
 
 ##### Spring中使用AOP需要依赖的jar包说明：
