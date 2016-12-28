@@ -2,6 +2,95 @@
 
 学习笔记，来源广泛 hellmonky
 
+<!-- TOC -->
+
+- [docker基本技术原理和实现](#docker%E5%9F%BA%E6%9C%AC%E6%8A%80%E6%9C%AF%E5%8E%9F%E7%90%86%E5%92%8C%E5%AE%9E%E7%8E%B0)
+    - [第零节 centos7安装测试docker](#%E7%AC%AC%E9%9B%B6%E8%8A%82-centos7%E5%AE%89%E8%A3%85%E6%B5%8B%E8%AF%95docker)
+        - [安装更新docker：](#%E5%AE%89%E8%A3%85%E6%9B%B4%E6%96%B0docker)
+        - [编写dockerfile生成镜像：](#%E7%BC%96%E5%86%99dockerfile%E7%94%9F%E6%88%90%E9%95%9C%E5%83%8F)
+    - [第一节 docker的基本概念](#%E7%AC%AC%E4%B8%80%E8%8A%82-docker%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5)
+        - [1 docker的两个基础技术：namespace和cgroup。](#1-docker%E7%9A%84%E4%B8%A4%E4%B8%AA%E5%9F%BA%E7%A1%80%E6%8A%80%E6%9C%AFnamespace%E5%92%8Ccgroup)
+        - [2 Docker是CS架构，主要由下面三部分组成：](#2-docker%E6%98%AFcs%E6%9E%B6%E6%9E%84%E4%B8%BB%E8%A6%81%E7%94%B1%E4%B8%8B%E9%9D%A2%E4%B8%89%E9%83%A8%E5%88%86%E7%BB%84%E6%88%90)
+        - [3 Docker的两个主要概念：](#3-docker%E7%9A%84%E4%B8%A4%E4%B8%AA%E4%B8%BB%E8%A6%81%E6%A6%82%E5%BF%B5)
+    - [第二节 docker的文件系统](#%E7%AC%AC%E4%BA%8C%E8%8A%82-docker%E7%9A%84%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F)
+        - [1 linux文件系统](#1-linux%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F)
+        - [2 AUFS文件系统初识：](#2-aufs%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E5%88%9D%E8%AF%86)
+        - [Device Mapper：](#device-mapper)
+        - [3 docker image tarball结构分析：](#3-docker-image-tarball%E7%BB%93%E6%9E%84%E5%88%86%E6%9E%90)
+        - [docker的存储模型](#docker%E7%9A%84%E5%AD%98%E5%82%A8%E6%A8%A1%E5%9E%8B)
+        - [2 docker image存储结构](#2-docker-image%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84)
+        - [4 docker的容器存储结构](#4-docker%E7%9A%84%E5%AE%B9%E5%99%A8%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84)
+
+<!-- /TOC -->
+
+## 第零节 centos7安装测试docker
+这一节主要概述在centos7平台下安装部署docker和其镜像的过程，在使用中进行学习。
+
+### 安装更新docker：
+首先查看当前系统安装的docker组件：
+```shell
+rpm -qa|grep docker
+```
+返回：
+```shell
+docker-engine-selinux-1.9.1-1.el7.centos.noarch
+docker-engine-1.9.1-1.el7.centos.x86_64
+```
+然后全部卸载：
+```shell
+yum remove docker-*
+```
+
+接着从官方网站下载最新的docker进行安装：
+```shell
+curl -fsSL https://get.docker.com/ | sh
+```
+执行完毕之后重启docker服务：
+```shell
+systemctl restart docker
+```
+就可以查看当前的docker版本：
+```shell
+docker version
+```
+返回：
+```shell
+Client:
+ Version:      1.12.5
+ API version:  1.24
+ Go version:   go1.6.4
+ Git commit:   7392c3b
+ Built:        Fri Dec 16 02:23:59 2016
+ OS/Arch:      linux/amd64
+ 
+Server:
+ Version:      1.12.5
+ API version:  1.24
+ Go version:   go1.6.4
+ Git commit:   7392c3b
+ Built:        Fri Dec 16 02:23:59 2016
+ OS/Arch:      linux/amd64
+```
+
+最后，将docker服务设置为开机自动启动：
+```shell
+chkconfig docker on
+```
+返回：
+```shell
+注意：正在将请求转发到“systemctl enable docker.service”。
+Created symlink from /etc/systemd/system/multi-user.target.wants/docker.service to /usr/lib/systemd/system/docker.service.
+```
+表示开机启动成功。
+
+此处采用了旧式的 sysv 语法，如采用CentOS 7中支持的新式 systemd 语法来添加开机启动，如下：
+```shell
+systemctl  enable docker.service
+```
+
+### 编写dockerfile生成镜像：
+
+
 ## 第一节 docker的基本概念
 ### 1 docker的两个基础技术：namespace和cgroup。
 （1）cgroup主要作资源的限制隔离，它可以限制一组进程中能使用的最大资源使用量，相对比较好理解；

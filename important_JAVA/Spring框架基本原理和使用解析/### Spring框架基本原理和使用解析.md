@@ -22,11 +22,17 @@ Spring作为javaEE的开发框架被广泛的使用，那么作为一个java开�
             - [（3）关于Spring中使用AOP的一些优化：](#3%E5%85%B3%E4%BA%8Espring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E4%B8%80%E4%BA%9B%E4%BC%98%E5%8C%96)
             - [（4）Spring中多个切面的合并：](#4spring%E4%B8%AD%E5%A4%9A%E4%B8%AA%E5%88%87%E9%9D%A2%E7%9A%84%E5%90%88%E5%B9%B6)
             - [（5）切面中获取目标方法的信息：](#5%E5%88%87%E9%9D%A2%E4%B8%AD%E8%8E%B7%E5%8F%96%E7%9B%AE%E6%A0%87%E6%96%B9%E6%B3%95%E7%9A%84%E4%BF%A1%E6%81%AF)
+        - [Spring AOP中的切入点语法：](#spring-aop%E4%B8%AD%E7%9A%84%E5%88%87%E5%85%A5%E7%82%B9%E8%AF%AD%E6%B3%95)
+            - [切入点定义和引用：](#%E5%88%87%E5%85%A5%E7%82%B9%E5%AE%9A%E4%B9%89%E5%92%8C%E5%BC%95%E7%94%A8)
+            - [切入点表达式：](#%E5%88%87%E5%85%A5%E7%82%B9%E8%A1%A8%E8%BE%BE%E5%BC%8F)
+            - [切入点表达式中方法表达式的通配符的示例：](#%E5%88%87%E5%85%A5%E7%82%B9%E8%A1%A8%E8%BE%BE%E5%BC%8F%E4%B8%AD%E6%96%B9%E6%B3%95%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%9A%84%E9%80%9A%E9%85%8D%E7%AC%A6%E7%9A%84%E7%A4%BA%E4%BE%8B)
+            - [切入点表达式示例：](#%E5%88%87%E5%85%A5%E7%82%B9%E8%A1%A8%E8%BE%BE%E5%BC%8F%E7%A4%BA%E4%BE%8B)
         - [Spring中使用AOP的注解和语法汇总说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E7%9A%84%E6%B3%A8%E8%A7%A3%E5%92%8C%E8%AF%AD%E6%B3%95%E6%B1%87%E6%80%BB%E8%AF%B4%E6%98%8E)
             - [（1）涉及到的注解：](#1%E6%B6%89%E5%8F%8A%E5%88%B0%E7%9A%84%E6%B3%A8%E8%A7%A3)
-            - [（2）重点注解的用法：](#2%E9%87%8D%E7%82%B9%E6%B3%A8%E8%A7%A3%E7%9A%84%E7%94%A8%E6%B3%95)
+            - [（2）重要注解的用法：](#2%E9%87%8D%E8%A6%81%E6%B3%A8%E8%A7%A3%E7%9A%84%E7%94%A8%E6%B3%95)
             - [（3）通知参数：](#3%E9%80%9A%E7%9F%A5%E5%8F%82%E6%95%B0)
             - [（4）切入点定义：](#4%E5%88%87%E5%85%A5%E7%82%B9%E5%AE%9A%E4%B9%89)
+        - [Spring中使用AOP需要依赖的jar包说明：](#spring%E4%B8%AD%E4%BD%BF%E7%94%A8aop%E9%9C%80%E8%A6%81%E4%BE%9D%E8%B5%96%E7%9A%84jar%E5%8C%85%E8%AF%B4%E6%98%8E)
 
 <!-- /TOC -->
 
@@ -1190,6 +1196,386 @@ public void access(Date time, String name, Object returnValue)
 ```
 只需要满足另外的参数名的顺序和pointcut中args(param1, param2)的顺序相同即可。
 
+##### Spring AOP中的切入点语法：
+AspectJ和Spring都提供了切入点的定义。所谓定义切入点，其实质就是为一个切入点表达式起一个名称，从而允许在多个增强处理中重用该名称。
+
+###### 切入点定义和引用：
+Spring AOP只支持以Spring Bean的方法执行组作为切入点，所以可以把切入点看作所有能和切入表达式匹配的Bean方法。切入点定义包含两个部分：
+> - 一个切入点表达式：用于指定切入点和哪些方法进行匹配
+> - 一个包含名字和任意参数的方法签名：将作为切入点的名称
+
+在@AspectJ风格的AOP中，切入点签名采用一个普通的方法定义（方法体通常为空）来提供（方法名即为切点名），且该方法的返回值必须为void，切入点表达式需使用@Pointcut注解来标注。
+
+我们还是用上面的例子来进行分析：
+
+```java
+@Pointcut("execution(public * cn.ac.iscas.controller.Welcome.sayHello(..))")
+public void welcomeSayHelloLog(){}
+```
+这个代码片段中，定义了一个切入点：
+> - 使用@Pointcut注解时指定切入点表达式；
+> - 使用一个返回值为void，方法体为空的方法来命名切入点，方法名即为切点名。
+
+切入点表达式，也就是组成@Pointcut注解的值，是规范的AspectJ 5切入点表达式。
+
+一旦采用上面的代码片段定义了名为welcomeSayHelloLog的切入点之后，程序就可以多次重复使用该切点了，甚至可以在其他切面类、其他包的切面类里使用该切点，至于是否可以在其他切面类、其他包下使用这个切点，那就要看该方法前的访问控制修饰符了——本例中welcomeSayHelloLog使用public修饰，则意味着可以在其他引用了这个类的切面类中使用这个切入点。如果使用private修饰，则意味着仅能在当前切面类中使用这个切点。
+
+<1> 在本类中使用定义的切入点：
+我们已经在UserLoginAspectService中通过上述方式定义了一个切入点，然后在其他的增强方法中使用这个切入点，则可在使用@Pointcut注解时，指定value属性值为已有的切入点：
+
+```java
+@AfterReturning(pointcut = "welcomeSayHelloLog()", returning = "ret")
+    public void doAfterReturning(Object ret){
+        Long currentSpendTime = System.currentTimeMillis() - timer.get();
+        this.logService.info("with return value:"+ret+","+currentSpendTime.toString());
+    }
+```
+从指定pointcut来看，其语法非常类似于Java中调用方法——只是该方法代表一个切点，其实质是为该增强处理方法定义一个切入点表达式。
+
+<2> 在当前切面类中使用其他切面类定义的切入点：
+如果需要使用其他类中定义的切点，则定义这些切点的方法的修饰符不能为private，保证可见性。
+例如，我们要使用UserLoginAspectService中定义的userloginCheck切入点：
+
+```java
+@Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    public void userloginCheck(){}
+```
+在WelcomeSayHelloAspectService中的AfterReturning是被调用，则在引用的时候需要带上类名：
+
+```java
+@AfterReturning(returning = "ret", pointcut = "UserLoginAspectService.userloginCheck() && welcomeSayHelloLog()")
+    public void doAfterReturning(Object ret){
+        Long currentSpendTime = System.currentTimeMillis() - timer.get();
+        this.logService.info("with return value:"+ret+","+currentSpendTime.toString());
+    }
+```
+
+###### 切入点表达式：
+AOP中的核心在于要规定切入点表达式如何和切入点匹配，Spring缺省使用AspectJ切入点语法。
+切入点表达式的结果就是@Pointcut注解的值，Spring通过这个值来完成切入点的匹配，也就是说，这个表达式决定了我们需要对关注那个方法的执行进行增强。
+
+总体上，切入点指示符和切入点指示符的方法表达式的组合为一个切入点表达式：
+```content
+切入点指示符(方法表达式)
+```
+其中方法表达式根据不同的切入点指示符而不同。
+
+例如，前面定义切入点时，在注解中使用了切入点表达式为execution表达式，其中execution就是一个切入点指示符。
+
+<1> 切入点指示符:
+Spring AOP仅支持部分AspectJ的切入点指示符，但Spring AOP还额外支持一个bean切入点指示符。不仅如此，因为Spring AOP只支持使用方法调用作为连接点，所以Spring AOP的切入点指示符仅匹配方法执行的连接点。
+Spring AOP支持在切入点表达式中使用如下的切入点指示符：
+```content
+execution：用于匹配方法执行的连接点；
+within：用于匹配指定类型内的方法执行；
+this：用于匹配当前AOP代理对象类型的执行方法；注意是AOP代理对象的类型匹配，这样就可能包括引入接口也类型匹配；
+target：用于匹配当前目标对象类型的执行方法；注意是目标对象的类型匹配，这样就不包括引入接口也类型匹配；
+args：用于匹配当前执行的方法传入的参数为指定类型的执行方法；
+@within：用于匹配所以持有指定注解类型内的方法；
+@target：用于匹配当前目标对象类型的执行方法，其中目标对象持有指定的注解；
+@args：用于匹配当前执行的方法传入的参数持有指定注解的执行；
+@annotation：用于匹配当前执行方法持有指定注解的方法；
+bean：Spring AOP扩展的，AspectJ没有对于指示符，用于匹配特定名称的Bean对象的执行方法；
+reference pointcut：表示引用其他命名切入点，只有@ApectJ风格支持，Schema风格不支持。
+```
+AspectJ切入点支持的切入点指示符还有： call、get、set、preinitialization、staticinitialization、initialization、handler、adviceexecution、withincode、cflow、cflowbelow、if、@this、@withincode；但Spring AOP目前不支持这些指示符，使用这些指示符将抛出IllegalArgumentException异常。这些指示符Spring AOP可能会在以后进行扩展。
+
+<2> 方法表达式的通配符：
+方法表达式的通配符是符合AspectJ 5规范的类型匹配的通配符，主要包含三种：
+```content
+*：匹配任何数量字符；
+..：匹配任何数量字符的重复，如在类型模式中匹配任何数量子包；而在方法参数模式中匹配任何数量参数。
++：匹配指定类型的子类型；仅能作为后缀放在类型模式后边。
+```
+例如上述execution表达式中，使用了AspectJ类型匹配的通配符来对需要匹配的内容进行描述。
+
+<3> 方法表达式的组合逻辑符：
+方法表达式可以通过组合的方式进行逻辑关联：
+AspectJ使用 且（&&）、或（||）、非（！）来组合切入点表达式。
+> 注意：在Schema风格下，由于在XML中使用“&&”需要使用转义字符“&amp;&amp;”来代替之，所以很不方便，因此Spring ASP 提供了and、or、not来代替&&、||、！。
+
+###### 切入点表达式中方法表达式的通配符的示例：
+根据上述切入点表达式和组合逻辑操作符，我们实际来举例子来说明具体的匹配方式。
+
+<1> 包路径的匹配：
+匹配包的例子：
+```content
+java.lang.String        匹配String类型；  
+java.*.String           匹配java包下的任何“一级子包”下的String类型；如匹配java.lang.String，但不匹配java.lang.ss.String  
+java..*                 匹配java包及任何子包下的任何类型；如匹配java.lang.String、java.lang.annotation.Annotation  
+java.lang.*ing          匹配任何java.lang包下的以ing结尾的类型；  
+java.lang.Number+       匹配java.lang包下的任何Number的自类型；如匹配java.lang.Integer，也匹配java.math.BigInteger 
+```
+可以看出，这些通配符和正则表达式中的含义是不一样的。
+
+<1> 匹配表达式类型：
+可以对具体的表达式类型进行匹配，具体语法为：
+```content
+匹配类型：注解？ 类的全限定名字
+```
+其中：
+```content
+注解：可选，类型上持有的注解，如@Deprecated；
+类的全限定名：必填，可以是任何类全限定名
+```
+例如：
+@Deprecated java.lang.String
+表示：
+任何持有java.lang.String类型，并且类型上有@Deprecated注解的类型。
+
+
+<2> 匹配方法执行：
+可以对一个可执行方法进行匹配，具体的语法为：
+```content
+注解？ 修饰符? 返回值类型 类型声明?方法名(参数列表) 异常列表？ 
+```
+其中：
+```content
+注解：可选，方法上持有的注解，如@Deprecated；
+修饰符：可选，如public、protected；
+返回值类型：必填，可以是任何类型模式；“*”表示所有类型；
+类型声明：可选，可以是任何类型模式；
+方法名：必填，可以使用“*”进行模式匹配；
+参数列表：“()”表示方法没有任何参数；“(..)”表示匹配接受任意个参数的方法，“(..,java.lang.String)”表示匹配接受java.lang.String类型的参数结束，且其前边可以接受有任意个参数的方法；“(java.lang.String,..)” 表示匹配接受java.lang.String类型的参数开始，且其后边可以接受任意个参数的方法；“(*,java.lang.String)” 表示匹配接受java.lang.String类型的参数结束，且其前边接受有一个任意类型参数的方法；
+异常列表：可选，以“throws 异常全限定名列表”声明，异常全限定名列表如有多个以“，”分割，如throws java.lang.IllegalArgumentException, java.lang.ArrayIndexOutOfBoundsException。
+```
+例如：
+@java.lang.Deprecated * *(..)
+表示：
+任何持有@java.lang.Deprecated注解的，任何有效范围的，返回任何类型，任何参数的方法。
+
+<3> 匹配Bean名称：
+还可以针对具体的Bean进行匹配，这个是Spring AOP特别支持的。可以使用Bean的id或name进行匹配，并且可使用通配符“*”。
+例如：
+```content
+bean(*Service) // 匹配名字后缀为 Service 的 bean 下的所有方法
+bean(myService) // 匹配名字为 myService 的 bean 下的所有方法
+```
+
+###### 切入点表达式示例：
+除去常用的execution切入点指示符，还有很多其他的指示符，我们看看每个切入点指示符构成的切入点表达式的具体含义和语法。
+
+<1> execution切入点表达式的使用语法：
+execution指示符用于匹配执行方法的连接点，这是Spring AOP中最主要的切入点指示符。并且execution切入点指示符的表达式语法最为复杂，根据[官方文档](http://docs.spring.io/spring/docs/current/spring-framework-reference/html/aop.html#aop-ataspectj)具体为：
+```expression
+execution(modifiers-pattern? ret-type-pattern declaring-type-pattern? name-pattern(param-pattern) throws-pattern?)
+```
+也就是：
+```expression
+execution([可见性] 返回类型 [声明类型].方法名(参数) [异常])
+```
+上面的格式中，execution是不变的，用于作为execution表达式的开头，整个表达式中几个参数的详细解释如下：
+```expression
+modifiers-pattern：指定方法的修饰符，支持通配符，该部分可以省略
+ret-type-pattern：指定返回值类型，支持通配符，可以使用“*”来通配所有的返回值类型
+declaring-type-pattern：指定方法所属的类，支持通配符，该部分可以省略
+name-pattern：指定匹配的方法名，支持通配符，可以使用“*”来通配所有的方法名
+param-pattern：指定方法的形参列表，支持两个通配符，“*”和“..”，其中“*”代表一个任意类型的参数，而“..”代表0个或多个任意类型的参数。
+throw-pattern：指定方法声明抛出的异常，支持通配符，该部分可以省略
+```
+
+例如：
+```content
+execution(public * * (..))//匹配所有public方法
+execution(* set*(..))//匹配以set开始的方法
+execution(* com.abc.service.AdviceManager.* (..))//匹配AdviceManager中任意方法
+execution(* com.abc.service.*.* (..))//匹配com.abc.servcie包中任意类的任意方法
+```
+
+<2> within切入点表达式的使用语法：
+within指示符用来限定匹配特定类型的连接点。
+例如：
+```content
+within(com.abc.service.*)//匹配com.abc.service包中的任意连接点
+within(com.abc.service..*)//匹配com.abc.service包或子包中任意的连接点
+```
+
+<3> this切入点表达式的使用语法：
+this用于指定AOP代理必须是指定类型的实例，用于匹配该对象的所有连接点。
+例如：
+```content
+this(com.abc.service.AdviceManager)
+```
+这个匹配实现了AdviceManager接口的代理对象的所有连接点。
+
+
+<4> target切入点表达式的使用语法：
+target用于限定目标对象必须是指定类型的实例，用于匹配该对象的所有连接点。
+例如：
+```content
+target(com.abc.servcie.AdviceManager)
+```
+匹配实现了AdviceManager接口的目标对象的所有连接点。
+
+<5> args切入点表达式的使用语法：
+args用于对连接点的参数类型进行限制，要求参数的类型时指定类型的实例。
+例如：
+```content
+args(java.io.Serializable)
+```
+匹配只接受一个参数，且参数类型是Serializable的所有连接点。
+
+注意，这个例子与使用execution(* *(java.io.Serializable))定义的切点不同，args版本只匹配运行时动态传入参数值是Serializable类型的情形，而execution版本则匹配方法签名只包含一个Serializable类型的形参的方法。
+
+<6> Bean切入点表达式的使用语法：
+Spring AOP还提供了一个名为bean的切入点提示符，它是Spring AOP额外支持的，并不是AspectJ所支持的切入点指示符。这个指示符对Spring框架来说非常有用：它将指定为Spring中的哪个Bean织入增强处理。
+Bean用于指定只匹配该Bean实例内的连接点，实际上只能使用方法执行作为连接点。定义bean表达式时需要传入Bean的id或name，支持使用"*"通配符。
+例如：
+```content
+bean(adviceManager)
+```
+匹配adviceManager实例内方法执行的连接点。
+```content
+bean(*Manager)
+```
+匹配以Manager结尾的实例内方法执行的连接点。
+
+<7> reference pointcut切入点表达式的使用语法：
+reference pointcut表示引用其他命名切入点，但是只有@ApectJ风格支持，Schema风格不支持。
+例如：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.bean.logBean.InfoLogBean;
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
+import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
+/**
+ * Created by wentao on 2016/12/20.
+ *
+ * 用户登入授权校验AOP
+ *
+ */
+
+
+@Aspect
+@Component
+@Order(10)
+public class UserLoginAspectService {
+
+    // 日志记录调用
+    private static LogService logService = LogService.getInstance();
+    // 线程安全的计时器：
+    private ThreadLocal<Long> timer = new ThreadLocal<>();
+
+    public UserLoginAspectService(){}
+
+    // 对所有controller层都进行检查：
+    @Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    public void userloginCheck(){}
+
+    .....
+}
+```
+在另一个类中对命名切入点的引用：
+
+```java
+package cn.ac.iscas.aspect;
+
+import cn.ac.iscas.services.loggerService.impl.LogService;
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.springframework.stereotype.Component;
+
+import java.util.Objects;
+
+/**
+ * Created by wentao on 2016/12/22.
+ */
+
+@Aspect
+@Component
+public class WelcomeSayHelloAspectService {
+
+    // 日志记录调用
+    private static LogService logService = LogService.getInstance();
+    // 支持同步的计时器，表明是当前线程自有变量：
+    ThreadLocal<Long> timer = new ThreadLocal<>();
+
+    public WelcomeSayHelloAspectService(){}
+
+    @Pointcut("execution(public * cn.ac.iscas.controller.Welcome.sayHello(..))")
+    private void welcomeSayHelloLog(){}
+
+
+    @Before("welcomeSayHelloLog() && args(content)")
+    public void doBefore(String content){
+        System.out.println(content);
+        timer.set(System.currentTimeMillis());
+        this.logService.info(timer.get().toString());
+    }
+
+
+    @AfterReturning(returning = "ret", pointcut = "UserLoginAspectService.userloginCheck() && welcomeSayHelloLog()")
+    public void doAfterReturning(Object ret){
+        Long currentSpendTime = System.currentTimeMillis() - timer.get();
+        this.logService.info("with return value:"+ret+","+currentSpendTime.toString());
+    }
+
+    ....
+}
+```
+其中：pointcut = "UserLoginAspectService.userloginCheck() && welcomeSayHelloLog()"
+用完整类名加切入点命名来进行引用。
+
+除了可以在@AspectJ风格的切面内引用外，也可以在Schema风格的切面定义内引用，引用方式与@AspectJ完全一样。
+例如：
+
+```java
+    // 对所有controller层都进行检查：
+    @Pointcut("execution(public * cn.ac.iscas.controller..*.*(..))")
+    public void userloginCheck(){}
+
+    @Before("userloginCheck()")
+    public void doBefore(){
+        timer.set(System.currentTimeMillis());
+        InfoLogBean bean = new InfoLogBean();
+        bean.setLogContent("user login check start");
+        this.logService.info(bean.getLogContent());
+    }
+```
+表示在同一个类中引用命名切入点。
+
+
+<8> @within切入点表达式的使用语法：
+@within用于匹配在类一级使用了参数确定的注解的类，其所有方法都将被匹配。 
+例如：
+```content
+@Pointcut("@within(com.cjm.annotation.AdviceAnnotation)") 
+public void before(){}
+```
+所有被@AdviceAnnotation标注的类都将匹配。
+
+<9> @target切入点表达式的使用语法：
+@target和@within的功能类似，但必须要指定注解接口的保留策略为RUNTIME。
+```content
+@Pointcut("@target(com.cjm.annotation.AdviceAnnotation)")
+public void before(){}
+```
+
+<10> @args切入点表达式的使用语法：
+@args传入连接点的对象对应的Java类必须被@args指定的Annotation注解标注。
+```content
+@Before("@args(com.cjm.annotation.AdviceAnnotation)")
+public void beforeAdvide(JoinPoint point){
+    //处理逻辑
+}
+```
+
+<11> @annotation切入点表达式的使用语法：
+@annotation匹配连接点被它参数指定的Annotation注解的方法。也就是说，所有被指定注解标注的方法都将匹配。
+```content
+@Pointcut("@annotation(com.cjm.annotation.AdviceAnnotation)")
+public void before(){}
+```
+
 ##### Spring中使用AOP的注解和语法汇总说明：
 本节主要参考：
 > - [【spring-boot】spring aop 面向切面编程初接触](http://www.cnblogs.com/lic309/p/4079194.html)
@@ -1258,7 +1644,7 @@ Spring还提供有：@Repository、@Service、@Controller和@Component都可以�
 ```
 其中ProceedingJoinPoint pjp就是代理参数。
 
-###### （2）重点注解的用法：
+###### （2）重要注解的用法：
 我们在SpringBoot中已经用了相关的注解完成了Spring对AOP的配置支持，我们现在更为详细的看一下注解的用法。
 <1> @Aspect注解：
 当我们定义了一个切面类，一定要通过这个注解告诉Spring，让他完成对应的加载操作。
@@ -1267,7 +1653,7 @@ Spring还提供有：@Repository、@Service、@Controller和@Component都可以�
 Spring AOP只支持Spring bean的方法执行连接点。所以你可以把切入点看做是Spring bean上方法执行的匹配。一个切入点声明有两个部分：一个包含名字和任意参数的签名，还有一个切入点表达式，该表达式决定了我们关注那个方法的执行。
 并且作为切入点签名的方法必须返回void 类型。例如上述代码中的：requestMapping()函数。
 
-Spring AOP支持在切入点表达式中使用如下的切入点指示符：
+Spring AOP支持在切入点表达式中使用切入点指示符，但仅支持部分AspectJ的切入点指示符，并且Spring AOP还额外支持一个bean切入点指示符：
 ```note
 execution - 匹配方法执行的连接点，这是你将会用到的Spring的最主要的切入点指示符。
 within - 限定匹配特定类型的连接点（在使用Spring AOP的时候，在匹配的类型中定义的方法的执行）。
@@ -1278,9 +1664,12 @@ args - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行
 @args - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行），其中实际传入参数的运行时类型持有指定类型的注解。
 @within - 限定匹配特定的连接点，其中连接点所在类型已指定注解（在使用Spring AOP的时候，所执行的方法所在类型已指定注解）。
 @annotation - 限定匹配特定的连接点（使用Spring AOP的时候方法的执行），其中连接点的主题持有指定的注解。
+beab - 通过受管Bean的名字来限定连接点所在的Bean。该关键词是Spring2.5新增的。这个指示符对Spring框架来说非常有用：它将指定为Spring中的哪个Bean织入增强处理。
 ```
 其中execution使用最频繁，即某方法执行时进行切入。定义切入点中有一个重要的知识，即切入点表达式，我们一会在解释怎么写切入点表达式。
 切入点意思就是在什么时候切入什么方法，定义一个切入点就相当于定义了一个“变量”，具体什么时间使用这个变量就需要一个通知。即将切面与目标对象连接起来。
+
+完整的AspectJ切入点语言支持大量切入点指示符，但是Spring并不支持它们。它们是：call，get，preinitialization，staticinitialization，initialization，handler，adviceexecution，withincode，cflow，cflowbelow，if，@this和@withincode。一旦在Spring AOP中使用这些切点指示符，就会抛出IllegalArgumentException。
 
 ###### （3）通知参数：
 有时候我们定义切面的时候，切面中需要使用到目标对象的某个参数，要使切面能得到目标对象的参数就需要引入通知参数。
@@ -1289,33 +1678,8 @@ JoinPoint接口提供了一系列有用的方法，比如 getArgs()（返回方�
 然后在切面函数中就可以通过这个类提供的方法来完成对目标对象信息的访问。
 
 ###### （4）切入点定义：
-在上述实例中，我们使用了一个入口函数作为切入点的代理，然后在不同的增强函数中使用这个切入点来进行增强说明。
+在上述实例中，我们使用了一个入口函数作为切入点的代理，然后在不同的增强函数中使用这个切入点来进行增强说明。这个入口函数包含注解就是一个完整的切入点定义。
 所谓定义切入点，其实质就是为一个切入点表达式起一个名称，从而允许在多个增强处理中重用该名称。
-切入点定义包含两个部分：
-> - 一个切入点表达式：用于指定切入点和哪些方法进行匹配
-> - 一个包含名字和任意参数的方法签名：将作为切入点的名称
-
-
-上述切入点注解中，可以用切入点表达式来完成对要进行织入对象的定位，从而让Spring准确的找到需要进行织入的对象。
-切入点表达式的格式：
-```java
-execution([可见性] 返回类型 [声明类型].方法名(参数) [异常])
-``
-其中：
-```shell
-[] : 表示其中的内容为可选的
-*  : 表示可以匹配所有字符
-.. : 一般用于匹配多个包，多个参数
-+  : 表示类及其子类
-```
-运算符有：
-```shell
-&& : 表示与，表示两个条件都需要满足
-|| : 表示或，两个条件满足一个即可
-!  : 表示否定
-```
-
-
 
 
 ##### Spring中使用AOP需要依赖的jar包说明：
