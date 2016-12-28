@@ -134,6 +134,16 @@ struct iso_block_store {
 
 ## 2 Linux kernel经典代码分析：
 
+### 2.1 链表：
+在linux内核的驱动开发中，链表有着重要的作用。内核中的链表实现位于：
+```shell
+../include/linux/list.h
+```
+链表的基本结构很简单：
+```shell
+
+```
+
 
 
 

@@ -1,0 +1,27 @@
+调研树莓派：
+
+树莓派都出到3了啊！但是自己还都没有玩过，原因在于：1 自己对linux还是不熟悉，无法自己制作可引导的内核还有文件系统；2 不知道他能用来干嘛，作为服务器使用？
+其实有时候push自己一下就好了，买来了不用不是浪费了？所以先调研一下能用来干嘛好了。
+
+（1）制作自己的GB：
+小时候买不起的游戏机，长大了想再玩一下怎么样？买现成的不开心，还是自己动手做一个吧，国外很多达人已经做出来了，可以参考试试哦。
+基础原料：
+制作过程：
+
+参考文档：
+http://kmavi.blogspot.jp/2016/06/gb-gameboy-pi.html
+https://github.com/retropie/retropie-setup/wiki/First-Installation
+https://github.com/Aloshi/EmulationStation
+http://lifehacker.com/how-to-turn-your-raspberry-pi-into-a-retro-game-console-498561192
+http://imgur.com/gallery/TKhgi
+
+（2）制作自己的小电脑：
+既然Raspberry pi功能可以跑得起来linux，那就直接打造一台自己的随身电脑好了，就像手机一样，但是又功能强大。
+参考文档：
+http://www.pcworld.com/article/2023218/turn-your-raspberry-pi-into-a-tiny-linux-laptop.html
+http://n-o-d-e.net/post/107977286006/how-to-create-a-handheld-linux-terminal
+http://imgur.com/gallery/J0P5n
+https://learn.adafruit.com/touch-pi-portable-raspberry-pi/overview
+http://blog.parts-people.com/2012/12/20/mobile-raspberry-pi-computer-build-your-own-portable-rpi-to-go/
+http://lifehacker.com/build-a-tiny-foldable-raspberry-pi-powered-pocket-comp-1710386087
+

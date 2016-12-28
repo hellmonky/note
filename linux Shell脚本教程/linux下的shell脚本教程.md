@@ -5,6 +5,9 @@
 - [linux下的shell脚本教程](#linux%E4%B8%8B%E7%9A%84shell%E8%84%9A%E6%9C%AC%E6%95%99%E7%A8%8B)
     - [shell的基本概念：](#shell%E7%9A%84%E5%9F%BA%E6%9C%AC%E6%A6%82%E5%BF%B5)
     - [Bash Shell基本语法：](#bash-shell%E5%9F%BA%E6%9C%AC%E8%AF%AD%E6%B3%95)
+        - [一个简单的Shell实例：](#%E4%B8%80%E4%B8%AA%E7%AE%80%E5%8D%95%E7%9A%84shell%E5%AE%9E%E4%BE%8B)
+            - [作为可执行程序运行脚本：](#%E4%BD%9C%E4%B8%BA%E5%8F%AF%E6%89%A7%E8%A1%8C%E7%A8%8B%E5%BA%8F%E8%BF%90%E8%A1%8C%E8%84%9A%E6%9C%AC)
+            - [作为解释器参数运行脚本：](#%E4%BD%9C%E4%B8%BA%E8%A7%A3%E9%87%8A%E5%99%A8%E5%8F%82%E6%95%B0%E8%BF%90%E8%A1%8C%E8%84%9A%E6%9C%AC)
         - [Shell变量：](#shell%E5%8F%98%E9%87%8F)
     - [看看别人是怎么用shell脚本来执行任务的：](#%E7%9C%8B%E7%9C%8B%E5%88%AB%E4%BA%BA%E6%98%AF%E6%80%8E%E4%B9%88%E7%94%A8shell%E8%84%9A%E6%9C%AC%E6%9D%A5%E6%89%A7%E8%A1%8C%E4%BB%BB%E5%8A%A1%E7%9A%84)
     - [使用shell完成一些基本任务：](#%E4%BD%BF%E7%94%A8shell%E5%AE%8C%E6%88%90%E4%B8%80%E4%BA%9B%E5%9F%BA%E6%9C%AC%E4%BB%BB%E5%8A%A1)
@@ -40,6 +43,8 @@ Shell脚本和编程语言很相似，也有变量和流程控制语句，但She
 因为shell脚本需要调用系统功能来执行任务，为了安全起见，一般不适用root权限来运行shell脚本。
 
 ## Bash Shell基本语法：
+
+### 一个简单的Shell实例：
 还是以Bash解释器的Shell脚本为例，首先试试第一个shell脚本：
 
 ```shell
@@ -48,6 +53,11 @@ echo "Hello World !"
 ```
 其中：#!” 是一个约定的标记，它告诉系统这个脚本需要什么解释器来执行，即使用哪一种Shell。echo命令用于向窗口输出文本。
 
+编写完成后，需要运行这个Shell脚本，有两种方式：
+> - 1. 作为可执行程序
+> - 2. 作为解释器参数
+
+#### 作为可执行程序运行脚本：
 将上面的代码保存为test.sh，并 cd 到相应目录，就可以执行这个脚本了：
 
 ```shell
@@ -57,6 +67,11 @@ chmod +x ./test.sh
 ./test.sh  
 ```
 就可以在terminal中看到输出了：Hello World !
+
+#### 作为解释器参数运行脚本：
+
+
+
 我们的第一个shell脚本完成了，现在来详细看看shell脚本的基本语法。
 
 ### Shell变量：
