@@ -2,24 +2,28 @@
 
 ** 通过docker源代码阅读完成对Go语言的初步学习
 ** RTFSC：在实战中学习才能学到真的东西
+> - 希望自己能越过自己思维中的沟壑，看到更大的世界:)
 
 <!-- TOC -->
 
-- [GoLang学习](#golang%E5%AD%A6%E4%B9%A0)
-    - [从编写程序的角度来学习Go的基础：](#%E4%BB%8E%E7%BC%96%E5%86%99%E7%A8%8B%E5%BA%8F%E7%9A%84%E8%A7%92%E5%BA%A6%E6%9D%A5%E5%AD%A6%E4%B9%A0go%E7%9A%84%E5%9F%BA%E7%A1%80)
-        - [那么开始动手的时候，需要什么基本组件：](#%E9%82%A3%E4%B9%88%E5%BC%80%E5%A7%8B%E5%8A%A8%E6%89%8B%E7%9A%84%E6%97%B6%E5%80%99%E9%9C%80%E8%A6%81%E4%BB%80%E4%B9%88%E5%9F%BA%E6%9C%AC%E7%BB%84%E4%BB%B6)
-            - [首先，从函数入手：](#%E9%A6%96%E5%85%88%E4%BB%8E%E5%87%BD%E6%95%B0%E5%85%A5%E6%89%8B)
-                - [1 看看关于函数的一些BNF定义：](#1-%E7%9C%8B%E7%9C%8B%E5%85%B3%E4%BA%8E%E5%87%BD%E6%95%B0%E7%9A%84%E4%B8%80%E4%BA%9Bbnf%E5%AE%9A%E4%B9%89)
-                    - [函数声明：](#%E5%87%BD%E6%95%B0%E5%A3%B0%E6%98%8E)
-                    - [函数类型：](#%E5%87%BD%E6%95%B0%E7%B1%BB%E5%9E%8B)
-                    - [方法：](#%E6%96%B9%E6%B3%95)
-                - [2 实际看看一个函数：](#2-%E5%AE%9E%E9%99%85%E7%9C%8B%E7%9C%8B%E4%B8%80%E4%B8%AA%E5%87%BD%E6%95%B0)
-            - [然后，看看一个类是怎么实现的：](#%E7%84%B6%E5%90%8E%E7%9C%8B%E7%9C%8B%E4%B8%80%E4%B8%AA%E7%B1%BB%E6%98%AF%E6%80%8E%E4%B9%88%E5%AE%9E%E7%8E%B0%E7%9A%84)
-            - [最后，整个程序是怎么组合不同的类完成功能的：](#%E6%9C%80%E5%90%8E%E6%95%B4%E4%B8%AA%E7%A8%8B%E5%BA%8F%E6%98%AF%E6%80%8E%E4%B9%88%E7%BB%84%E5%90%88%E4%B8%8D%E5%90%8C%E7%9A%84%E7%B1%BB%E5%AE%8C%E6%88%90%E5%8A%9F%E8%83%BD%E7%9A%84)
-    - [总是要比较，那么就比比看：](#%E6%80%BB%E6%98%AF%E8%A6%81%E6%AF%94%E8%BE%83%E9%82%A3%E4%B9%88%E5%B0%B1%E6%AF%94%E6%AF%94%E7%9C%8B)
-    - [实际工作使用的效果如何：](#%E5%AE%9E%E9%99%85%E5%B7%A5%E4%BD%9C%E4%BD%BF%E7%94%A8%E7%9A%84%E6%95%88%E6%9E%9C%E5%A6%82%E4%BD%95)
-    - [关于多种语言之间的协作开发：](#%E5%85%B3%E4%BA%8E%E5%A4%9A%E7%A7%8D%E8%AF%AD%E8%A8%80%E4%B9%8B%E9%97%B4%E7%9A%84%E5%8D%8F%E4%BD%9C%E5%BC%80%E5%8F%91)
-    - [后记：](#%E5%90%8E%E8%AE%B0)
+- [GoLang学习](#golang学习)
+    - [从编写程序的角度来学习Go的基础：](#从编写程序的角度来学习go的基础)
+        - [那么开始动手的时候，需要什么基本组件：](#那么开始动手的时候需要什么基本组件)
+            - [首先，从函数入手：](#首先从函数入手)
+                - [1 看看关于函数的一些BNF定义：](#1-看看关于函数的一些bnf定义)
+                    - [函数声明：](#函数声明)
+                    - [函数类型：](#函数类型)
+                    - [方法：](#方法)
+                - [2 实际看看一个函数：](#2-实际看看一个函数)
+            - [其次，我们看看一个可编译go文件的结构：](#其次我们看看一个可编译go文件的结构)
+                - [1 构建第一个可编译执行的文件：](#1-构建第一个可编译执行的文件)
+            - [然后，看看一个类是怎么实现的：](#然后看看一个类是怎么实现的)
+            - [最后，整个程序是怎么组合不同的类完成功能的：](#最后整个程序是怎么组合不同的类完成功能的)
+        - [总是要比较，那么就比比看：](#总是要比较那么就比比看)
+        - [实际工作使用的效果如何：](#实际工作使用的效果如何)
+        - [关于多种语言之间的协作开发：](#关于多种语言之间的协作开发)
+    - [进入Docker：](#进入docker)
+    - [后记：](#后记)
 
 <!-- /TOC -->
 
@@ -55,6 +59,7 @@ PS:其实从这个角度看程序，虽然可以快速的完成开发，但是�
 这些能力的建立是需要技术上的时间和努力的积累，也需要在不断的尝试理解不同的程序设计语言的设计理念的过程中不断升华的。学会跳出自己的舒适区，多想想为什么，现在是什么样，应该怎么样改进。
 
 #### 首先，从函数入手：
+我们先实现一个小目标：编写一个完整功能的函数，然后从函数入手来进行其他相关内容的学习。
 
 ##### 1 看看关于函数的一些BNF定义：
 
@@ -79,8 +84,7 @@ If the function's signature declares result parameters, the function body's stat
                           | <type-specifier>
                           | <type-qualifier>
 ```
-可以看到function中使用了Signature来作为函数的返回，这个是在语法层面和C中不一样的地方，也就是编写Go的语言的结构发生了变化。
-这个返回的内容可以带多个参数回来：
+可以看到function中使用了Signature来作为函数的返回，这个是在语法层面和C中不一样的地方，也就是编写Go的语言的结构发生了变化。并且这个返回的内容可以带多个参数回来。
 
 ###### 函数类型：
 除此之外，Go中还多了一个Function types：
@@ -105,8 +109,87 @@ MethodDecl   = "func" Receiver MethodName ( Function | Signature ) .
 Receiver     = Parameters .
 ```
 
-
 ##### 2 实际看看一个函数：
+了解了上述基本语法声明和定义，我们来具体看看代码，然后做更为详细的学习。
+```golang
+type functinTyoe func(int) bool // 声明了一个函数类型
+
+func isOdd(integer int) bool {
+	if integer%2 == 0 {
+		return false
+	}
+	return true
+}
+
+func isEven(integer int) bool {
+	if integer%2 == 0 {
+		return true
+	}
+	return false
+}
+```
+这段代码分析：
+首先声明了一个函数类型变量functinTyoe，表示所有接受int类型参数并且返回bool类型参数的函数；
+然后，定义了一个函数isOdd，实现了检查当前输入参数是否为奇数的检查，同样的，又定义了一个偶数检查函数isEven。
+
+```golang
+func filter(slice []int, f functinTyoe) []int {
+	var result []int
+	for _, value := range slice {
+		if f(value) {
+			result = append(result, value)
+		}
+	}
+	return result
+｝	
+func test(){
+    slice := []int {1, 2, 3, 4, 5, 7}
+    fmt.Println("slice = ", slice)
+    odd := filter(slice, isOdd)    // 函数当做值来传递了
+    fmt.Println("Odd elements of slice are: ", odd)
+    even := filter(slice, isEven)  // 函数当做值来传递了
+    fmt.Println("Even elements of slice are: ", even)
+}
+```
+这段代码中，函数filter使用了一个函数类型的变量f，这意味在go中可以将一个函数作为参数使用，特有的函数式编程的味道出来了。
+并且在这个函数中，使用了for循环来进行结果的筛选，其中比较特殊的是for循环条件的编写方式：
+```golang
+_, value := range slice
+```
+其中下划线为blank identifier，根据官方文档[The blank identifier](https://golang.org/doc/effective_go.html#blank)所述，这个下划线操作符被广泛的在go中使用，尤其是[for range loops](https://golang.org/doc/effective_go.html#for)和[maps](https://golang.org/doc/effective_go.html#maps)中：
+The blank identifier can be assigned or declared with any value of any type, with the value discarded harmlessly.It's a bit like writing to the Unix /dev/null file: it represents a write-only value to be used as a place-holder where a variable is needed but the actual value is irrelevant. It has uses beyond those we've seen already.
+也就是说，"_"(下划线)，可以简单理解为赋值但以后不再使用，并且用UNIX设备中的/dev/null来进行类比。
+在上述这个for循环中，使用了range clause结构来获取slice数组的值，根据for的官方文档中对range clause的说明：
+If you're looping over an array, slice, string, or map, or reading from a channel, a range clause can manage the loop.
+参考[聊聊Go中的Range关键字](https://xiaozhou.net/something-about-range-of-go-2016-04-10.html)中的例子说明。我们可以确定使用for-range获取的返回值有两个：一个是index，一个是value。因为这儿只需要值，所以使用下划线来表示获取index，但是不使用。然后for循环中的使用的函数类型变量来对值进行处理，将获取的结果作为判断结果来填充返回结果。
+> - 参考：[What is “_,” in a Golang declaration?](http://stackoverflow.com/questions/27764421/what-is-in-a-golang-declaration)
+
+
+#### 其次，我们看看一个可编译go文件的结构：
+我们得到了希望的一个用go实现的函数，那么我们如何将这个函数补全为一个可编译的
+
+##### 1 构建第一个可编译执行的文件：
+说了这么多，现在试试将上述代码合成一个可编译执行的go源代码了。
+首先，还是从经典的C语言helloworld开始：
+```golang
+package main  
+import  "fmt" //引入fmt库  
+func main() {  
+    fmt.Println("Hello World!")  
+}
+```
+将这个文件保存为hello.go。
+
+既然要编译go源代码，就需要在当前操作系统安装go支持。现在以windows为例进行安装。
+安装还是非常简单的，从[官网下载页](https://golang.org/dl/)下载对应操作系统的安装包，然后进行默认安装。
+在windows下，默认安装位置为c:\Go 目录下，然后在系统环境变量中添加：
+```shell
+GOROOT C:\Go\
+GOPATH C:\Go_pacakge
+GOBIN %GOROOT%bin
+```
+
+
 
 
 
@@ -115,15 +198,18 @@ Receiver     = Parameters .
 
 #### 最后，整个程序是怎么组合不同的类完成功能的：
 
+### 总是要比较，那么就比比看：
+在了解了上述go基础的概念上，看看和C等语言的显著区别，并做一个总结。
+通过思维的关联交叉才能将新知识稳固下来。
 
-## 总是要比较，那么就比比看：
+### 实际工作使用的效果如何：
 
-## 实际工作使用的效果如何：
+### 关于多种语言之间的协作开发：
 
-## 关于多种语言之间的协作开发：
+## 进入Docker：
+在了解了上述基本概念和代码实践后，可以开始正式入手阅读Docker的源代码了。
+
+
 
 ## 后记：
 
-
-参考网页：
-[手把手教你构建 C 语言编译器（9）- 总结](http://lotabout.me/2016/write-a-C-interpreter-9/)
