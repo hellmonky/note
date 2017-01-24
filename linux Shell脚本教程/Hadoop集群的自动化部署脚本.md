@@ -55,6 +55,15 @@ hadoop namenode -format
 
 参考：[Hadoop中重新格式化namenode](https://my.oschina.net/HIJAY/blog/220816)
 
+在HDFS中新建目录，并且提供读写权限：
+默认创建文件夹后的权限为：
+Permission	Owner	Group	    Size	Replication	    Block Size	Name
+drwxr-xr-x	root	supergroup	0 B	    0	            0 B	        datasong
+
+使用777更改权限后：
+Permission	Owner	Group	    Size	Replication     Block Size	Name
+drwxrwxrwx	root	supergroup	0 B	    0	            0 B	        datasong
+
 
 
 
