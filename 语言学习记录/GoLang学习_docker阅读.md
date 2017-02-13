@@ -20,14 +20,14 @@
                 - [2 构建第一个可编译执行的文件：](#2-构建第一个可编译执行的文件)
                 - [3 分析这个源代码的结构：](#3-分析这个源代码的结构)
                 - [4 一个可编译执行的源文件：](#4-一个可编译执行的源文件)
-                - [5 源代码的组织形式：](#5-源代码的组织形式)
+                - [5 初步了解源代码的组织形式：](#5-初步了解源代码的组织形式)
                     - [5.1 包的定义和使用初学：](#51-包的定义和使用初学)
                     - [5.2 包内函数的可见性：](#52-包内函数的可见性)
                     - [5.3 多个源文件构成的同一个包：](#53-多个源文件构成的同一个包)
-                - [6 建立一个标准的go开发目录：](#6-建立一个标准的go开发目录)
-                    - [6.1 golang标准目录结构：](#61-golang标准目录结构)
-                    - [6.2 golang源代码的分类：](#62-golang源代码的分类)
-                    - [6.3 golang的管理逻辑：](#63-golang的管理逻辑)
+            - [接着，从顶到底梳理golang的代码组织关系：](#接着从顶到底梳理golang的代码组织关系)
+                - [1 golang的workspace标准目录结构：](#1-golang的workspace标准目录结构)
+                - [2 golang的package管理逻辑：](#2-golang的package管理逻辑)
+                - [3 golang中直接使用github远程代码：](#3-golang中直接使用github远程代码)
             - [然后，看看一个类是怎么实现的：](#然后看看一个类是怎么实现的)
             - [最后，整个程序是怎么组合不同的类完成功能的：](#最后整个程序是怎么组合不同的类完成功能的)
         - [总是要比较，那么就比比看：](#总是要比较那么就比比看)
@@ -223,7 +223,7 @@ Go保持了与C家族语言一致的风格：即目标为可执行程序的Go源
 所以，一个独立的可执行的golang程序，package main是必须出现，紧跟在是引入的各种库，然后是各个函数，这里必须要有一个main函数。main函数是整个程序的入口。
 也就是说上面的hello.go是因为包含了main，并且依赖了go默认提供的运行时库fmt才能够被正确的编译和独立的运行。并且这个hello.go构成了一个自己编写是单独的可编译执行的源文件。
 
-##### 5 源代码的组织形式：
+##### 5 初步了解源代码的组织形式：
 通过上面的例子，我们知道了一个独立的可编译的go文件的组成，但是这个源文件也是因为依赖了go的运行时库提供的包才能正确的运行输出。
 所以真正意义上的单独可运行的单独的go文件是没有意义的，程序总是通过相互协作来才能完成功能。那么多个go文件该如何相互组合来形成大的可执行的文件？
 方式就和hello.go中引入官方提供的运行时库的形式一样，通过package来组织不同的go源文件。
@@ -258,23 +258,42 @@ fmt.Println("Hello, World")
 那么就可以将同一个包中的不同功能的代码拆分到不同的go文件中，只需要保证package声明是相同的就行。组成一个package的多个文件，编译后实际上和一个文件类似，组成包的不同文件相互之间可以直接引用变量和函数，不论是否导出。
 > - 如果相同的package的不同文件，放在不同的文件夹下，应该怎么进行组织？
 
-每个子目录中只能存在一个package，否则编译时会报错。所以上述问题是不存在的，虽然可以将一个package的内容拆分，但是这些拆分的子文件都应该在一个目录下面。
+每个子目录中只能存在一个package，否则编译时会报错。所以上述问题是不存在的，虽然可以将一个package的内容拆分，但是这些拆分的子文件都应该在同一个目录下面。
 
 go不要求package的名称和所在目录名相同，但是你最好保持相同，否则容易引起歧义。**因为引入包的时候，go会使用子目录名作为包的路径，而你在代码中真正使用时，却要使用你package的名称。**
 
 
-##### 6 建立一个标准的go开发目录：
-参考官方文档：[How to Write Go Code](https://golang.org/doc/code.html) 中对于go的代码结构的描述。
-例如，现在我们还是以上述代码实现的功能出发，想编写一个奇数和偶数检查功能的软件，可以通过可运行程序的方式提供给用户直接使用，也想通过库的形式提供给其他开发人员使用，那么我们该如何建立一个完整的开发目录来达到这个目的。
+#### 接着，从顶到底梳理golang的代码组织关系：
+根据上述基本的演练，对于整个go的开发过程有了初步的了解，我们现在从总体上从顶层到底层再次来梳理一下golang的代码结构和开发流程。
 
-###### 6.1 golang标准目录结构：
-一个Golang项目是至少包含下面三个子目录的层次结构目录：
+总体上，根据官方文档：[How to Write Go Code](https://golang.org/doc/code.html) 中对于go的代码结构的描述：
+```text
+* Go programmers typically keep all their Go code in a single workspace.
+* A workspace contains many version control repositories (managed by Git, for example).
+* Each repository contains one or more packages.
+* Each package consists of one or more Go source files in a single directory.
+* The path to a package's directory determines its import path.
+```
+这个是属于go语言开发中源代码组织的基本准则。
+总体上说明了一下几点：
+> - 整个go的工作目录（workspace）在逻辑上是统一的，不同的目录相当于平级的放在一起；
+> - 工作目录下用不同的目录来区分不同的repositories，这些repositories可以是用git管理的远程代码仓库，也可以是用户自己的代码仓库；
+> - 每一个代码仓库下面通过一个或者多个package来进行组织管理，并且package是golang的语法可见性最高级别（也就是语法层面，最高只能看到package，而无法看到package组成的代码仓库结构）；
+> - 一个package就是包含一个或者多个go源文件的，并且包含在$GOPATH/src路径下的目录。同一个package中的多个go源文件被编译器看作同一个文件，所以同一个包下的不同源文件中不能出现相同的全局变量和函数（除了init函数），那么同一个package中的不同go源文件可以相互直接引用其他源文件中的数据；
+> - 包名和所在的目录名是相同的，所以go中的包只有一级（不同于java中的点分割的多级包结构），但是可以通过目录的包含关系来完成多级的package结构组成（例如标准库中的net包下包含http包等其他包）；package之间的相互引用以$GOPATH/src下的路径为起点，所以引用包时需要以$GOPATH/src目录为相对根目录，依次输入下面的各级目录名。
+
+##### 1 golang的workspace标准目录结构：
+一个Golang的workspace是至少包含下面三个子目录的层次结构的目录：
 > - src：目录用来放置代码源文件，在进行import时，是使用这个位置作为根目录的。自己编写的代码也应该放在这下面。
 > - pkg：用来放置安装的包的链接对象(Object)的。这个概念有点类似于链接库，Go 会将编译出的可连接库放在这里， 方便编译时链接。不同的系统和处理器架构的对象会在pkg存放在不同的文件夹中；
 > - bin：目录用来放置编译好的可执行文件，为了使得这里的可执行文件可以方便的运行， 可以将这个目录添加到PATH变量中。
 
 一般，bin和pkg目录可以不创建，go命令会自动根据编译src的结果进行创建。
-需要注意的是，自己的代码不应该直接放置在src目录下，因为go get也会把第三方包的源代码放到这个目录下，所以应该为自己的工作项目建立对应的项目文件夹，类似于java的包名一样，进行区分。
+
+需要注意的是go语言中所有的代码都在同一个workspace中，这个workspace的指定是通过GOPATH这个环境变量来进行设置的，GOPATH中包含的目录就是当前整个系统中go所认定的唯一workspace位置。那么就可以通过这个方式来将不同的源代码路径都作为同一个路径。
+
+例如：我们新建一个目录来存放第三方库，使用go get命令将第三方包的源代码放到这个目录下，然后将这个路径添加到GOPATH中，就可以在自己的代码中通过import来引入这些第三方库进行编码。
+并且自己的代码不应该直接放置在go的src目录下，或者是在GOPATH中设置的第三方库所在的目录下，所以应该为自己的工作项目建立对应的项目文件夹，并且类似于java的包名一样进行命名，进行区分。
 因此一般推荐设置两个GOPATH，比如在linux下的：
 ```shell
 export GOPATH="/usr/local/share/go:$HOME/codes/go"
@@ -288,24 +307,9 @@ GOPATH=C:\Go_package;$HOME/codes/go
 关于第三方库的管理可以参考文档：
 > - [Go 语言的包依赖管理](https://io-meter.com/2014/07/30/go's-package-management/)
 
-###### 6.2 golang源代码的分类：
-根据上述描述，和其他语言一样，最关键的还是源代码以及源代码的组织形式。
-
-###### 6.3 golang的管理逻辑：
-在[Introducing workspaces](https://talks.golang.org/2014/organizeio.slide#9)中提到:
-```txt
-The Go tool understands the layout of a workspace. 
-You don't need a Makefile. The file layout is everything.
-Change the file layout, change the build.
-```
-也就是说，golang使用了这种固定的目录结构作为整个项目的编译结构，从而不再需要makefile之类的组织管理工具来对源代码的逻辑关系进行描述。这种特点也是和其他编程语言差异比较大的地方。
-
-
-
-
-
-
-
+##### 2 golang的package管理逻辑：
+go中代码复用的级别有两层：函数和包。package作为语法可见性的最顶层结构，提供了最高层的代码复用方式。
+> - [Packages](https://www.golang-book.com/books/intro/11)
 
 与java等语言一样，go的包导入关键字为import。
 java语言的import只能导入文件（导入路径以文件名结束，或者以“*”号结束），而go语言只能导入包名。代码包的导入使用代码包导入路径，导入路径就是工作区下的src目录下的相对路径。
@@ -318,6 +322,18 @@ java语言的import只能导入文件（导入路径以文件名结束，或者�
 我们导入的路径如下：
 
 
+在[Introducing workspaces](https://talks.golang.org/2014/organizeio.slide#9)中提到:
+```txt
+The Go tool understands the layout of a workspace. 
+You don't need a Makefile. The file layout is everything.
+Change the file layout, change the build.
+```
+也就是说，golang使用了这种固定的目录结构作为整个项目的编译结构，从而不再需要makefile之类的组织管理工具来对源代码的逻辑关系进行描述。这种特点也是和其他编程语言差异比较大的地方。
+这样就可以通过当前的目录结构来方便的理解当前的整体代码中模块的组织关系。
+
+
+##### 3 golang中直接使用github远程代码：
+很多第三方库是托管在github等远程服务器上的，go中不再需要将这些代码手动同步到本地来完成库的引入，而是可以直接在自己的代码中import
 
 
 
