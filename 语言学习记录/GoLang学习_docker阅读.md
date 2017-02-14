@@ -7,7 +7,7 @@
 <!-- TOC -->
 
 - [GoLang学习](#golang学习)
-    - [从编写程序的角度来学习Go的基础：](#从编写程序的角度来学习go的基础)
+    - [从实际动手编写程序的角度来学习Go的基础：](#从实际动手编写程序的角度来学习go的基础)
         - [那么开始动手的时候，需要什么基本组件：](#那么开始动手的时候需要什么基本组件)
             - [首先，从函数入手：](#首先从函数入手)
                 - [1 看看关于函数的一些BNF定义：](#1-看看关于函数的一些bnf定义)
@@ -27,7 +27,8 @@
             - [接着，从顶到底梳理golang的代码组织关系：](#接着从顶到底梳理golang的代码组织关系)
                 - [1 golang的workspace标准目录结构：](#1-golang的workspace标准目录结构)
                 - [2 golang的package管理逻辑：](#2-golang的package管理逻辑)
-                - [3 golang中直接使用github远程代码：](#3-golang中直接使用github远程代码)
+                    - [2.1 golang中直接使用github远程代码：](#21-golang中直接使用github远程代码)
+                    - [2.2 package下的测试代码：](#22-package下的测试代码)
             - [然后，看看一个类是怎么实现的：](#然后看看一个类是怎么实现的)
             - [最后，整个程序是怎么组合不同的类完成功能的：](#最后整个程序是怎么组合不同的类完成功能的)
         - [总是要比较，那么就比比看：](#总是要比较那么就比比看)
@@ -38,7 +39,7 @@
 
 <!-- /TOC -->
 
-## 从编写程序的角度来学习Go的基础：
+## 从实际动手编写程序的角度来学习Go的基础：
 新学习一门语言，最好的方法就是这样入手：我现在需要实现一个思路，那么用这个语言怎么才能快速的实现出来。
 这个过程中就需要对选择的语言有一定的要求了，这个要求是建立在之前编写程序的已有思路基础上的，例如：
 > - C背景的就在想用不同的函数来组织整个流程；
@@ -55,7 +56,7 @@
 所以，我现在也是从阅读docker的源代码来进行学习go相关的知识点，希望看看这个语言在实际工程中能够到什么程度。
 
 ### 那么开始动手的时候，需要什么基本组件：
-因为之前使用了C/C++和Java相关，在我看来，最基础的是：函数、类和包。
+因为之前使用了C/C++和Java相关，在我看来，最基础的是：函数、类和包。也就是通过基本过程抽象和代码组织的角度对整个软件开发有一个整体的理解。
 其中：
 > - 组成函数需要：变量、控制流程结构和数据容器；
 > - 组成类需要：类的结构、隔离声明和实例化构造与析构方式；
@@ -185,7 +186,7 @@ If you're looping over an array, slice, string, or map, or reading from a channe
 在windows下，默认安装位置为c:\Go 目录下，然后在系统环境变量中添加：
 ```shell
 GOROOT C:\Go\
-GOPATH C:\Go_pacakge
+GOPATH C:\Go_package
 GOBIN %GOROOT%bin
 ```
 具体内容可以参考文档：[GoLang学习_windows开发环境搭建]()
@@ -232,7 +233,7 @@ Golang使用包（package）这种语法元素来组织源码，包是函数和�
 上面的程序被放在叫做hello.go的文件中，这个文件通过package关键字被定义为一个叫做main的package，表示这个package可以被独立的编译为可执行程序，并且程序执行的入口为package中的main函数。
 
 ###### 5.1 包的定义和使用初学：
-Golang中包的定义和使用看起来十分简单，通过package关键字定义包，文件名不需要与包名一致。包名是小写的一个单词；不应当有下划线或混合大小写：
+Golang中包的定义和使用看起来十分简单，通过package关键字定义包，**文件名不需要与包名一致**。包名是小写的一个单词；不应当有下划线或混合大小写：
 ```golang
 package xxx
 ```
@@ -254,7 +255,7 @@ fmt.Println("Hello, World")
 > - 带着原有的概念学习，一定要注意对比和反思，不要被旧的思维方式限制，而是在不同中不断思考为什么会有这些差异，以及造成这些差异的原因是什么。
 
 ###### 5.3 多个源文件构成的同一个包：
-每个Go文件都属于且仅属于一个包。一个包可以由许多以.go为扩展名的源文件组成，因此文件名和包名一般来说都是不相同的。也就是说，一个Go的包可以由多个文件组成，但是使用相同的package进行指明所属的包。
+每个Go文件都属于且仅属于一个包。一个包可以由许多以.go为扩展名的源文件组成，因此go源代码文件名和包名一般来说都是不相同的。也就是说，一个Go的包可以由多个文件组成，但是使用相同的package进行指明所属的包。
 那么就可以将同一个包中的不同功能的代码拆分到不同的go文件中，只需要保证package声明是相同的就行。组成一个package的多个文件，编译后实际上和一个文件类似，组成包的不同文件相互之间可以直接引用变量和函数，不论是否导出。
 > - 如果相同的package的不同文件，放在不同的文件夹下，应该怎么进行组织？
 
@@ -312,28 +313,56 @@ go中代码复用的级别有两层：函数和包。package作为语法可见�
 > - [Packages](https://www.golang-book.com/books/intro/11)
 
 与java等语言一样，go的包导入关键字为import。
-java语言的import只能导入文件（导入路径以文件名结束，或者以“*”号结束），而go语言只能导入包名。代码包的导入使用代码包导入路径，导入路径就是工作区下的src目录下的相对路径。
-例如go源码文件所在路径为$GOPATH/src/hello/log/logging.go，则此源码文件的导入路径为hello/log
+java语言的import只能导入文件（导入路径以文件名结束，或者以“*”号结束），而go语言只能导入目录。代码包的导入使用代码包的相对路径，也就是说，导入路径就是工作区下的src目录下的相对路径。例如，go源码文件所在路径为$GOPATH/src/hello/log/logging.go，则此源码文件的导入路径为hello/log，也就是：
+```golang
+import "hello/log"
+import "fmt"
+
+log.Func1()
+fmt.Println("Hello, World")
+```
+
 当导入多个代码包时，即可以对每个代码包都使用import关键字，也可以所有需要导入的代码包共用一个import关键字，后一种需要用圆括号把包名括起来，并且每个包名也是独占一行
 调用导入包中的变量或者函数方法：<导入包名中最后一个目录名称>.<变量名/函数名>
+例如：
+```golang
+import "a/b/c"
+import "fmt"
+import "a/b/c/d.Dfunction"
 
-很多Golang初学者看到上面代码，都会想当然的将import后面的"c"、"fmt"当成包名，将其与c.Func1()和 fmt.Println()中的c和fmt认作为同一个语法元素：包名。但在深入Golang后，很多人便会发现事实上并非如此。比如在使用实时分布式消 息平台nsq提供的go client api时：
+c.Func1()
+Dfunction()
+fmt.Println("Hello, World")
+```
 
-我们导入的路径如下：
+在初学时看到上面代码，都会想当然的将import后面的"c"、"fmt"当成包名，将其与c.Func1()和 fmt.Println()中的c和fmt认作为同一个语法元素：包名。但在深入Golang后，很多人便会发现事实上并非如此。比如在使用实时分布式消息平台nsq提供的go client api时：
+```golang
+import "github.com/bitly/go-nsq"
 
+q, _ := nsq.NewConsumer("write_test", "ch", config)
+```
+发现import中最后的go-nsq这个名称和实际调用函数时使用的包名称nsq不一致，所以实际上import引入的是相对于src下的路径所包含package的完整名称，go中只是建议package名称和路径名称相同，而不是强制要求一致。
+> - [理解Golang包导入](http://tonybai.com/2015/03/09/understanding-import-packages/)
 
-在[Introducing workspaces](https://talks.golang.org/2014/organizeio.slide#9)中提到:
+使用package来对源代码管理，相对于C/C++系语言而言带来了一定的便利，在[Introducing workspaces](https://talks.golang.org/2014/organizeio.slide#9)中提到:
 ```txt
 The Go tool understands the layout of a workspace. 
 You don't need a Makefile. The file layout is everything.
 Change the file layout, change the build.
 ```
-也就是说，golang使用了这种固定的目录结构作为整个项目的编译结构，从而不再需要makefile之类的组织管理工具来对源代码的逻辑关系进行描述。这种特点也是和其他编程语言差异比较大的地方。
-这样就可以通过当前的目录结构来方便的理解当前的整体代码中模块的组织关系。
+也就是说，golang使用了这种固定的目录结构作为整个项目的编译结构，从而不再需要makefile之类的组织管理工具来对源代码的逻辑关系进行描述。
+这个就是和java中比较相似了，都是通过源代码的目录结构来确定整个工程的逻辑组成，而不再依赖于工程布局的说明文件了。这样就可以通过当前的目录结构来方便的理解当前的整体代码中模块的组织关系。
+
+###### 2.1 golang中直接使用github远程代码：
+很多第三方库是托管在github等远程服务器上的，go中需要使用go get命令来获取这些远程第三方库，这些库会放在GOPATH变量设置的路径下，然后使用时候用import来进行进行引用，这个时候要非常注意相对于src下的文件路径名称，从github中获取的第三方库会放在"github.com"命名的目录下，所以引用时也需要带上这个路径名称，例如：
+```golang
+import "github.com/kr/fs"
+```
+
+###### 2.2 package下的测试代码：
 
 
-##### 3 golang中直接使用github远程代码：
-很多第三方库是托管在github等远程服务器上的，go中不再需要将这些代码手动同步到本地来完成库的引入，而是可以直接在自己的代码中import
+
 
 
 
