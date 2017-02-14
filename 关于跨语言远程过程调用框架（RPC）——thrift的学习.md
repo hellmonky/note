@@ -10,6 +10,7 @@
         - [生成java文件：](#生成java文件)
         - [用java实现定义的接口：](#用java实现定义的接口)
         - [实现java的服务端代码：](#实现java的服务端代码)
+        - [实现java的客户端代码：](#实现java的客户端代码)
     - [跨语言的服务调用测试——java服务端和C++客户端：](#跨语言的服务调用测试java服务端和c客户端)
     - [thrift基本语法学习：](#thrift基本语法学习)
     - [使用thrift做JDBC开发：](#使用thrift做jdbc开发)
@@ -171,11 +172,86 @@ public class HelloServiceImpl implements Hello.Iface {
 这个代码完成了IDL中接口的具体实现细节，也就是完成了接口的功能实现。
 
 ### 实现java的服务端代码：
-创建服务器端实现代码，将 HelloServiceImpl 作为具体的处理器传递给 Thrift 服务器
+创建服务器端实现代码，将 HelloServiceImpl 作为具体的处理器传递给 Thrift 服务器，具体的代码为：
+```java
+package service.demo;
+
+import org.apache.thrift.TProcessor;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TBinaryProtocol.Factory;
+import org.apache.thrift.server.TServer;
+import org.apache.thrift.server.TSimpleServer;
+import org.apache.thrift.transport.TServerSocket;
+import org.apache.thrift.transport.TTransportException;
+
+public class HelloServiceServer {
+    public static void main(String[] args) {
+        try {
+            TServerSocket serverTransport = new TServerSocket(7911);
+            Factory proFactory = new TBinaryProtocol.Factory();
+            TProcessor processor = new Hello.Processor(new HelloServiceImpl());
+            TServer server = new TSimpleServer(new TServer.Args(serverTransport).processor(processor));
+            //TServer server = new TThreadPoolServer(processor, serverTransport,  proFactory);
+            System.out.println("Start server on port 7911...");
+            server.serve();
+        } catch (TTransportException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+这段代码就完成了接口的java端服务器的实现，通过运行这个代码，就得到了IDL中描述接口的具体实现的服务端。
+
+将上述使用IDL生成的Hello.java源文件，还有两个自己手动补充的源文件均放置在service.demo包路径下，使用IDEA新建gradle工程，然后编辑build.gradle文件内容，添加thrift支持：
+```gradle
+group 'hellmonky'
+version '1.0-SNAPSHOT'
+apply plugin: 'java'
+sourceCompatibility = 1.8
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.11'
+
+    compile("org.apache.thrift:libthrift:0.10.0")
+}
+
+task runnbaleJar(type: Jar) {
+    from files(sourceSets.main.output.classesDir)
+    from configurations.runtime.asFileTree.files.collect { zipTree(it) }
+    manifest {
+        attributes 'Main-Class': 'service.demo.HelloServiceServer'
+    }
+}
+```
+需要注意的是，其中的task创建了一个完整的可执行的服务端，否则会因为库的不完整报JNI错误。然后使用：
+```java
+java -jar hellmonky-1.0-SNAPSHOT.jar
+```
+回显：
+```java
+SLF4J: Failed to load class "org.slf4j.impl.StaticLoggerBinder".
+SLF4J: Defaulting to no-operation (NOP) logger implementation
+SLF4J: See http://www.slf4j.org/codes.html#StaticLoggerBinder for further details.
+Start server on port 7911...
+```
+就表示已经正常的启动运行java的后台服务了。
+
+### 实现java的客户端代码：
+在完成了上述满足接口规范的java后端服务器开发后，就可以
 
 
 ## 跨语言的服务调用测试——java服务端和C++客户端：
-完成了上述相同语言的RPC调用后，可以进行跨语言的服务调用了，这儿用java作为后台服务端，供C++客户端访问服务。
+完成了上述相同语言的RPC调用后，可以思考一下跨语言的服务调用过程。既然是语言无关的，那么最好的方式就是通过web进行交互，因为web本身的设计就考虑到了多语言多运行环境的交互。
+
+在实际工程开发中，往往是已经存在一个后台服务，需要面向其他语言开发者提供服务的访问，常见的方式就是通过JSON作为数据，然后使用HTTP或者Socket作为访问方式来进行语言无关的服务提供。之前就是使用RESTFul API作为服务，C++端使用curl访问HTTP进行交互。
+但是有时候也需要首先定义交互接口，然后客户端和服务端同步开发来完成敏捷开发迭代。这个时候就需要首先确定接口规范，然后各自进行开发，使用thrift是一个不错的选择。
+
+
+这儿用java作为后台服务端，供C++客户端访问服务。
 
 
 ## thrift基本语法学习：
