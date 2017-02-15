@@ -12,10 +12,17 @@
         - [实现java的服务端代码：](#实现java的服务端代码)
         - [实现java的客户端代码：](#实现java的客户端代码)
         - [测试与服务端通信：](#测试与服务端通信)
-    - [跨语言的服务调用测试——java服务端和C++客户端：](#跨语言的服务调用测试java服务端和c客户端)
+    - [跨语言的服务调用测试——java和C++调用交互：](#跨语言的服务调用测试java和c调用交互)
         - [windows环境下thrift源代码的编译：](#windows环境下thrift源代码的编译)
+            - [依赖文件清单：](#依赖文件清单)
+            - [依赖关系说明：](#依赖关系说明)
+            - [编译过程：](#编译过程)
         - [从IDL生成cpp源文件：](#从idl生成cpp源文件)
         - [编写C++的客户端：](#编写c的客户端)
+            - [cpp的客户端开发中添加依赖于boost提供的文件：](#cpp的客户端开发中添加依赖于boost提供的文件)
+            - [cpp的客户端开发中添加依赖于thrift提供的文件：](#cpp的客户端开发中添加依赖于thrift提供的文件)
+            - [cpp的客户端开发中添加依赖于openssl提供的文件：](#cpp的客户端开发中添加依赖于openssl提供的文件)
+            - [编译出现问题：](#编译出现问题)
         - [编写C++的服务端：](#编写c的服务端)
     - [使用thrift完成其他语言之间的相互调用：](#使用thrift完成其他语言之间的相互调用)
     - [thrift基本语法学习：](#thrift基本语法学习)
@@ -323,7 +330,7 @@ Hello World
 至此，一个使用thrift的IDL定义的接口的java服务端实现和客户端调用接口就可以正常运行了。
 
 
-## 跨语言的服务调用测试——java服务端和C++客户端：
+## 跨语言的服务调用测试——java和C++调用交互：
 完成了上述相同语言的RPC调用后，可以思考一下跨语言的服务调用过程。既然是语言无关的，那么最好的方式就是通过web进行交互，因为web本身的设计就考虑到了多语言多运行环境的交互。
 
 在实际工程开发中，往往是已经存在一个后台服务，需要面向其他语言开发者提供服务的访问，常见的方式就是通过JSON作为数据，然后使用HTTP或者Socket作为访问方式来进行语言无关的服务提供。之前就是使用RESTFul API作为服务，C++端使用curl访问HTTP进行交互。
@@ -333,11 +340,42 @@ Hello World
 
 ### windows环境下thrift源代码的编译：
 > -  参考文档：
+[Using Thrift with C++](https://thrift.apache.org/lib/cpp)
+[Windows Setup](http://thrift.apache.org/docs/install/windows)
 [Apache Thrift 在Windows下的安装与开发](http://blog.csdn.net/colouroo/article/details/38588297)
 [Thrift在Windows及Linux平台下的安装和使用示例](http://cpper.info/2016/03/06/Thrift-Install-And-Example.html)
 [thrift在windows的编译/安装--c++版](http://www.cnblogs.com/mumuxinfei/p/3715721.html)
 
+
 因为要使用C++进行开发，所以需要针对thrift源代码进行编译来获取对C++的支持。
+进入目录：
+```shell
+..\thrift-0.10.0\lib\cpp
+```
+可以看出，在windows下提供了vs的工程文件，也可以通过cmake来完成平台无关的thrift编译。最后可以编译生成thrift的lib库文件和头文件供开发人员使用。
+现在就用vs工程文件打开的方式对thrift进行编译。
+
+#### 依赖文件清单：
+[thrift-0.10.0.tar.gz源码包]()
+VS2010
+boost库，根据thrift发布版本要求，使用的boost1.53以及上版本，这儿选择sourceforge上发布的预编译好的vs2010的32位安装包:[boost_1_63_0-msvc-10.0-32.exe](https://sourceforge.net/projects/boost/files/?source=navbar)
+libevent库，这里用的[libevent-2.1.8-stable.tar.gz](http://libevent.org/)
+openssl库，虽然官方给出的[下载链接](https://www.openssl.org/source/)中为了安全不包含二进制包，但是为了方便起见，从[Win32 OpenSSL](http://slproweb.com/products/Win32OpenSSL.html)项目页下载到已经编译好的开发包使用。
+
+#### 依赖关系说明：
+Thrift.sln，里面有libthrift和libthriftnb两个工程，其中libthrift工程是常规的阻塞型server端（单线程server，一个连接一个线程server，线程池server），libthriftnb工程是非阻塞（non-blocking）模式的服务server端，也只有编译libthriftnb时才需要依赖libevent库，否则可以不编译libevent库；
+thrift使用ssl协议来保证网络传输的安全性。
+
+#### 编译过程：
+首先：
+安装boost和openssl
+
+然后：
+从源代码编译libevent。对于libevent库的编译比较麻烦，因为官方没有给出cmake等工程管理文件，而是使用vs的控制台nmake进行编译，参考：[windows下编译及使用libevent](http://www.cnblogs.com/luxiaoxun/p/3603399.html)
+
+最后：
+打开thrift工程文件，添加boost、openssl和libevent库的头文件和静态链接库位置，完成编译。
+
 
 ### 从IDL生成cpp源文件：
 和java程序相同，为了从IDL的描述中获取cpp源文件，也需要使用thrift来生成一次，进入hello.thrift所在目录，执行：
@@ -367,28 +405,28 @@ thrift --gen cpp hello.thrift
 #include <stdio.h>
 #include <string>
 
-#include "transport/TSocket.h"
-#include "protocol/TBinaryProtocol.h"
-#include "server/TSimpleServer.h"
-#include "transport/TServerSocket.h"
-#include "transport/TBufferTransports.h"
+#include <boost/make_shared.hpp>
+
+#include <thrift/protocol/TBinaryProtocol.h>
+#include <thrift/transport/TSocket.h>
+#include <thrift/transport/TTransportUtils.h>
 
 #include "hello_types.h"
-#include "HelloService.h"
-using namespace ::apache::thrift;
-using namespace ::apache::thrift::protocol;
-using namespace ::apache::thrift::transport;
-using namespace ::apache::thrift::server;
-using boost::shared_ptr;
+#include "Hello.h"
+
+using namespace boost;
+using namespace apache::thrift;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
 
 int main(int argc, char** argv){
-    shared_ptr<TTransport> socket(new TSocket("localhost", 9090));
+    shared_ptr<TTransport> socket(new TSocket("192.168.15.1", 7911));
     shared_ptr<TTransport> transport(new TBufferedTransport(socket));
     shared_ptr<TProtocol> protocol(new TBinaryProtocol(transport));
-    HelloServiceClient client(protocol);
+    HelloClient client(protocol);
 	try {
 		transport->open();
-        client.hello("cpper.info");
+		client.helloVoid();
 		transport->close();
 	}
 	catch(TException& tx) {
@@ -396,24 +434,60 @@ int main(int argc, char** argv){
 	}
 }
 ```
-需要注意的是，cpp的客户端开发中依赖于thrift提供的头文件：
+然后对当前项目添加外部依赖。
+
+#### cpp的客户端开发中添加依赖于boost提供的文件：
 ```shell
-#include "transport/TSocket.h"
-#include "protocol/TBinaryProtocol.h"
-#include "server/TSimpleServer.h"
-#include "transport/TServerSocket.h"
-#include "transport/TBufferTransports.h"
+#include <boost/make_shared.hpp>
+```
+需要使用和thrift的编译版依赖的boots库相同的版本。位于boost二进制安装路径下:
+```shell
+C:\boost_1_63_0\lib32-msvc-10.0\libboost_thread-vc100-mt-gd-1_63.lib
+C:\boost_1_63_0\lib32-msvc-10.0\libboost_system-vc100-mt-gd-1_63.lib
+C:\boost_1_63_0\lib32-msvc-10.0\libboost_atomic-vc100-mt-gd-1_63.lib
+C:\boost_1_63_0\lib32-msvc-10.0\libboost_date_time-vc100-mt-gd-1_63.lib
+C:\boost_1_63_0\lib32-msvc-10.0\libboost_chrono-vc100-mt-gd-1_63.lib
+C:\boost_1_63_0\lib32-msvc-10.0\
+C:\boost_1_63_0\lib32-msvc-10.0\
+C:\boost_1_63_0\lib32-msvc-10.0\
+C:\boost_1_63_0\lib32-msvc-10.0\
+C:\boost_1_63_0\lib32-msvc-10.0\
+```
+
+#### cpp的客户端开发中添加依赖于thrift提供的文件：
+```shell
+#include <thrift/protocol/TBinaryProtocol.h>
+#include <thrift/transport/TSocket.h>
+#include <thrift/transport/TTransportUtils.h>
 ```
 位于thrift源代码包的lib文件夹下：
 ```shell
 ..\thrift-0.10.0\lib\cpp\src
 ```
-所以在工程中（cmake文件等工程描述文件中）添加thrift的库路径支持。
-并且thrift的官方网站给出的[安装教程](http://thrift.apache.org/docs/install/)中，thrift依赖于boots库，需要根据当前thrift版本来确定依赖的boots库的版本。
+所以在工程中（cmake文件等工程描述文件中）将这个路径添加到项目的附加库头文件依赖路径。
+然后添加thrift的静态库：
+..\thrift-0.10.0\lib\cpp\Debug\libthrift.lib
+
+#### cpp的客户端开发中添加依赖于openssl提供的文件：
+```shell
+C:\OpenSSL-Win32\lib\VC\static\libeay32MTd.lib
+C:\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib
+```
+
+#### 编译出现问题：
+按照上述步骤添加依赖之后，出现：
+```shell
+1>ssleay32MTd.lib(t1_lib.obj) : error LNK2001: 无法解析的外部符号 ___report_rangecheckfailure
+1>libeay32MTd.lib(b_print.obj) : error LNK2019: 无法解析的外部符号 ___report_rangecheckfailure，该符号在函数 _fmtfp 中被引用
+1>libeay32MTd.lib(obj_dat.obj) : error LNK2001: 无法解析的外部符号 ___report_rangecheckfailure
+1>libeay32MTd.lib(b_dump.obj) : error LNK2001: 无法解析的外部符号 ___report_rangecheckfailure
+1>libeay32MTd.lib(pem_lib.obj) : error LNK2001: 无法解析的外部符号 ___report_rangecheckfailure
+```
+[网上搜索](https://github.com/pyca/cryptography/issues/2024)发现为Win32 OpenSSL使用vs2012编译导致了错误，所以最好的方法就是更新编译器到2012，或者自己编译对应版本的openssl。
 
 ### 编写C++的服务端：
-上述java教程中实现了服务端和客户端，上一节虽然使用了C++开发了客户端，但是实际上没有针对生成的cpp文件进行服务端的开发，这一节使用cpp来开发IDL对应的服务端，然后使用java进行调用。
-
+上述java教程中实现了相同语言的服务端和客户端，上一节又直接使用thrift来使用了C++开发了客户端，这一节使用cpp来开发IDL对应的服务端，然后使用java进行调用。
+PS:由于thrift的windows环境的C++编译比较麻烦，暂时不进行实际测试。
 
 ## 使用thrift完成其他语言之间的相互调用：
 [使用thrift做c++,java和python的相互调用](http://jinghong.iteye.com/blog/1222713)
