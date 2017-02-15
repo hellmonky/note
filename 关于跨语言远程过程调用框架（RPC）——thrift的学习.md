@@ -23,6 +23,7 @@
             - [cpp的客户端开发中添加依赖于thrift提供的文件：](#cpp的客户端开发中添加依赖于thrift提供的文件)
             - [cpp的客户端开发中添加依赖于openssl提供的文件：](#cpp的客户端开发中添加依赖于openssl提供的文件)
             - [编译出现问题：](#编译出现问题)
+            - [手动编译openssl：](#手动编译openssl)
         - [编写C++的服务端：](#编写c的服务端)
     - [使用thrift完成其他语言之间的相互调用：](#使用thrift完成其他语言之间的相互调用)
     - [thrift基本语法学习：](#thrift基本语法学习)
@@ -484,6 +485,36 @@ C:\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib
 1>libeay32MTd.lib(pem_lib.obj) : error LNK2001: 无法解析的外部符号 ___report_rangecheckfailure
 ```
 [网上搜索](https://github.com/pyca/cryptography/issues/2024)发现为Win32 OpenSSL使用vs2012编译导致了错误，所以最好的方法就是更新编译器到2012，或者自己编译对应版本的openssl。
+
+#### 手动编译openssl：
+既然问题出在openssl上，那么就采用自己手动编译的方式来解决，打开vs的控制台，然后按照如下步骤执行：
+```shell
+perl Configure VC-WIN32 no-asm --prefix=C:\openssl_lib
+
+ms\do_ms.bat
+
+nmake -f ms\ntdll.mak
+nmake -f ms\nt.mak
+
+nmake -f ms\ntdll.mak test
+nmake -f ms\nt.mak test
+
+nmake -f ms\ntdll.mak install
+nmake -f ms\nt.mak install
+```
+如果要编译64位，首先需要打开vs的64位控制台，然后修改perl的配置为：
+```shell
+perl Configure VC-WIN64A no-asm --prefix=C:\openssl_lib
+```
+还要注意要关闭asm，否则会编译失败，或者使用masm进行预编译处理。
+
+然后使用这个openssl来对thrift进行重新编译。
+
+> - 参考文档：
+[编译openssl出错](http://bbs.csdn.net/topics/390986380)
+[VS2010编译OpenSSL](http://blog.csdn.net/zhangmiaoping23/article/details/52815974)
+[在Windows系统上安装OpenSSL及在VS2010中使用OpenSSL](http://blog.csdn.net/iw1210/article/details/50947654)
+
 
 ### 编写C++的服务端：
 上述java教程中实现了相同语言的服务端和客户端，上一节又直接使用thrift来使用了C++开发了客户端，这一节使用cpp来开发IDL对应的服务端，然后使用java进行调用。
