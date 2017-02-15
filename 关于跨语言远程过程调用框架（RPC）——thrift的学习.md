@@ -371,11 +371,13 @@ thrift使用ssl协议来保证网络传输的安全性。
 首先：
 安装boost和openssl
 
-然后：
-从源代码编译libevent。对于libevent库的编译比较麻烦，因为官方没有给出cmake等工程管理文件，而是使用vs的控制台nmake进行编译，参考：[windows下编译及使用libevent](http://www.cnblogs.com/luxiaoxun/p/3603399.html)
-
-最后：
-打开thrift工程文件，添加boost、openssl和libevent库的头文件和静态链接库位置，完成编译。
+然后：从源代码编译libevent。
+对于libevent库的编译比较麻烦，因为官方没有给出cmake等工程管理文件，而是使用vs的控制台nmake进行编译，参考：[windows下编译及使用libevent](http://www.cnblogs.com/luxiaoxun/p/3603399.html)。
+（1）对libevent库编译，并整理代码和文件提供给thrift使用：
+按照上述教程对libevent编译完毕，项目下建一个Lib目录，将上面三个lib文件copy到该目录下。
+新建一个include目录，将..\libevent-2.1.8-stable\include下的文件和文件夹copy到该目录下，然后将..\libevent-2.1.8-stable\include\WIN32-Code\nmake\下的文件和目录也copy到该目录下，2个event2目录下的文件可合并一起。
+（2）在thrift的nb库编译中添加上述新建的include和lib文件夹，完成对thrift的nb库的编译。
+（3）打开thrift工程文件，添加boost、openssl和libevent库的头文件和静态链接库位置，完成编译。
 
 
 ### 从IDL生成cpp源文件：
@@ -448,11 +450,6 @@ C:\boost_1_63_0\lib32-msvc-10.0\libboost_system-vc100-mt-gd-1_63.lib
 C:\boost_1_63_0\lib32-msvc-10.0\libboost_atomic-vc100-mt-gd-1_63.lib
 C:\boost_1_63_0\lib32-msvc-10.0\libboost_date_time-vc100-mt-gd-1_63.lib
 C:\boost_1_63_0\lib32-msvc-10.0\libboost_chrono-vc100-mt-gd-1_63.lib
-C:\boost_1_63_0\lib32-msvc-10.0\
-C:\boost_1_63_0\lib32-msvc-10.0\
-C:\boost_1_63_0\lib32-msvc-10.0\
-C:\boost_1_63_0\lib32-msvc-10.0\
-C:\boost_1_63_0\lib32-msvc-10.0\
 ```
 
 #### cpp的客户端开发中添加依赖于thrift提供的文件：
@@ -487,7 +484,8 @@ C:\OpenSSL-Win32\lib\VC\static\ssleay32MTd.lib
 [网上搜索](https://github.com/pyca/cryptography/issues/2024)发现为Win32 OpenSSL使用vs2012编译导致了错误，所以最好的方法就是更新编译器到2012，或者自己编译对应版本的openssl。
 
 #### 手动编译openssl：
-既然问题出在openssl上，那么就采用自己手动编译的方式来解决，打开vs的控制台，然后按照如下步骤执行：
+既然问题出在openssl上，那么就采用自己手动编译的方式来解决。
+从[官方网站](http://downloads.activestate.com/ActivePerl/releases/5.22.3.2204/ActivePerl-5.22.3.2204-MSWin32-x86-64int-401627.exe)下载最新的ActivePerl安装包，完成安装。然后打开vs的控制台，按照如下步骤执行：
 ```shell
 perl Configure VC-WIN32 no-asm --prefix=C:\openssl_lib
 
@@ -508,7 +506,7 @@ perl Configure VC-WIN64A no-asm --prefix=C:\openssl_lib
 ```
 还要注意要关闭asm，否则会编译失败，或者使用masm进行预编译处理。
 
-然后使用这个openssl来对thrift进行重新编译。
+然后使用这个openssl来对thrift进行重新编译，并且客户端的编译也正常通过，完成了C++客户端对java服务器的调用。
 
 > - 参考文档：
 [编译openssl出错](http://bbs.csdn.net/topics/390986380)
@@ -518,15 +516,53 @@ perl Configure VC-WIN64A no-asm --prefix=C:\openssl_lib
 
 ### 编写C++的服务端：
 上述java教程中实现了相同语言的服务端和客户端，上一节又直接使用thrift来使用了C++开发了客户端，这一节使用cpp来开发IDL对应的服务端，然后使用java进行调用。
-PS:由于thrift的windows环境的C++编译比较麻烦，暂时不进行实际测试。
+将gen-cpp生成的文件放在项目中，并且修改默认生成的Hello_server.skeleton.cpp文件，补全接口函数的实现：
+```cpp
+  int32_t helloInt(const int32_t para) {
+    // Your implementation goes here
+    printf("helloInt\n");
+	return 0;
+  }
+
+  bool helloBoolean(const bool para) {
+    // Your implementation goes here
+    printf("helloBoolean\n");
+	return true;
+  }
+```
+补全返回值。然后添加附加的目录和库。完成编译。
+ps:目前编译失败，报错信息为：
+```shell
+1>Hello_server.skeleton.obj : error LNK2019: 无法解析的外部符号 "public: virtual void __thiscall apache::thrift::server::TServerFramework::serve(void)" (?serve@TServerFramework@server@thrift@apache@@UAEXXZ)，该符号在函数 _main 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2001: 无法解析的外部符号 "public: virtual void __thiscall apache::thrift::server::TServerFramework::serve(void)" (?serve@TServerFramework@server@thrift@apache@@UAEXXZ)
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: virtual __thiscall apache::thrift::server::TServerFramework::~TServerFramework(void)" (??1TServerFramework@server@thrift@apache@@UAE@XZ)，该符号在函数 __unwindfunclet$??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z$0 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: virtual void __thiscall apache::thrift::server::TServerFramework::setConcurrentClientLimit(__int64)" (?setConcurrentClientLimit@TServerFramework@server@thrift@apache@@UAEX_J@Z)，该符号在函数 "public: __thiscall apache::thrift::server::TSimpleServer::TSimpleServer(class boost::shared_ptr<class apache::thrift::TProcessorFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z) 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: __thiscall apache::thrift::server::TServerFramework::TServerFramework(class boost::shared_ptr<class apache::thrift::TProcessorFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TServerFramework@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z)，该符号在函数 "public: __thiscall apache::thrift::server::TSimpleServer::TSimpleServer(class boost::shared_ptr<class apache::thrift::TProcessorFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z) 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2001: 无法解析的外部符号 "public: virtual void __thiscall apache::thrift::server::TServerFramework::stop(void)" (?stop@TServerFramework@server@thrift@apache@@UAEXXZ)
+1>libthrift.lib(TSimpleServer.obj) : error LNK2001: 无法解析的外部符号 "public: virtual __int64 __thiscall apache::thrift::server::TServerFramework::getConcurrentClientLimit(void)const " (?getConcurrentClientLimit@TServerFramework@server@thrift@apache@@UBE_JXZ)
+1>libthrift.lib(TSimpleServer.obj) : error LNK2001: 无法解析的外部符号 "public: virtual __int64 __thiscall apache::thrift::server::TServerFramework::getConcurrentClientCount(void)const " (?getConcurrentClientCount@TServerFramework@server@thrift@apache@@UBE_JXZ)
+1>libthrift.lib(TSimpleServer.obj) : error LNK2001: 无法解析的外部符号 "public: virtual __int64 __thiscall apache::thrift::server::TServerFramework::getConcurrentClientCountHWM(void)const " (?getConcurrentClientCountHWM@TServerFramework@server@thrift@apache@@UBE_JXZ)
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: __thiscall apache::thrift::server::TServerFramework::TServerFramework(class boost::shared_ptr<class apache::thrift::TProcessor> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TServerFramework@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessor@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z)，该符号在函数 "public: __thiscall apache::thrift::server::TSimpleServer::TSimpleServer(class boost::shared_ptr<class apache::thrift::TProcessor> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessor@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@@Z) 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: __thiscall apache::thrift::server::TServerFramework::TServerFramework(class boost::shared_ptr<class apache::thrift::TProcessorFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TServerFramework@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@2ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@3@Z)，该符号在函数 "public: __thiscall apache::thrift::server::TSimpleServer::TSimpleServer(class boost::shared_ptr<class apache::thrift::TProcessorFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessorFactory@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@2ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@3@Z) 中被引用
+1>libthrift.lib(TSimpleServer.obj) : error LNK2019: 无法解析的外部符号 "public: __thiscall apache::thrift::server::TServerFramework::TServerFramework(class boost::shared_ptr<class apache::thrift::TProcessor> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TServerFramework@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessor@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@2ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@3@Z)，该符号在函数 "public: __thiscall apache::thrift::server::TSimpleServer::TSimpleServer(class boost::shared_ptr<class apache::thrift::TProcessor> const &,class boost::shared_ptr<class apache::thrift::transport::TServerTransport> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::transport::TTransportFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &,class boost::shared_ptr<class apache::thrift::protocol::TProtocolFactory> const &)" (??0TSimpleServer@server@thrift@apache@@QAE@ABV?$shared_ptr@VTProcessor@thrift@apache@@@boost@@ABV?$shared_ptr@VTServerTransport@transport@thrift@apache@@@5@ABV?$shared_ptr@VTTransportFactory@transport@thrift@apache@@@5@2ABV?$shared_ptr@VTProtocolFactory@protocol@thrift@apache@@@5@3@Z) 中被引用
+1>C:\Users\iscas\Desktop\thrift\thriftClientDemo\Debug\thriftServerDemo.exe : fatal error LNK1120: 11 个无法解析的外部命令
+1>
+1>生成失败。
+```
+目测为链接库的实现存在问题，导致函数无法正确的找到。
+
 
 ## 使用thrift完成其他语言之间的相互调用：
+既然thrift可以提供多种语言的RPC通信过程，除了C++，再尝试使用脚本类语言作为通信对象。
+
+> - 参考文档：
 [使用thrift做c++,java和python的相互调用](http://jinghong.iteye.com/blog/1222713)
 
 ## thrift基本语法学习：
 
 
 ## 使用thrift做JDBC开发：
+就自己的开发经验来看，使用thrift来对JDBC开发还是只是替换了socket通信的部分，而没有对整个JDBC的框架开发带来其他变化。也就是说将当前自己编写的socket服务器通过thrift来完成替换，其他部分均保持不变。
 
 
 ## 与其他PRC框架对比：
