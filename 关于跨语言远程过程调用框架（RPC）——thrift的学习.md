@@ -25,6 +25,9 @@
             - [编译出现问题：](#编译出现问题)
             - [手动编译openssl：](#手动编译openssl)
         - [编写C++的服务端：](#编写c的服务端)
+            - [linux环境下thrift源代码的编译：](#linux环境下thrift源代码的编译)
+                - [指定版本的boost编译：](#指定版本的boost编译)
+                - [指定版本的OpenSSL编译：](#指定版本的openssl编译)
     - [使用thrift完成其他语言之间的相互调用：](#使用thrift完成其他语言之间的相互调用)
     - [thrift基本语法学习：](#thrift基本语法学习)
     - [使用thrift做JDBC开发：](#使用thrift做jdbc开发)
@@ -620,6 +623,115 @@ ps:目前编译失败，报错信息为：
 ```
 目测为链接库的实现存在问题，导致函数无法正确的找到。
 目前没有在网上找到相关的解决方法，准备尝试在linux系统下进行测试了验证是否为编译器或者平台问题。
+
+#### linux环境下thrift源代码的编译：
+由于在windows环境下测试失败，为了检查平台还是操作系统问题，现在尝试在centos7_x64环境下对thrift进行编译和测试。
+
+##### 指定版本的boost编译：
+参考文档：[Linux编译和安装boost库](http://blog.csdn.net/this_capslock/article/details/47170313)
+按照上述教程，从[官方网站](https://sourceforge.net/projects/boost/files/boost/)下载源代码包，然后执行如下步骤：
+```shell
+tar zxvf boost_1_63_0.tar.gz
+cd boost_1_63_0
+./bootstrap.sh --with-libraries=all --with-toolset=gcc
+```
+命令执行完成后看到显示如下即为成功：
+```shell
+Building Boost.Build engine with toolset gcc... tools/build/src/engine/bin.linuxx86_64/b2
+Detecting Python version... 2.7
+Detecting Python root... /usr
+Unicode/ICU support for Boost.Regex?... not found.
+Generating Boost.Build configuration in project-config.jam...
+
+Bootstrapping is done. To build, run:
+
+    ./b2
+    
+To adjust configuration, edit 'project-config.jam'.
+Further information:
+
+   - Command line help:
+     ./b2 --help
+     
+   - Getting started guide: 
+     http://www.boost.org/more/getting_started/unix-variants.html
+     
+   - Boost.Build documentation:
+     http://www.boost.org/build/doc/html/index.html
+```
+接下来，就需要使用生成的b2来对boost进行编译：
+```shell
+./b2 toolset=gcc
+```
+时间比较久，最终会显示类似：
+```shell
+ln-UNIX stage/lib/libboost_type_erasure.so
+common.mkdir bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_cpp_exprgrammar.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_cpp_grammar.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_cpp_literalgrs.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_defined_grammar.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_predef_macros.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_re2c_lexer.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/instantiate_re2c_lexer_str.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/token_ids.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/wave_config_constant.o
+common.mkdir bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/cpplexer
+common.mkdir bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/cpplexer/re2clex
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/cpplexer/re2clex/aq.o
+gcc.compile.c++ bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/cpplexer/re2clex/cpp_re.o
+gcc.link.dll bin.v2/libs/wave/build/gcc-4.8.5/release/threading-multi/libboost_wave.so.1.63.0
+common.copy stage/lib/libboost_wave.so.1.63.0
+ln-UNIX stage/lib/libboost_wave.so
+...failed updating 56 targets...
+...skipped 6 targets...
+...updated 1077 targets...
+```
+的信息，表示编译完成。
+
+接下来就需要进行连接和安装了：
+```shell
+mkdir /home/wentao/boost_lib
+./b2 install --prefix=/home/wentao/boost_lib
+```
+--prefix=/usr用来指定boost的安装目录，不加此参数的话默认的头文件在/usr/local/include/boost目录下，库文件在/usr/local/lib/目录下。这里把安装目录指定为--prefix=/home/wentao/boost_lib则boost会直接安装到这个文件夹下，可以忽略对环境变量的影响。
+
+需要注意的是，如果boost检测到了系统安装了python，那么就会默认开启boost.python支持，这个时候需要系统安装python-devel，否则会无法找到头文件报相关的错误：
+```shell
+./boost/python/detail/wrap_python.hpp:50:23: fatal error: pyconfig.h: No such file or directory
+```
+也就是最后出现：
+```shell
+...failed updating 56 targets...
+```
+错误的原因，可以通过命令：
+```shell
+yum -y install python-devel
+```
+安装python的开发包支持，然后重新执行b2来进行编译，最终结果为：
+```shell
+common.copy stage/lib/libboost_python.so.1.63.0
+ln-UNIX stage/lib/libboost_python.so
+...updated 62 targets...
+
+
+The Boost C++ Libraries were successfully built!
+
+The following directory should be added to compiler include paths:
+
+    /home/wentao/boost_1_63_0
+
+The following directory should be added to linker library paths:
+
+    /home/wentao/boost_1_63_0/stage/lib
+```
+参考文档：[boost.python编译及示例](http://blog.csdn.net/majianfei1023/article/details/46781581)
+
+> - 如果不需要指定boost版本，可以直接使用yum来对boost进行安装：yum install boost boost-devel boost-doc
+
+##### 指定版本的OpenSSL编译：
+
+
 
 
 ## 使用thrift完成其他语言之间的相互调用：
