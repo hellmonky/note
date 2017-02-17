@@ -28,6 +28,10 @@
             - [linux环境下thrift源代码的编译：](#linux环境下thrift源代码的编译)
                 - [指定版本的boost编译：](#指定版本的boost编译)
                 - [指定版本的OpenSSL编译：](#指定版本的openssl编译)
+                - [指定版本的libevent编译：](#指定版本的libevent编译)
+            - [使用thrift默认configure进行编译：](#使用thrift默认configure进行编译)
+            - [使用cmake对thrift进行编译：](#使用cmake对thrift进行编译)
+            - [单独对thrift的C++库支持进行编译：](#单独对thrift的c库支持进行编译)
     - [使用thrift完成其他语言之间的相互调用：](#使用thrift完成其他语言之间的相互调用)
     - [thrift基本语法学习：](#thrift基本语法学习)
     - [使用thrift做JDBC开发：](#使用thrift做jdbc开发)
@@ -696,6 +700,7 @@ mkdir /home/wentao/boost_lib
 ```
 --prefix=/usr用来指定boost的安装目录，不加此参数的话默认的头文件在/usr/local/include/boost目录下，库文件在/usr/local/lib/目录下。这里把安装目录指定为--prefix=/home/wentao/boost_lib则boost会直接安装到这个文件夹下，可以忽略对环境变量的影响。
 
+
 需要注意的是，如果boost检测到了系统安装了python，那么就会默认开启boost.python支持，这个时候需要系统安装python-devel，否则会无法找到头文件报相关的错误：
 ```shell
 ./boost/python/detail/wrap_python.hpp:50:23: fatal error: pyconfig.h: No such file or directory
@@ -730,7 +735,202 @@ The following directory should be added to linker library paths:
 > - 如果不需要指定boost版本，可以直接使用yum来对boost进行安装：yum install boost boost-devel boost-doc
 
 ##### 指定版本的OpenSSL编译：
+安装openssl需要zlib和perl支持，因为centos7默认自带了perl环境，所以这儿只需要添加zlib的开发包：
+```shell
+yum install zlib-devel
+```
+返回结果为：
+```shell
+Loaded plugins: fastestmirror
+Loading mirror speeds from cached hostfile
+ * base: mirrors.tuna.tsinghua.edu.cn
+ * extras: mirrors.tuna.tsinghua.edu.cn
+ * updates: mirrors.tuna.tsinghua.edu.cn
+Resolving Dependencies
+--> Running transaction check
+---> Package zlib-devel.x86_64 0:1.2.7-17.el7 will be installed
+--> Finished Dependency Resolution
 
+Dependencies Resolved
+
+=============================================================================================================================================================================================
+ Package                                        Arch                                       Version                                            Repository                                Size
+=============================================================================================================================================================================================
+Installing:
+ zlib-devel                                     x86_64                                     1.2.7-17.el7                                       base                                      50 k
+
+Transaction Summary
+=============================================================================================================================================================================================
+Install  1 Package
+
+Total download size: 50 k
+Installed size: 132 k
+Is this ok [y/d/N]: y
+Downloading packages:
+zlib-devel-1.2.7-17.el7.x86_64.rpm                                                                                                                                    |  50 kB  00:00:00     
+Running transaction check
+Running transaction test
+Transaction test succeeded
+Running transaction
+  Installing : zlib-devel-1.2.7-17.el7.x86_64                                                                                                                                            1/1 
+  Verifying  : zlib-devel-1.2.7-17.el7.x86_64                                                                                                                                            1/1 
+
+Installed:
+  zlib-devel.x86_64 0:1.2.7-17.el7                                                                                                                                                           
+
+Complete!
+```
+然后就可以对OpenSSL进行编译安装了：
+```shell
+./config --prefix=/home/wentao/openssl_lib shared zlib-dynamic
+```
+这儿使用zlib-dynamic，是因为已经全局安装了zlib-devel，通过动态库可以获取支持，而不再需要zlib的源代码嵌入编译。
+继续编译安装：
+```shell
+make
+make install
+```
+
+> - 参考文档：
+[编译安装openssl时使用参数zlib-dynamic和zlib有什么区别？](https://segmentfault.com/q/1010000008259139)
+[Beyond Linux® From Scratch - Version 2017-02-15 Chapter 4. Security](http://www.linuxfromscratch.org/blfs/view/svn/postlfs/openssl.html)
+[Linux之编译安装openssl来升级系统openssl](https://www.dwhd.org/20160811_122603.html)
+
+##### 指定版本的libevent编译：
+还是按照一般的库编译方式进行：
+```shell
+tar zxvf libevent-2.1.8-stable.tar.gz
+cd libevent-2.1.8-stable
+./configure --prefix=/home/wentao/libevent_lib
+make
+make install
+```
+
+#### 使用thrift默认configure进行编译：
+上述如果不需要依赖于特定的库版本，可以直接通过一条命令准备好编译thrift的所有库：
+```shell
+sudo yum -y install boost-devel libevent-devel zlib-devel openssl-devel
+```
+然后解压缩thrift，并且进入lib/cpp文件夹下，准备编译C++的开发库支持：
+```shell
+tar zxvf thrift-0.10.0.tar.gz
+cd thrift-0.10.0
+```
+然后按照[官方文档](https://thrift.apache.org/docs/BuildingFromSource)，对整个thrift进行配置和编译，包含thrift编译器和库支持。查看我们需要配置的内容：
+```shell
+./configure --help
+```
+具体的就需要设置上述我们自定义版本库路径设置：
+```shell
+  --with-boost[=ARG]      use Boost library from a standard location
+                          (ARG=yes), from the specified location (ARG=<path>),
+                          or disable it (ARG=no) [ARG=yes]
+  --with-boost-libdir=LIB_DIR
+                          Force given directory for boost libraries. Note that
+                          this will override library path detection, so use
+                          this parameter only if default library detection
+                          fails and you know exactly where your boost
+                          libraries are located.
+  --with-openssl=DIR      root of the OpenSSL directory
+  --with-libevent[=DIR]   use libevent [default=yes]. Optionally specify the
+                          root prefix dir where libevent is installed
+```
+最后的配置脚本为：
+```shell
+./configure --prefix='/home/wentao/thrift_lib' --with-boost='/home/wentao/boost_lib/'  --with-openssl='/home/wentao/openssl_lib/' --with-libevent='/home/wentao/libevent_lib'
+```
+返回结果中就会包含C++的库支持选项为打开状态，表示会编译C++的开发库了。其他检查没有错误之后，就可以执行编译和安装了：
+```shell
+make
+make install
+```
+在make完毕进行链接时由于找不到openssl相关的库导致生成失败，感觉这个是configure中设置的部分没有起作用，看看是否有官方解决方法。
+
+#### 使用cmake对thrift进行编译：
+上述configure中设置了相关的库路径后，还是会遇到ld找不到动态库的问题，导致链接失败而无法正常生成文件，所以还是采用linux下预先安装相关包完成依赖，然后使用cmake或者configure的方式进行编译。
+在thrift解压缩目录下新建cmakebuild目录，实现源外编译：
+```shell
+mkdir cmakebuild
+cd cmakebuild
+ccmake ..
+```
+完成相关选项的检查和填写后，输入g生成makefile，然后开始编译：
+```shell
+make
+make install
+```
+
+需要注意的是，因为thrift编译器运行需要加载libthrift相关的库才可以运行，所以需要将cmake中设置的install路径中的lib文件夹添加到ld查询路径中，编辑/etc/ld.so.conf，然后添加这个路径到其中，然后运行：
+```shell
+/sbin/ldconfig
+```
+刷新ld查询路径，就可以使用：./thrift -version，查询是否编译成功了。
+
+如果要对C支持，需要安装glibc的开发包：
+```shell
+yum install glibc glibc-devel glibc-headers
+```
+但是目前自己测试的系统中已经安装了这些包，但是还是没有生成C相关的开发库文件。
+
+#### 单独对thrift的C++库支持进行编译：
+需要安装cmake来对thrift的库依赖进行配置：
+```shell
+yum -y install cmake
+```
+然后使用cmake进行配置，新建一个build目录放置cmake生成的中间文件，然后检查编译需要的依赖：
+```shell
+mkdir /home/wentao/thrift_build
+cd thrift_build
+ccmake /home/wentao/thrift-0.10.0/lib/cpp/CMakeList.txt
+```
+然后使用t打开高级选项，填入需要依赖的库路径，完成后输入c保存。
+回显：
+```shell
+-- The C compiler identification is GNU 4.8.5
+-- The CXX compiler identification is GNU 4.8.5
+-- Check for working C compiler: /usr/bin/cc
+-- Check for working C compiler: /usr/bin/cc -- works
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++
+-- Check for working CXX compiler: /usr/bin/c++ -- works
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+CMake Error at CMakeLists.txt:20 (include_directories):
+  include_directories given empty-string as include directory.
+
+
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing:  OPENSSL_LIBRARIES OPENSSL_INCLUDE_DIR) 
+CMake Error at CMakeLists.txt:162 (include):
+  include could not find load file:
+
+    ThriftMacros
+
+
+CMake Error at CMakeLists.txt:164 (ADD_LIBRARY_THRIFT):
+  Unknown CMake command "ADD_LIBRARY_THRIFT".
+
+
+CMake Warning (dev) in CMakeLists.txt:
+  No cmake_minimum_required command is present.  A line of code such as
+
+    cmake_minimum_required(VERSION 2.8)
+
+  should be added at the top of the file.  The version specified may be lower
+  if you wish to support older CMake versions for this project.  For more
+  information run "cmake --help-policy CMP0000".
+This warning is for project developers.  Use -Wno-dev to suppress it.
+
+-- Configuring incomplete, errors occurred!
+See also "/home/wentao/thrift-0.10.0/lib/cpp/CMakeFiles/CMakeOutput.log".
+```
+根据提示，我们需要在命令行中指定需要依赖的文件路径：
+```shell
+set OPENSSL_LIBRARIES='/home/wentao/openssl_lib/lib/' 
+set OPENSSL_INCLUDE_DIR='/home/wentao/openssl_lib/include/'
+cmake ../CMakeLists.txt -G 'Unix Makefiles'
+```
+还是失败，不知道有什么解决方法。
 
 
 
