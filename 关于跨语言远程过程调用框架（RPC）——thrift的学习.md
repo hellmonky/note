@@ -876,6 +876,8 @@ yum install glibc glibc-devel glibc-headers
 ```
 但是目前自己测试的系统中已经安装了这些包，但是还是没有生成C相关的开发库文件。
 
+> - 参考文档：[Apache Thrift - CMake build](https://github.com/apache/thrift/tree/master/build/cmake)
+
 ##### 单独对thrift的C++库支持进行编译：
 需要安装cmake来对thrift的库依赖进行配置：
 ```shell
@@ -938,6 +940,10 @@ cmake ../CMakeLists.txt -G 'Unix Makefiles'
 
 #### linux下的C++服务端编写测试：
 还是使用和windows一样的服务端代码，但是为了方便起见，采用cmake来管理工程，方便在各种平台上的测试切换。
+首先编写cmake文件来对thrift服务端源代码进行管理：
+```cmake
+
+```
 
 
 
