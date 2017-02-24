@@ -32,7 +32,9 @@
                     - [2.3 使用LiteIDE作为golang的开发环境：](#23-使用liteide作为golang的开发环境)
                 - [3 golang自定义workspace结构的总结：](#3-golang自定义workspace结构的总结)
                 - [4 golang的包管理：](#4-golang的包管理)
-            - [golagn的bootstrap过程：](#golagn的bootstrap过程)
+            - [golang的bootstrap编译过程：](#golang的bootstrap编译过程)
+            - [快速而又系统的学习下golang的基本语法：](#快速而又系统的学习下golang的基本语法)
+            - [从源代码编译Docker：](#从源代码编译docker)
             - [然后，看看一个类是怎么实现的：](#然后看看一个类是怎么实现的)
             - [最后，整个程序是怎么组合不同的类完成功能的：](#最后整个程序是怎么组合不同的类完成功能的)
         - [总是要比较，那么就比比看：](#总是要比较那么就比比看)
@@ -567,8 +569,7 @@ import "github.com/zenazn/goji"
 [使用Golang开发手游服务器的感想](http://blog.csdn.net/langresser_king/article/details/50495526)
 
 
-
-#### golagn的bootstrap过程：
+#### golang的bootstrap编译过程：
 golang从1.4版本开始就支持自举了，我们以最新发布的golang1.8为例来看看golang的自举编译过程。
 为了实现自举编译，我们首先需要在当前系统编译golang1.4版本的可执行文件，作为后续其他版本的编译器，而golang1.4版本依赖于gcc和glibc-devel，所以在当前系统（centos7）上需要安装对应的开发包：
 ```shell
@@ -595,6 +596,7 @@ cp go /usr/local/go1.4.3 -rf
 export GOROOT_BOOTSTRAP=/usr/local/go1.4.3
 ```
 这样就通过gcc和glibc完成了对第一版自举golang可执行文件的编译，并且将这个目录添加到GOROOT_BOOTSTRAP中，供后续golang版本作为编译器使用。
+其中通过设置GOROOT_BOOTSTRAP来指定编译当前go源代码的go可执行文件的路径，也就是实现自举的最重要的环节。
 然后清空当前的go文件夹，然后检出最新的发布版本1.8：
 ```shell
 cd go
@@ -626,24 +628,19 @@ source /etc/profile
 go version go1.8 linux/amd64
 ```
 
-到此为止，完成了整个golang的第一个支持自举版本的编译，和用自举编译器完成最新发布版的编译过程。
-
-
-
-
-其中通过设置GOROOT_BOOTSTRAP来指定编译当前go源代码的go可执行文件的路径，也就是实现自举的最重要的环节。
+到此为止，完成了整个golang的第一个支持自举版本的编译，和用自举编译器完成最新发布版的编译过程。总体上相当简单，并且不同于其他语言，golang不是提供一个标准，而是提供了官方的编译器供用户使用，从而完成这种自举是非常方便的。
+而C++等语言只是提出了标准，各种编译器的实现是非常复杂的，虽然可以自举，但是不再像是这么简单了。
 
 > - 参考文档：
 [Installing Go from source](https://golang.org/doc/install/source)
 [从源代码安装Go1.6到CentOS 7](http://studygolang.com/articles/8994)
 
 
+#### 快速而又系统的学习下golang的基本语法：
+在了解了上述基本概念，并且完成了自举测试后，我们也需要重新系统的梳理学习下golang的语法，从而为后续的工程实际开发做准备了。
 
-
-
-
-
-
+#### 从源代码编译Docker：
+为了充分的理解docker的运行状态，最好的方式就是
 
 
 
