@@ -32,6 +32,7 @@
                     - [2.3 使用LiteIDE作为golang的开发环境：](#23-使用liteide作为golang的开发环境)
                 - [3 golang自定义workspace结构的总结：](#3-golang自定义workspace结构的总结)
                 - [4 golang的包管理：](#4-golang的包管理)
+            - [golagn的bootstrap过程：](#golagn的bootstrap过程)
             - [然后，看看一个类是怎么实现的：](#然后看看一个类是怎么实现的)
             - [最后，整个程序是怎么组合不同的类完成功能的：](#最后整个程序是怎么组合不同的类完成功能的)
         - [总是要比较，那么就比比看：](#总是要比较那么就比比看)
@@ -567,7 +568,74 @@ import "github.com/zenazn/goji"
 
 
 
+#### golagn的bootstrap过程：
+golang从1.4版本开始就支持自举了，我们以最新发布的golang1.8为例来看看golang的自举编译过程。
+为了实现自举编译，我们首先需要在当前系统编译golang1.4版本的可执行文件，作为后续其他版本的编译器，而golang1.4版本依赖于gcc和glibc-devel，所以在当前系统（centos7）上需要安装对应的开发包：
+```shell
+yum group install "Development Tools"
+yum -y install git
+```
+然后将当前已经安装的golang的环境变量注释掉，不然会影响后面的go可执行文件的查找。准备好了基本环境之后，就可以从golang的github下载最新的golang源代码包来开始bootstrap过程：
+```shell
+mkdir golang_dev
+cd golang_dev
+git clone https://github.com/golang/go.git
+```
+首先，需要检出第一版可以支持自举的golang版本，也就是1.4.3版本：
+```shell
+cd go
+git checkout -b 1.4.3 go1.4.3
+cd src
+./all.bash
+```
+检出1.4.3分支，然后在本地建立分支go1.4.3，然后进入src文件夹下，执行all.bash脚本来完成golang的编译，执行完成后会在当前整个目录下生成可执行文件，将当前整个文件夹拷贝到另一个文件夹中，作为bootstrap的工具目录：
+```shell
+cd ../..
+cp go /usr/local/go1.4.3 -rf
+export GOROOT_BOOTSTRAP=/usr/local/go1.4.3
+```
+这样就通过gcc和glibc完成了对第一版自举golang可执行文件的编译，并且将这个目录添加到GOROOT_BOOTSTRAP中，供后续golang版本作为编译器使用。
+然后清空当前的go文件夹，然后检出最新的发布版本1.8：
+```shell
+cd go
+git clean -dfx
+git checkout -b 1.8 go1.8
+cd src
+./all.bash
+```
+也是通过src文件夹下的all.bash脚本执行编译，唯一的区别就在于这个编译依赖于GOROOT_BOOTSTRAP中设置的go编译器了，而不再是gcc和glibc了。
+完成编译后，将当前整个go目录拷贝到另一个目录下，然后将这个目录添加到系统环境变量中，就可以作为最新的golang1.8版本的编译器使用了：
+```shell
+cd ../..
+cp go /usr/local/go1.8 -rf
+nano /etc/profile
+```
+添加内容为：
+```shell
+# add golang
+export GOROOT=/usr/local/go1.8
+export GOBIN=$GOROOT/bin
+export PATH=$PATH:$GOBIN
+```
+然后重新更新系统环境变量，将添加的内容生效：
+```shell
+source /etc/profile
+```
+用命令：go version 来检查go版本状态：
+```shell
+go version go1.8 linux/amd64
+```
 
+到此为止，完成了整个golang的第一个支持自举版本的编译，和用自举编译器完成最新发布版的编译过程。
+
+
+
+
+其中通过设置GOROOT_BOOTSTRAP来指定编译当前go源代码的go可执行文件的路径，也就是实现自举的最重要的环节。
+
+> - 参考文档：
+[Installing Go from source](https://golang.org/doc/install/source)
+[从源代码安装Go1.6到CentOS 7](http://studygolang.com/articles/8994)
 
 
 
