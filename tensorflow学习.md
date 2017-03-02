@@ -13,6 +13,13 @@
     - [tensorflow和当前大数据生态系统的集成：](#tensorflow和当前大数据生态系统的集成)
         - [tensorflow使用HDFS获取数据：](#tensorflow使用hdfs获取数据)
         - [tenosrflow使用Spark完成计算：](#tenosrflow使用spark完成计算)
+    - [tensorflow的编译安装：](#tensorflow的编译安装)
+        - [linux（centos7）环境下的源代码编译安装：](#linuxcentos7环境下的源代码编译安装)
+            - [编译安装Bazel：](#编译安装bazel)
+            - [安装python依赖包：](#安装python依赖包)
+            - [安装CUDA支持包：](#安装cuda支持包)
+            - [编译安装tensorflow：](#编译安装tensorflow)
+        - [windows（windows10）环境下的源代码编译安装：](#windowswindows10环境下的源代码编译安装)
     - [附录：](#附录)
         - [centos7环境下搭建shadowsocket客户端：](#centos7环境下搭建shadowsocket客户端)
 
@@ -55,16 +62,26 @@ systemctl start docker.service
 ```shell
 docker run -it b.gcr.io/tensorflow/tensorflow-full
 ```
+或者使用最新版：
+```shell
+docker pull gcr.io/tensorflow/tensorflow
+```
+
 问题就来了，这个是googlecode上的地址，已经被和谐了，在虚拟机centos7中无法访问，阿西吧，好吧，只能在虚拟机centos7中再搭建一个ss客户端了。
 但是测试，搭建ss之后，docker pull命令并无法使用socket5和http协议完成下载，最终docker run获取镜像也是失败，只能通过修改/etc/hosts文件：
 ```shell
 61.91.161.217 b.gcr.io
+23.239.5.106 b.gcr.io
 ```
 才能正确访问，看来是因为docker获取镜像不通过http协议，ping也不通过http协议。
 
 
 #### 使用国内docker源进行下载：
 通过国内提供的镜像管理源直接安装：
+```shell
+docker pull daocloud.io/daocloud/tensorflow:1.0.0-rc1-devel
+```
+或者：
 ```shell
 docker run -it daocloud.io/daocloud/tensorflow:1.0.0-rc1-devel
 ```
@@ -88,6 +105,10 @@ Python 2.7.6
 然后输入python，进入终端中进行测试：
 ```shell
 import tensorflow as tf
+tf.__version__
+>>> '1.0.0'
+tf.__path__
+>>> ['/usr/local/lib/python2.7/dist-packages/tensorflow']
 hello = tf.constant('Hello, TensorFlow!')
 sess = tf.Session()
 print sess.run(hello)
@@ -97,10 +118,21 @@ b = tf.constant(32)
 print sess.run(a+b)
 >>> 42
 ```
-如果上述运行正确，基本上tensorflow的运行环境就表示成功了。
+通过查看当前tensorflow的版本和安装位置、以及基本的运算执行，就表示tensorflow的运行环境就部署成功了。
+
+需要注意的是，在创建Session的时候，tensorflow会提示：
+```shell
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE3 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.1 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use SSE4.2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use AVX2 instructions, but these are available on your machine and could speed up CPU computations.
+W tensorflow/core/platform/cpu_feature_guard.cc:45] The TensorFlow library wasn't compiled to use FMA instructions, but these are available on your machine and could speed up CPU computations.
+```
+根据文档：[warnings](https://github.com/tensorflow/tensorflow/issues/7778)，可知，这个是因为没有从当前PC进行编译而直接使用通用镜像时，为了通用性缺少处理器的指令集支持，所以进行了提示，表示可以通过在本机进行编译提升tensorflow的执行效率。
 
 #### TensorFlow中的基本概念：
-TensorFlow是一种将计算表示为图的编程系统。图中的节点称为ops(operation的简称)。一个ops使用0个或以上的Tensors，通过执行某些运算，产生0个或以上的Tensors。一个Tensor是一个多维数组，例如，你可以将一批图像表示为一个四维的数组[batch, height, width, channels]，数组中的值均为浮点数。
+TensorFlow是一种将计算表示为图的编程系统。图中的节点称为ops(operation的简称)。一个ops使用0个或以上的Tensors（张量），通过执行某些运算，产生0个或以上的Tensors。一个Tensor是一个多维数组，例如，你可以将一批图像表示为一个四维的数组[batch, height, width, channels]，数组中的值均为浮点数。
 
 所以使用tensorflow完成计算，需要执行以下步骤：
 > - 将计算流程表示成图；
@@ -110,7 +142,6 @@ TensorFlow是一种将计算表示为图的编程系统。图中的节点称为o
 > - 分别使用feeds和fetches来填充数据和抓取任意的操作结果；
 
 TensorFlow中的图描述了计算过程，图通过Session的运行而执行计算。Session将图的节点们(即ops)放置到计算设备(如CPUs和GPUs)上，然后通过方法执行它们；这些方法执行完成后，将返回tensors。在Python中的tensor的形式是numpy ndarray对象，而在C/C++中则是tensorflow::Tensor。
-
 
 
 > - 参考文档：
@@ -132,9 +163,58 @@ AI从来都是来源于大样本的训练，只有通过大样本的训练才可
 而Tensorflow作为一个DL框架，也就必然的需要和大数据平台结合才能进一步释放能力。通过训练的模型和云端数据，物联网、自动驾驶等才能真的运行起来。
 作为从业者，自己需要跨域两个问题：从一般领域进入数据领域，然后从数据领域进入分析领域。22世纪一定是基于数据分析进行产业调整的一个过程，并且会更加的刺激计算能力提升，期待超越硅基电路物理限制的计算器的诞生。
 
+
+
 ### tensorflow使用HDFS获取数据：
 
 ### tenosrflow使用Spark完成计算：
+
+## tensorflow的编译安装：
+为了提升执行效率，在实际运行的时候，为了提升效率，需要进行tensorflow的源代码编译安装。本节就是主要对tensorflow的源代码安装进行梳理总结，为后续源代码的定制做准备。
+tensorflow的编译需要依赖一些基本工具，包含：构建工具Bazel和python的依赖库。
+其中主要的工具是Bazel，他是Google开源的自动化构建工具。
+python的依赖库包含有：
+> numpy, which is a numerical processing package that TensorFlow requires.
+> dev, which enables adding extensions to Python.
+> pip, which enables you to install and manage certain Python packages.
+> wheel, which enables you to manage Python compressed packages in the wheel (.whl) format.
+
+
+并且，如果想使用CUDA加速，还需要安装CUDA开发包：
+
+
+
+> - 参考文档：
+[Installing TensorFlow from Sources](https://www.tensorflow.org/install/install_sources)
+[在linux（centos）上从源码安装tensorflow](http://blog.csdn.net/mafeiyu80/article/details/51397795)
+[TensorFlow—安装篇（centos7）](http://www.ifcoder.us/2003)
+
+
+### linux（centos7）环境下的源代码编译安装：
+
+#### 编译安装Bazel：
+
+> - 参考教程：
+[Redhat环境下编译安装bazel](http://www.cnblogs.com/Jack47/p/install-bazel-on-redhat-enterprise-5.html)
+
+#### 安装python依赖包：
+对于python2，可以使用如下命令：
+yum -y install epel-release
+yum update
+yum install numpy python-devel python-pip python-wheel
+
+参考教程：
+[Centos7下安装numpy+matplotlib+scipy](http://www.cnblogs.com/chamie/p/4821540.html)
+
+#### 安装CUDA支持包：
+首先要确认当前PC的显卡是否支持CUDA，然后从官方获取linux下的安装包进行安装。
+
+#### 编译安装tensorflow：
+
+
+
+### windows（windows10）环境下的源代码编译安装：
+目前官方并不建议在windows环境下进行源代码的编译，因为需要依赖于实验性质的工具进行处理，并不完善。
 
 
 ## 附录：
