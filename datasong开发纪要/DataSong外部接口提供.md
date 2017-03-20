@@ -613,3 +613,24 @@ uint32_t TBinaryProtocolT<Transport_, ByteOrder_>::readString(StrType& str) {
 
 ## 实际工程应用：
 经过上述测试用例，基本满足了当前工程开发的需求，所以这部分将记录当前工程应用的具体过程。
+
+
+虚拟环境中使用vs2013编译boost1.63、openSSL和thrift：
+在vs2013命令行中执行：
+bootstrap.bat
+然后使用生成的bjam进行编译：
+bjam.exe stage --toolset=msvc-12.0 link=static runtime-link=shared threading=multi debug release
+参考：[vs2013编译boost1.55.0 32/64位](http://www.cnblogs.com/run220/p/3551134.html)
+继续编译openssl：
+安装ActivePerl和NASM，然后将NASM添加到系统环境变量中，进入vs的命令行窗口，使用ppm安装perl的组件：
+ppm install dmake
+然后开始使用perl预处理：
+perl configure VC-WIN32
+修改makefile和configdata.pm文件，与CRT静态绑定，避免了在目标机器上安装 VC 再发行包等等操作：
+搜索 “/MD” 字符串， 替换成 “/MT”
+然后使用nmake开始编译：
+nmake
+nmake test
+nmake install
+完成上述步骤之后，就可以对thrift的C++客户端进行编译了。进入thrift\lib\cpp文件夹下，使用vs打开sln工程，添加boost和openSSL的头文件路径和静态库文件路径：
+
