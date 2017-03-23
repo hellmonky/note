@@ -634,3 +634,22 @@ nmake test
 nmake install
 完成上述步骤之后，就可以对thrift的C++客户端进行编译了。进入thrift\lib\cpp文件夹下，使用vs打开sln工程，添加boost和openSSL的头文件路径和静态库文件路径：
 
+在vs2010中编译64位的环境：
+（1）boost：
+在vs2010命令行中执行：
+bootstrap.bat
+然后使用生成的bjam进行编译：
+bjam.exe stage --toolset=msvc-10.0 link=static runtime-link=shared address-model=64 threading=multi debug release
+（2）openssl：
+进入vs的命令行窗口，使用ppm安装perl的组件：
+ppm install dmake
+然后开始使用perl预处理：
+perl configure VC-WIN64A --prefix=c:/workspace/thrift/openssl_install
+修改makefile和configdata.pm文件，与CRT静态绑定，避免了在目标机器上安装 VC 再发行包等等操作：
+搜索 “/MD” 字符串， 替换成 “/MT”
+然后使用nmake开始编译：
+nmake
+nmake test
+nmake install
+（3）thrift：
+打开../thrift-1.0.0/lib/cpp/文件夹下的sln工程文件，然后选择为64位编译环境，添加相关的库和头文件，完成编译。
