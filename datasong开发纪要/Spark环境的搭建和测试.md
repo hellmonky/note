@@ -227,7 +227,14 @@ Spark作为原生Hadoop的MapReduce组件扩展，需要依赖Hadoop的环境，
 
 #### 安装Hadoop集群：
 在所有节点上解压缩Hadoop的包到/usr/local目录下：
+```shell
 tar -zxvf hadoop-2.6.0.tar.gz -C /usr/local
+```
+然后就可以查看Hadoop的版本信息了：
+```shell
+./usr/local/hadoop-2.6.0/bin/hadoop version
+```
+
 
 
 

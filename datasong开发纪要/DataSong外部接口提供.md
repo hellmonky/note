@@ -644,7 +644,7 @@ bjam.exe stage --toolset=msvc-10.0 link=static runtime-link=shared address-model
 进入vs的命令行窗口，使用ppm安装perl的组件：
 ppm install dmake
 然后开始使用perl预处理：
-perl configure VC-WIN64A --prefix=c:/workspace/thrift/openssl_install
+perl configure VC-WIN64A --prefix=C:/workspace/thrift/openssl_install
 修改makefile和configdata.pm文件，与CRT静态绑定，避免了在目标机器上安装 VC 再发行包等等操作：
 搜索 “/MD” 字符串， 替换成 “/MT”
 然后使用nmake开始编译：
