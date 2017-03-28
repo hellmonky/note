@@ -639,7 +639,9 @@ nmake install
 在vs2010命令行中执行：
 bootstrap.bat
 然后使用生成的bjam进行编译：
-bjam.exe stage --toolset=msvc-10.0 link=static runtime-link=shared address-model=64 threading=multi debug release
+bjam.exe stage --toolset=msvc-10.0 link=static runtime-link=shared address-model=64 threading=multi debug release 
+需要注意将runtime-link设置为shared，和当前的运行时库进行动态绑定。
+还有就是设置安装目录，否则添加非常麻烦。
 （2）openssl：
 进入vs的命令行窗口，使用ppm安装perl的组件：
 ppm install dmake
