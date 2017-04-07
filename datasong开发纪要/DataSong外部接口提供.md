@@ -14,6 +14,8 @@
         - [datasong服务端补充：](#datasong服务端补充)
         - [中文乱码的处理：](#中文乱码的处理)
     - [实际工程应用：](#实际工程应用)
+        - [提交测试编译环境：](#提交测试编译环境)
+        - [使用cmake管理当前源代码和库的编译：](#使用cmake管理当前源代码和库的编译)
 
 <!-- /TOC -->
 
@@ -542,7 +544,7 @@ int main(int argc, char** argv){
 还可以通过修改thrift的源代码来完成底层的自动转换，主要修改对象为：..\thrift-0.10.0\lib\cpp\src\thrift\protocol\TBinaryProtocol.tcc 这个文件，将其中readString和writeString函数中添加从GBK编码到UTF8编码的转换函数，涉及到的内容为：
 ```c++
 // add function start
-std::string mb_to_utf8(const std::string & strGBK) {
+inline std::string mb_to_utf8(const std::string & strGBK) {
 	std::string strOutUTF8 = "";
 	WCHAR * str1;
 	int n = MultiByteToWideChar(CP_ACP, 0, strGBK.c_str(), -1, NULL, 0);
@@ -559,7 +561,7 @@ std::string mb_to_utf8(const std::string & strGBK) {
 	return strOutUTF8;
 }
 
-std::string utf8_to_mb(const std::string & strUTF8) {
+inline std::string utf8_to_mb(const std::string & strUTF8) {
 	int len = MultiByteToWideChar(CP_UTF8, 0, strUTF8.c_str(), -1, NULL, 0);
 	wchar_t* wszGBK = new wchar_t[len + 1];
 	memset(wszGBK, 0, len * 2 + 2);
@@ -609,12 +611,15 @@ uint32_t TBinaryProtocolT<Transport_, ByteOrder_>::readString(StrType& str) {
   // modified content end
 }
 ```
-重新编译thrift的cpp库文件之后就可以正常的使用中文进行传输了。
+注意使用了inline对头文件中添加函数，保证重定义错误不会出现。重新编译thrift的cpp库文件之后就可以正常的使用中文进行传输了。
+
+> - 参考文档：
+[注意头文件规则，避免链接错误：重复定义(multiple defination)](https://zybuluo.com/uuprince/note/81709)
 
 ## 实际工程应用：
 经过上述测试用例，基本满足了当前工程开发的需求，所以这部分将记录当前工程应用的具体过程。
 
-
+### 提交测试编译环境：
 虚拟环境中使用vs2013编译boost1.63、openSSL和thrift：
 在vs2013命令行中执行：
 bootstrap.bat
@@ -655,3 +660,6 @@ nmake test
 nmake install
 （3）thrift：
 打开../thrift-1.0.0/lib/cpp/文件夹下的sln工程文件，然后选择为64位编译环境，添加相关的库和头文件，完成编译。
+
+### 使用cmake管理当前源代码和库的编译：
+当前使用vs的sln管理项目，每次都需要手动添加依赖的库文件和目录，比较繁琐，可以通过使用cmake来进行管理。
