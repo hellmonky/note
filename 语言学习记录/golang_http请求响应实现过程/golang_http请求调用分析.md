@@ -66,7 +66,9 @@ type Handler interface {
 > - http.HandleFunc接受两个参数：第一个参数是字符串表示的 url 路径，第二个参数是该 url 实际的处理对象。
 > - http.ListenAndServe 监听在某个端口，启动服务，准备接受客户端的请求（第二个参数这里设置为 nil，这里也不要纠结什么意思，后面会有讲解）。每次客户端有请求的时候，把请求封装成 http.Request，调用对应的 handler 的 ServeHTTP 方法，然后把操作后的 http.ResponseWriter 解析，返回到客户端。
 
-上面的代码没有什么问题，但是有一个不便：每次写 Handler 的时候，都要定义一个类型，然后编写对应的 ServeHTTP 方法，这个步骤对于所有 Handler 都是一样的。重复的工作总是可以抽象出来，net/http 也正这么做了，它提供了 http.HandleFunc 方法，允许直接把特定类型的函数作为 handler。上面的代码可以改成：
+上面的代码没有什么问题，但是有一个不便：每次写 Handler 的时候，都要定义一个类型，然后编写对应的 ServeHTTP 方法，这个步骤对于所有 Handler 都是一样的。重复的工作总是可以抽象出来，net/http 也正这么做了，它提供了 http.HandleFunc 方法，允许直接把特定类型的函数作为 handler。
+在http包里面还定义了一个类型HandlerFunc，这个类型默认就实现了ServeHTTP这个接口，即我们调用了HandlerFunc(f),强制类型转换f成为HandlerFunc类型，这样f就拥有了ServeHTTP方法。
+上面的代码可以改成：
 ```golang
 package main
 
@@ -398,6 +400,141 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
 完整的调用流程图为：
 
 ![一个http连接golang的处理流程](一个http连接golang的处理流程.png)
+
+
+## golang的http核心：Conn和ServeMux
+也就是接受用户HTTP请求的链接和处理用户请求的路由器。
+
+### Conn：
+Go为了实现高并发和高性能, 使用了goroutines来处理Conn的读写事件, 这样每个请求都能保持独立，相互不会阻塞，可以高效的响应网络事件。这是Go高效的保证。
+在等待用户请求的代码中，使用for循环获取用户请求，然后对每一个请求新建Conn。这个Conn里面保存了该次请求的信息，然后再传递到对应的handler，该handler中便可以读取到相应的header信息，这样保证了每个请求的独立性。
+
+### ServeMux：
+Conn通过调用server方法，将用户的HTTP请求通过路由器把本次请求的信息传递到了后端的处理函数。如果没有设置路由器，就会使用golang内置的默认路由器进行处理。
+那么该如何自定义路由器？首先看看ServerMux这个结构体：
+```golang
+type ServeMux struct {
+	mu    sync.RWMutex          //锁，由于请求涉及到并发处理，因此这里需要一个锁机制
+	m     map[string]muxEntry   // 路由规则，一个string对应一个mux实体，这里的string就是注册的路由表达式
+	hosts bool                  // 是否在任意的规则中带有host信息
+}
+```
+> 注意：golang中 map 对象的声明形式为 map[TypeOfKey]TypeOfValue，所以上述结构体类型中的m为map类型，key的类型为string，value的类型为muxEntry。
+
+然后muxEntry结构定义为：
+```golang
+type muxEntry struct {
+	explicit bool       // 是否精确匹配
+	h        Handler    // 这个路由表达式对应哪个handler
+	pattern  string     // 匹配字符串
+}
+```
+然后查看Handler的定义为：
+```golang
+type Handler interface {
+	ServeHTTP(ResponseWriter, *Request)
+}
+```
+路由器里面存储好了相应的路由规则之后，那么具体的请求又是怎么分发的呢？请看下面的代码，默认的路由器实现了ServeHTTP：
+```golang
+// ServeHTTP dispatches the request to the handler whose
+// pattern most closely matches the request URL.
+func (mux *ServeMux) ServeHTTP(w ResponseWriter, r *Request) {
+	if r.RequestURI == "*" {
+		if r.ProtoAtLeast(1, 1) {
+			w.Header().Set("Connection", "close")
+		}
+		w.WriteHeader(StatusBadRequest)
+		return
+	}
+	h, _ := mux.Handler(r)
+	h.ServeHTTP(w, r)
+}
+```
+如上所示路由器接收到请求之后，如果是*那么关闭链接，不然调用mux.Handler(r)返回对应设置路由的处理Handler，然后执行h.ServeHTTP(w, r)。
+也就是调用对应路由的handler的ServerHTTP接口，那么mux.Handler(r)怎么处理的呢？
+```golang
+// Handler returns the handler to use for the given request,
+// consulting r.Method, r.Host, and r.URL.Path. It always returns
+// a non-nil handler. If the path is not in its canonical form, the
+// handler will be an internally-generated handler that redirects
+// to the canonical path.
+//
+// Handler also returns the registered pattern that matches the
+// request or, in the case of internally-generated redirects,
+// the pattern that will match after following the redirect.
+//
+// If there is no registered handler that applies to the request,
+// Handler returns a ``page not found'' handler and an empty pattern.
+func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+	if r.Method != "CONNECT" {
+		if p := cleanPath(r.URL.Path); p != r.URL.Path {
+			_, pattern = mux.handler(r.Host, p)
+			url := *r.URL
+			url.Path = p
+			return RedirectHandler(url.String(), StatusMovedPermanently), pattern
+		}
+	}
+
+	return mux.handler(r.Host, r.URL.Path)
+}
+
+// handler is the main implementation of Handler.
+// The path is known to be in canonical form, except for CONNECT methods.
+func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
+	mux.mu.RLock()
+	defer mux.mu.RUnlock()
+
+	// Host-specific pattern takes precedence over generic ones
+	if mux.hosts {
+		h, pattern = mux.match(host + path)
+	}
+	if h == nil {
+		h, pattern = mux.match(path)
+	}
+	if h == nil {
+		h, pattern = NotFoundHandler(), ""
+	}
+	return
+}
+```
+原来他是根据用户请求的URL和路由器里面存储的map去匹配的，当匹配到之后返回存储的handler，调用这个handler的ServeHTTP接口就可以执行到相应的函数了。
+
+## 整体执行流程总结：
+对http包的分析之后，现在让我们来梳理一下整个的代码执行过程：
+
+### 首先调用Http.HandleFunc，按顺序做了几件事：
+1 调用了DefaultServeMux的HandleFunc
+2 调用了DefaultServeMux的Handle
+3 往DefaultServeMux的map[string]muxEntry中增加对应的handler和路由规则
+
+### 其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：
+
+1 实例化Server
+
+2 调用Server的ListenAndServe()
+
+3 调用net.Listen("tcp", addr)监听端口
+
+4 启动一个for循环，在循环体中Accept请求
+
+5 对每个请求实例化一个Conn，并且开启一个goroutine为这个请求进行服务go c.serve()
+
+6 读取每个请求的内容w, err := c.readRequest()
+
+7 判断handler是否为空，如果没有设置handler（这个例子就没有设置handler），handler就设置为DefaultServeMux
+
+8 调用handler的ServeHttp
+
+9 在这个例子中，下面就进入到DefaultServeMux.ServeHttp
+
+10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
+
+11 选择handler：
+A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）
+B 如果有路由满足，调用这个路由handler的ServeHttp
+C 如果没有路由满足，调用NotFoundHandler的ServeHttp
+
 
 
 
