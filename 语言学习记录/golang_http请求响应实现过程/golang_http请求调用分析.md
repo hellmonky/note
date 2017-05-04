@@ -885,6 +885,29 @@ type response struct {
 > - 10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
 > - 11 选择handler：<br> A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）<br> B 如果有路由满足，调用这个路由handler的ServeHttp <br> C 如果没有路由满足，调用NotFoundHandler的ServeHttp
 
+## 一些使用细节：
+设置response的返回类型：
+[HTTP Response Snippets for Go](http://www.alexedwards.net/blog/golang-response-snippets)
+
+json转换为字符串的正则替换：
+" 替换为 \"
+[ \n]+ 替换为空
+
+if else结构中，if和else之间的花括号中不能插入注释，否则无法识别。
+```golang
+if err != nil {
+    fmt.Println("wrong password")
+} else {
+    //接下来就可以判断这个数字的大小范围了
+    fmt.Println(getint)
+}
+```
+
+golang中使用了re2作为正则表达式的引擎：[RE2](https://github.com/google/re2)，并且默认支持UTF-8编码。
+golang提供了对中文的良好支持，对于中文的检测可以使用如下正则：
+```golang
+m, _ := regexp.MatchString("^\\p{Han}+$", r.Form.Get("realname"))
+```
 
 
 
