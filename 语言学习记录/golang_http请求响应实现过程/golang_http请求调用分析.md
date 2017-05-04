@@ -432,9 +432,19 @@ type muxEntry struct {
 然后查看Handler的定义为：
 ```golang
 type Handler interface {
-	ServeHTTP(ResponseWriter, *Request)
+	ServeHTTP(ResponseWriter, *Request) // 路由实现器
 }
 ```
+Handler是一个接口，路由器的功能需要实现这个接口。
+在http包里面还定义了一个类型HandlerFunc，也就是上述分析中看到的强制类型转换函数：
+```golang
+// ServeHTTP calls f(w, r).
+func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+	f(w, r)
+}
+```
+这个类型默认就实现了ServeHTTP这个接口，即我们调用了HandlerFunc(f)，强制类型转换f成为HandlerFunc类型，这样f就拥有了ServeHTTP方法。
+
 路由器里面存储好了相应的路由规则之后，那么具体的请求又是怎么分发的呢？请看下面的代码，默认的路由器实现了ServeHTTP：
 ```golang
 // ServeHTTP dispatches the request to the handler whose
@@ -500,40 +510,380 @@ func (mux *ServeMux) handler(host, path string) (h Handler, pattern string) {
 ```
 原来他是根据用户请求的URL和路由器里面存储的map去匹配的，当匹配到之后返回存储的handler，调用这个handler的ServeHTTP接口就可以执行到相应的函数了。
 
+然后继续看看Handler 函数接受的两个参数：http.Request 和 http.ResponseWriter。
+Request 就是封装好的客户端请求，包括 URL，method，header 等等所有信息，以及一些方便使用的方法：
+```golang
+// A Request represents an HTTP request received by a server
+// or to be sent by a client.
+//
+// The field semantics differ slightly between client and server
+// usage. In addition to the notes on the fields below, see the
+// documentation for Request.Write and RoundTripper.
+type Request struct {
+	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+	// For client requests an empty string means GET.
+	Method string
+
+	// URL specifies either the URI being requested (for server
+	// requests) or the URL to access (for client requests).
+	//
+	// For server requests the URL is parsed from the URI
+	// supplied on the Request-Line as stored in RequestURI.  For
+	// most requests, fields other than Path and RawQuery will be
+	// empty. (See RFC 2616, Section 5.1.2)
+	//
+	// For client requests, the URL's Host specifies the server to
+	// connect to, while the Request's Host field optionally
+	// specifies the Host header value to send in the HTTP
+	// request.
+	URL *url.URL
+
+	// The protocol version for incoming server requests.
+	//
+	// For client requests these fields are ignored. The HTTP
+	// client code always uses either HTTP/1.1 or HTTP/2.
+	// See the docs on Transport for details.
+	Proto      string // "HTTP/1.0"
+	ProtoMajor int    // 1
+	ProtoMinor int    // 0
+
+	// Header contains the request header fields either received
+	// by the server or to be sent by the client.
+	//
+	// If a server received a request with header lines,
+	//
+	//	Host: example.com
+	//	accept-encoding: gzip, deflate
+	//	Accept-Language: en-us
+	//	fOO: Bar
+	//	foo: two
+	//
+	// then
+	//
+	//	Header = map[string][]string{
+	//		"Accept-Encoding": {"gzip, deflate"},
+	//		"Accept-Language": {"en-us"},
+	//		"Foo": {"Bar", "two"},
+	//	}
+	//
+	// For incoming requests, the Host header is promoted to the
+	// Request.Host field and removed from the Header map.
+	//
+	// HTTP defines that header names are case-insensitive. The
+	// request parser implements this by using CanonicalHeaderKey,
+	// making the first character and any characters following a
+	// hyphen uppercase and the rest lowercase.
+	//
+	// For client requests, certain headers such as Content-Length
+	// and Connection are automatically written when needed and
+	// values in Header may be ignored. See the documentation
+	// for the Request.Write method.
+	Header Header
+
+	// Body is the request's body.
+	//
+	// For client requests a nil body means the request has no
+	// body, such as a GET request. The HTTP Client's Transport
+	// is responsible for calling the Close method.
+	//
+	// For server requests the Request Body is always non-nil
+	// but will return EOF immediately when no body is present.
+	// The Server will close the request body. The ServeHTTP
+	// Handler does not need to.
+	Body io.ReadCloser
+
+	// GetBody defines an optional func to return a new copy of
+	// Body. It is used for client requests when a redirect requires
+	// reading the body more than once. Use of GetBody still
+	// requires setting Body.
+	//
+	// For server requests it is unused.
+	GetBody func() (io.ReadCloser, error)
+
+	// ContentLength records the length of the associated content.
+	// The value -1 indicates that the length is unknown.
+	// Values >= 0 indicate that the given number of bytes may
+	// be read from Body.
+	// For client requests, a value of 0 with a non-nil Body is
+	// also treated as unknown.
+	ContentLength int64
+
+	// TransferEncoding lists the transfer encodings from outermost to
+	// innermost. An empty list denotes the "identity" encoding.
+	// TransferEncoding can usually be ignored; chunked encoding is
+	// automatically added and removed as necessary when sending and
+	// receiving requests.
+	TransferEncoding []string
+
+	// Close indicates whether to close the connection after
+	// replying to this request (for servers) or after sending this
+	// request and reading its response (for clients).
+	//
+	// For server requests, the HTTP server handles this automatically
+	// and this field is not needed by Handlers.
+	//
+	// For client requests, setting this field prevents re-use of
+	// TCP connections between requests to the same hosts, as if
+	// Transport.DisableKeepAlives were set.
+	Close bool
+
+	// For server requests Host specifies the host on which the
+	// URL is sought. Per RFC 2616, this is either the value of
+	// the "Host" header or the host name given in the URL itself.
+	// It may be of the form "host:port". For international domain
+	// names, Host may be in Punycode or Unicode form. Use
+	// golang.org/x/net/idna to convert it to either format if
+	// needed.
+	//
+	// For client requests Host optionally overrides the Host
+	// header to send. If empty, the Request.Write method uses
+	// the value of URL.Host. Host may contain an international
+	// domain name.
+	Host string
+
+	// Form contains the parsed form data, including both the URL
+	// field's query parameters and the POST or PUT form data.
+	// This field is only available after ParseForm is called.
+	// The HTTP client ignores Form and uses Body instead.
+	Form url.Values
+
+	// PostForm contains the parsed form data from POST, PATCH,
+	// or PUT body parameters.
+	//
+	// This field is only available after ParseForm is called.
+	// The HTTP client ignores PostForm and uses Body instead.
+	PostForm url.Values
+
+	// MultipartForm is the parsed multipart form, including file uploads.
+	// This field is only available after ParseMultipartForm is called.
+	// The HTTP client ignores MultipartForm and uses Body instead.
+	MultipartForm *multipart.Form
+
+	// Trailer specifies additional headers that are sent after the request
+	// body.
+	//
+	// For server requests the Trailer map initially contains only the
+	// trailer keys, with nil values. (The client declares which trailers it
+	// will later send.)  While the handler is reading from Body, it must
+	// not reference Trailer. After reading from Body returns EOF, Trailer
+	// can be read again and will contain non-nil values, if they were sent
+	// by the client.
+	//
+	// For client requests Trailer must be initialized to a map containing
+	// the trailer keys to later send. The values may be nil or their final
+	// values. The ContentLength must be 0 or -1, to send a chunked request.
+	// After the HTTP request is sent the map values can be updated while
+	// the request body is read. Once the body returns EOF, the caller must
+	// not mutate Trailer.
+	//
+	// Few HTTP clients, servers, or proxies support HTTP trailers.
+	Trailer Header
+
+	// RemoteAddr allows HTTP servers and other software to record
+	// the network address that sent the request, usually for
+	// logging. This field is not filled in by ReadRequest and
+	// has no defined format. The HTTP server in this package
+	// sets RemoteAddr to an "IP:port" address before invoking a
+	// handler.
+	// This field is ignored by the HTTP client.
+	RemoteAddr string
+
+	// RequestURI is the unmodified Request-URI of the
+	// Request-Line (RFC 2616, Section 5.1) as sent by the client
+	// to a server. Usually the URL field should be used instead.
+	// It is an error to set this field in an HTTP client request.
+	RequestURI string
+
+	// TLS allows HTTP servers and other software to record
+	// information about the TLS connection on which the request
+	// was received. This field is not filled in by ReadRequest.
+	// The HTTP server in this package sets the field for
+	// TLS-enabled connections before invoking a handler;
+	// otherwise it leaves the field nil.
+	// This field is ignored by the HTTP client.
+	TLS *tls.ConnectionState
+
+	// Cancel is an optional channel whose closure indicates that the client
+	// request should be regarded as canceled. Not all implementations of
+	// RoundTripper may support Cancel.
+	//
+	// For server requests, this field is not applicable.
+	//
+	// Deprecated: Use the Context and WithContext methods
+	// instead. If a Request's Cancel field and context are both
+	// set, it is undefined whether Cancel is respected.
+	Cancel <-chan struct{}
+
+	// Response is the redirect response which caused this request
+	// to be created. This field is only populated during client
+	// redirects.
+	Response *Response
+
+	// ctx is either the client or server context. It should only
+	// be modified via copying the whole Request using WithContext.
+	// It is unexported to prevent people from using Context wrong
+	// and mutating the contexts held by callers of the same request.
+	ctx context.Context
+}
+```
+Handler 需要知道关于请求的任何信息，都要从这个对象中获取，除非是做一些用户请求的修改等内容，一般不会直接修改这个对象。
+
+ResponseWriter 是一个接口，定义了三个方法：
+```golang
+// A ResponseWriter interface is used by an HTTP handler to
+// construct an HTTP response.
+//
+// A ResponseWriter may not be used after the Handler.ServeHTTP method
+// has returned.
+type ResponseWriter interface {
+	// Header returns the header map that will be sent by
+	// WriteHeader. The Header map also is the mechanism with which
+	// Handlers can set HTTP trailers.
+	//
+	// Changing the header map after a call to WriteHeader (or
+	// Write) has no effect unless the modified headers are
+	// trailers.
+	//
+	// There are two ways to set Trailers. The preferred way is to
+	// predeclare in the headers which trailers you will later
+	// send by setting the "Trailer" header to the names of the
+	// trailer keys which will come later. In this case, those
+	// keys of the Header map are treated as if they were
+	// trailers. See the example. The second way, for trailer
+	// keys not known to the Handler until after the first Write,
+	// is to prefix the Header map keys with the TrailerPrefix
+	// constant value. See TrailerPrefix.
+	//
+	// To suppress implicit response headers (such as "Date"), set
+	// their value to nil.
+	Header() Header
+
+	// Write writes the data to the connection as part of an HTTP reply.
+	//
+	// If WriteHeader has not yet been called, Write calls
+	// WriteHeader(http.StatusOK) before writing the data. If the Header
+	// does not contain a Content-Type line, Write adds a Content-Type set
+	// to the result of passing the initial 512 bytes of written data to
+	// DetectContentType.
+	//
+	// Depending on the HTTP protocol version and the client, calling
+	// Write or WriteHeader may prevent future reads on the
+	// Request.Body. For HTTP/1.x requests, handlers should read any
+	// needed request body data before writing the response. Once the
+	// headers have been flushed (due to either an explicit Flusher.Flush
+	// call or writing enough data to trigger a flush), the request body
+	// may be unavailable. For HTTP/2 requests, the Go HTTP server permits
+	// handlers to continue to read the request body while concurrently
+	// writing the response. However, such behavior may not be supported
+	// by all HTTP/2 clients. Handlers should read before writing if
+	// possible to maximize compatibility.
+	Write([]byte) (int, error)
+
+	// WriteHeader sends an HTTP response header with status code.
+	// If WriteHeader is not called explicitly, the first call to Write
+	// will trigger an implicit WriteHeader(http.StatusOK).
+	// Thus explicit calls to WriteHeader are mainly used to
+	// send error codes.
+	WriteHeader(int)
+}
+```
+Golang 中是没有类class 的概念，golang是通过 interface 类型接口实现的继承多态的效果。
+interface就是一组抽象方法的集合，它必须由其他非interface类型实现，而不能自我实现， Go通过interface实现了duck-typing:即"当看到一只鸟走起来像鸭子、游泳起来像鸭子、叫起来也像鸭子，那么这只鸟就可以被称为鸭子"。
+
+> 参考文档：
+> - [golang_Interface](https://github.com/astaxie/build-web-application-with-golang/blob/master/zh/02.6.md)
+
+我们看看这三个方法：
+> - Header()：返回一个 Header 对象，可以通过它的 Set() 方法设置头部，注意最终返回的头部信息可能和你写进去的不完全相同，因为后续处理还可能修改头部的值（比如设置 Content-Length、Content-type 等操作）
+> - Write()： 写 response 的主体部分，比如 html 或者 json 的内容就是放到这里的
+> - WriteHeader()：设置 status code，如果没有调用这个函数，默认设置为 http.StatusOK，就是200状态码
+
+实际上反馈的内容为：
+```golang
+// A response represents the server side of an HTTP response.
+type response struct {
+	conn             *conn
+	req              *Request // request for this response
+	reqBody          io.ReadCloser
+	cancelCtx        context.CancelFunc // when ServeHTTP exits
+	wroteHeader      bool               // reply header has been (logically) written
+	wroteContinue    bool               // 100 Continue response was written
+	wants10KeepAlive bool               // HTTP/1.0 w/ Connection "keep-alive"
+	wantsClose       bool               // HTTP request has Connection "close"
+
+	w  *bufio.Writer // buffers output in chunks to chunkWriter
+	cw chunkWriter
+
+	// handlerHeader is the Header that Handlers get access to,
+	// which may be retained and mutated even after WriteHeader.
+	// handlerHeader is copied into cw.header at WriteHeader
+	// time, and privately mutated thereafter.
+	handlerHeader Header
+	calledHeader  bool // handler accessed handlerHeader via Header
+
+	written       int64 // number of bytes written in body
+	contentLength int64 // explicitly-declared Content-Length; or -1
+	status        int   // status code passed to WriteHeader
+
+	// close connection after this reply.  set on request and
+	// updated after response from handler if there's a
+	// "Connection: keep-alive" response header and a
+	// Content-Length.
+	closeAfterReply bool
+
+	// requestBodyLimitHit is set by requestTooLarge when
+	// maxBytesReader hits its max size. It is checked in
+	// WriteHeader, to make sure we don't consume the
+	// remaining request body to try to advance to the next HTTP
+	// request. Instead, when this is set, we stop reading
+	// subsequent requests on this connection and stop reading
+	// input from it.
+	requestBodyLimitHit bool
+
+	// trailers are the headers to be sent after the handler
+	// finishes writing the body. This field is initialized from
+	// the Trailer response header when the response header is
+	// written.
+	trailers []string
+
+	handlerDone atomicBool // set true when the handler exits
+
+	// Buffers for Date and Content-Length
+	dateBuf [len(TimeFormat)]byte
+	clenBuf [10]byte
+
+	// closeNotifyCh is the channel returned by CloseNotify.
+	// TODO(bradfitz): this is currently (for Go 1.8) always
+	// non-nil. Make this lazily-created again as it used to be?
+	closeNotifyCh  chan bool
+	didCloseNotify int32 // atomic (only 0->1 winner should send)
+}
+```
+实现了上面提到的三个方法，所以可以作为参数交给Handler作为参数使用。
+
+
+
 ## 整体执行流程总结：
 对http包的分析之后，现在让我们来梳理一下整个的代码执行过程：
 
 ### 首先调用Http.HandleFunc，按顺序做了几件事：
-1 调用了DefaultServeMux的HandleFunc
-2 调用了DefaultServeMux的Handle
-3 往DefaultServeMux的map[string]muxEntry中增加对应的handler和路由规则
+> - 1 调用了DefaultServeMux的HandleFunc
+> - 2 调用了DefaultServeMux的Handle
+> - 3 往DefaultServeMux的map[string]muxEntry中增加对应的handler和路由规则
 
 ### 其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：
 
-1 实例化Server
-
-2 调用Server的ListenAndServe()
-
-3 调用net.Listen("tcp", addr)监听端口
-
-4 启动一个for循环，在循环体中Accept请求
-
-5 对每个请求实例化一个Conn，并且开启一个goroutine为这个请求进行服务go c.serve()
-
-6 读取每个请求的内容w, err := c.readRequest()
-
-7 判断handler是否为空，如果没有设置handler（这个例子就没有设置handler），handler就设置为DefaultServeMux
-
-8 调用handler的ServeHttp
-
-9 在这个例子中，下面就进入到DefaultServeMux.ServeHttp
-
-10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
-
-11 选择handler：
-A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）
-B 如果有路由满足，调用这个路由handler的ServeHttp
-C 如果没有路由满足，调用NotFoundHandler的ServeHttp
+> - 1 实例化Server
+> - 2 调用Server的ListenAndServe()
+> - 3 调用net.Listen("tcp", addr)监听端口
+> - 4 启动一个for循环，在循环体中Accept请求
+> - 5 对每个请求实例化一个Conn，并且开启一个goroutine为这个请求进行服务go c.serve()
+> - 6 读取每个请求的内容w, err := c.readRequest()
+> - 7 判断handler是否为空，如果没有设置handler（这个例子就没有设置handler），handler就设置为DefaultServeMux
+> - 8 调用handler的ServeHttp
+> - 9 在这个例子中，下面就进入到DefaultServeMux.ServeHttp
+> - 10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
+> - 11 选择handler：<br> A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）<br> B 如果有路由满足，调用这个路由handler的ServeHttp <br> C 如果没有路由满足，调用NotFoundHandler的ServeHttp
 
 
 
