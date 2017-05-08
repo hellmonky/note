@@ -1,3 +1,26 @@
+<!-- TOC -->
+
+- [golang学习纪要](#golang学习纪要)
+    - [一个http连接处理流程：](#一个http连接处理流程)
+        - [基本原理和开发教程：](#基本原理和开发教程)
+        - [代码调用流程分析：](#代码调用流程分析)
+            - [用户代码：](#用户代码)
+            - [调用分析：](#调用分析)
+                - [监听端口：](#监听端口)
+                - [接受用户请求：](#接受用户请求)
+                - [处理用户请求：](#处理用户请求)
+    - [golang的http核心：Conn和ServeMux](#golang的http核心conn和servemux)
+        - [Conn：](#conn)
+        - [ServeMux：](#servemux)
+    - [整体执行流程总结：](#整体执行流程总结)
+        - [首先调用Http.HandleFunc，按顺序做了几件事：](#首先调用httphandlefunc按顺序做了几件事)
+        - [其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：](#其次调用httplistenandserve9090-nil按顺序做了几件事情)
+        - [一些使用细节：](#一些使用细节)
+        - [go处理表单提交文件：](#go处理表单提交文件)
+        - [模拟POST表单提交文件：](#模拟post表单提交文件)
+
+<!-- /TOC -->
+
 # golang学习纪要
 golang的学习还是需要继续进行的，作为一个技术人员，技术的提升才是最为关键的。
 比较好的方法就是使用实践+代码分析的方式，这样可以快速熟悉golang提供的基本语法和功能。
@@ -885,7 +908,7 @@ type response struct {
 > - 10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
 > - 11 选择handler：<br> A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）<br> B 如果有路由满足，调用这个路由handler的ServeHttp <br> C 如果没有路由满足，调用NotFoundHandler的ServeHttp
 
-## 一些使用细节：
+### 一些使用细节：
 设置response的返回类型：
 [HTTP Response Snippets for Go](http://www.alexedwards.net/blog/golang-response-snippets)
 
@@ -927,21 +950,321 @@ arr4 := []int{1, 2, 3}
 与数组相比切片的长度是不固定的，可以追加元素，在追加时可能使切片的容量增大。与数组相比切片的长度是不固定的，可以追加元素，在追加时可能使切片的容量增大。
 
 
-https://www.aliway.com/read.php?spm=a1z2e.8101737.list.6.nTQqbR&tid=350194
-
-
-http://cizixs.com/2016/08/17/golang-http-server-side
-https://github.com/astaxie/build-web-application-with-golang/blob/master/zh/04.4.md
-http://blog.haohtml.com/archives/16839
-http://www.cnblogs.com/golove/p/3276678.html
-
-
 关于使用md5加密字符串:
-1 md5加密的方式。
-2 涉及到的IO问题：
+1 md5加密的方式有两种：固定长度返回和不固定长度返回（切片），参考文档：[golang中的md5的用法](http://blog.haohtml.com/archives/16839)
+第一种加密方法所调用的函数：
+```golang
+// The size of an MD5 checksum in bytes.
+const Size = 16
+
+................
+
+// Sum returns the MD5 checksum of the data.
+func Sum(data []byte) [Size]byte {
+	var d digest
+	d.Reset()
+	d.Write(data)
+	return d.checkSum()
+}
+```
+其 [Size]byte 是固定死的.所以说第一种方法返回的是 16长度的数组(无法转string类型，需使用第二种加密方法)
+
+第二种加密方法:
+使用 func New() hash.Hash {} 函数进行生成对象.
+使用 func (d *digest) Write(p []byte) (nn int, err error) {} 方法进行写入要加密的数据.
+使用 func (d0 *digest) Sum(in []byte) []byte {} 方法进行数据的加密 看其返回值.
+[]byte 可见使用第二种方式加密返回的是 []byte 类型的切片.
+```golang
+// New returns a new hash.Hash computing the MD5 checksum.
+func New() hash.Hash {
+	d := new(digest)
+	d.Reset()
+	return d
+}
+// 这里只放了函数签名部分, 关于函数具体内容这里就不详细复制了.
+func New() hash.Hash {}
+func (d *digest) Write(p []byte) (nn int, err error) {}
+func (d0 *digest) Sum(in []byte) []byte {}
+```
+
+2 涉及到的IO问题：参考文档：[Golang学习 - io 包](http://www.cnblogs.com/golove/p/3276678.html)
 func WriteString(w Writer, s string) (n int, err error)
 功能描述为：
 WriteString 将字符串 s 写入到 w 中，返回写入的字节数和遇到的错误。
 如果 w 实现了 WriteString 方法，则优先使用该方法将 s 写入 w 中。
 否则，将 s 转换为 []byte，然后调用 w.Write 方法将数据写入 w 中
+
+### go处理表单提交文件：
+概念学习：[细说 Form (表单)](http://www.cnblogs.com/fish-li/archive/2011/07/17/2108884.html)
+
+要使表单能够上传文件，首先第一步就是要添加form的enctype属性，enctype属性有如下三种情况:
+> - application/x-www-form-urlencoded   表示在发送前编码所有字符（默认）
+> - multipart/form-data	  不对字符编码。在使用包含文件上传控件的表单时，必须使用该值。
+> - text/plain	  空格转换为 "+" 加号，但不对特殊字符编码。
+
+所以，新建upload.gtpl文件中的内容为：
+```html
+<html>
+	<head>
+	    <title></title>
+	</head>
+	<body>
+	    <form enctype="multipart/form-data" action="/upload" method="post">
+		    <input type="file" name="uploadfile" />
+	  		<input type="hidden" name="token" value="{{.}}"/>
+	  		<input type="submit" value="upload" />
+	    </form>
+	</body>
+</html>
+```
+然后编写一个处理文件上传操作的函数：
+```golang
+func uploadServer(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("method:", r.Method) //获取请求的方法
+	if r.Method == "GET" {
+		crutime := time.Now().Unix()
+		h := md5.New()
+		io.WriteString(h, strconv.FormatInt(crutime, 10))
+		token := fmt.Sprintf("%x", h.Sum(nil))
+
+		t, _ := template.ParseFiles("upload.gtpl")
+		t.Execute(w, token)
+	} else {
+		r.ParseMultipartForm(32 << 20)
+		file, handler, err := r.FormFile("uploadfile")
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer file.Close()
+		fmt.Fprintf(w, "%v", handler.Header)
+		f, err := os.OpenFile("./test/"+handler.Filename, os.O_WRONLY|os.O_CREATE, 0666) // 此处假设当前目录下已存在test目录
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer f.Close()
+		io.Copy(f, file)
+	}
+}
+```
+处理表单上传的文件，我们需要调用r.ParseMultipartForm，里面的参数表示maxMemory，调用ParseMultipartForm之后，上传的文件存储在maxMemory大小的内存里面，如果文件大小超过了maxMemory，那么剩下的部分将存储在系统的临时文件中。
+上面的参数设置为32左移20位，也就是2^12byte
+
+上传文件主要三步处理：
+> - 表单中增加enctype="multipart/form-data"
+> - 服务端调用r.ParseMultipartForm,把上传的文件存储在内存和临时文件中
+> - 使用r.FormFile获取文件句柄，然后对文件进行存储等处理。
+
+这儿从表单中通过函数FormFile获取文件，返回Handler是一个multipart.FileHeader指针，这个结构体定义为：
+
+定义为：
+```golang
+// A FileHeader describes a file part of a multipart request.
+type FileHeader struct {
+	Filename string
+	Header   textproto.MIMEHeader
+
+	content []byte
+	tmpfile string
+}
+```
+执行上述upload请求，返回结果为：
+```shell
+map[Content-Disposition:[form-data; name="uploadfile"; filename="产品简介.zip"] Content-Type:[application/x-zip-compressed]]
+```
+也就是返回的内容，可以和HTTP请求的返回做一个对比：
+```shell
+map[Content-Disposition:[form-data; name="uploadfile"; filename="产品简介.zip"] Content-Type:[application/x-zip-compressed]]
+```
+可以看出是完全一样的。
+
+### 模拟POST表单提交文件：
+我们还可以通过程序来模拟网页的POST表单提交，这个在测试HTTP接口的时候非常有帮助。
+具体的函数为：
+```golang
+func postFile(filename string, targetUrl string) error {
+	bodyBuf := &bytes.Buffer{}
+	bodyWriter := multipart.NewWriter(bodyBuf)
+
+	//关键的一步操作
+	fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filename)
+	if err != nil {
+		fmt.Println("error writing to buffer")
+		return err
+	}
+
+	//打开文件句柄操作
+	fh, err := os.Open(filename)
+	if err != nil {
+		fmt.Println("error opening file")
+		return err
+	}
+	defer fh.Close()
+
+	//iocopy
+	_, err = io.Copy(fileWriter, fh)
+	if err != nil {
+		return err
+	}
+
+	contentType := bodyWriter.FormDataContentType()
+	bodyWriter.Close()
+
+	resp, err := http.Post(targetUrl, contentType, bodyBuf)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	resp_body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resp.Status)
+	fmt.Println(string(resp_body))
+	return nil
+}
+```
+首先，申请了一个缓存：
+bodyBuf := &bytes.Buffer{}
+这儿使用了Slice确保是一个可变长度的字节容器，参考：[Builtin append vs. bytes.Buffer write](http://stackoverflow.com/questions/39319024/builtin-append-vs-bytes-buffer-write)
+
+然后，使用NewWriter函数返回一个设定了一个随机边界的Writer，将获取的上传文件的数据写入到申请的缓存中：
+bodyWriter := multipart.NewWriter(bodyBuf)
+
+接着，CreateFormFile是CreatePart方法的包装， 使用给出的属性名和文件名创建一个新的form-data头：
+fileWriter, err := bodyWriter.CreateFormFile("uploadfile", filename)
+
+接着，使用系统函数打开要上传的文件缓存：
+fh, err := os.Open(filename)
+if err != nil {
+	fmt.Println("error opening file")
+	return err
+}
+defer fh.Close()
+这儿对于资源的操作都有打开和关闭处理，使用了defer关键字。
+defer后面的表达式会被放入一个列表中（这个list可以看作是一个栈(stack)的结构，是一个后进先出的栈。），在当前方法返回的时候，列表中的表达式就会被执行。一个方法中可以在一个或者多个地方使用defer表达式
+也就是如果文件打开错误，执行return err的时候，才会调用defer保存的内容，确保资源文件能够正确的被关闭，然后最终返回。
+参考：[Golang中defer的那些事](https://xiaozhou.net/something-about-defer-2014-05-25.html)
+可以编写defer的三个特性的测试用例：
+```golang
+// defer表达式中变量的值在defer表达式被定义时就已经明确
+func defer_test_1() {
+    i := 0
+    defer fmt.Println(i)
+    i++
+    return
+}
+
+// defer表达式的调用顺序是按照先进后出的方式
+func defer_test_2() {
+    defer fmt.Print(1)
+    defer fmt.Print(2)
+    defer fmt.Print(3)
+    defer fmt.Print(4)
+}
+
+// defer表达式中可以修改函数中的命名返回值
+func defer_test_3() (i int) {
+    defer func() { i++ }()
+    return 1
+}
+```
+
+接着，对正确打开的文件内容进行拷贝：
+_, err = io.Copy(fileWriter, fh)
+函数原型为：
+```golang
+// Copy copies from src to dst until either EOF is reached
+// on src or an error occurs. It returns the number of bytes
+// copied and the first error encountered while copying, if any.
+//
+// A successful Copy returns err == nil, not err == EOF.
+// Because Copy is defined to read from src until EOF, it does
+// not treat an EOF from Read as an error to be reported.
+//
+// If src implements the WriterTo interface,
+// the copy is implemented by calling src.WriteTo(dst).
+// Otherwise, if dst implements the ReaderFrom interface,
+// the copy is implemented by calling dst.ReadFrom(src).
+func Copy(dst Writer, src Reader) (written int64, err error) {
+	return copyBuffer(dst, src, nil)
+}
+```
+可以看出，将缓存文件的内容拷贝到了fileWriter中。
+
+接着，格式化form表单提交数据的结构：
+contentType := bodyWriter.FormDataContentType()
+其中函数FormDataContentType定义为：
+```golang
+// FormDataContentType returns the Content-Type for an HTTP
+// multipart/form-data with this Writer's Boundary.
+func (w *Writer) FormDataContentType() string {
+	return "multipart/form-data; boundary=" + w.boundary
+}
+```
+也就是说，函数FormDataContentType所属类型的对象为Writer指针对象，不接受参数，返回一个字符串。所谓的所属类型的对象，就是
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RESTFul API测试框架：
+http://www.hascode.com/2011/10/testing-restful-web-services-made-easy-using-the-rest-assured-framework/
+https://github.com/rest-assured/rest-assured/wiki/Usage
+https://testerhome.com/topics/7060
+http://www.cnblogs.com/wade-xu/p/4298819.html
+
+
+http://www.cnblogs.com/jinsdu/p/4606113.html
+http://wetest.qq.com/lab/view/145.html
+
+
+https://www.aliway.com/read.php?spm=a1z2e.8101737.list.6.nTQqbR&tid=350194
+
+//
+http://cizixs.com/2016/08/17/golang-http-server-side
+https://github.com/astaxie/build-web-application-with-golang/blob/master/zh/04.4.md
+http://blog.haohtml.com/archives/16839
+http://www.cnblogs.com/golove/p/3276678.html
+
+gradle:
+https://spring.io/guides/gs/gradle/#scratch
+http://www.importnew.com/15881.html
+
+JSON format:
+https://jsonformatter.curiousconcept.com/
 
