@@ -12,12 +12,17 @@
     - [golang的http核心：Conn和ServeMux](#golang的http核心conn和servemux)
         - [Conn：](#conn)
         - [ServeMux：](#servemux)
-    - [整体执行流程总结：](#整体执行流程总结)
-        - [首先调用Http.HandleFunc，按顺序做了几件事：](#首先调用httphandlefunc按顺序做了几件事)
-        - [其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：](#其次调用httplistenandserve9090-nil按顺序做了几件事情)
-        - [一些使用细节：](#一些使用细节)
-        - [go处理表单提交文件：](#go处理表单提交文件)
-        - [模拟POST表单提交文件：](#模拟post表单提交文件)
+        - [整体执行流程总结：](#整体执行流程总结)
+            - [首先调用Http.HandleFunc，按顺序做了几件事：](#首先调用httphandlefunc按顺序做了几件事)
+            - [其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：](#其次调用httplistenandserve9090-nil按顺序做了几件事情)
+            - [一些使用细节：](#一些使用细节)
+            - [go处理表单提交文件：](#go处理表单提交文件)
+            - [模拟POST表单提交文件：](#模拟post表单提交文件)
+    - [golang的数据库连接：](#golang的数据库连接)
+        - [内置的sql接口：](#内置的sql接口)
+        - [常见关系型数据库驱动：](#常见关系型数据库驱动)
+        - [自己开发ORM框架：](#自己开发orm框架)
+        - [非关系型数据库驱动：](#非关系型数据库驱动)
 
 <!-- /TOC -->
 
@@ -886,15 +891,15 @@ type response struct {
 
 
 
-## 整体执行流程总结：
+### 整体执行流程总结：
 对http包的分析之后，现在让我们来梳理一下整个的代码执行过程：
 
-### 首先调用Http.HandleFunc，按顺序做了几件事：
+#### 首先调用Http.HandleFunc，按顺序做了几件事：
 > - 1 调用了DefaultServeMux的HandleFunc
 > - 2 调用了DefaultServeMux的Handle
 > - 3 往DefaultServeMux的map[string]muxEntry中增加对应的handler和路由规则
 
-### 其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：
+#### 其次调用http.ListenAndServe(":9090", nil)，按顺序做了几件事情：
 
 > - 1 实例化Server
 > - 2 调用Server的ListenAndServe()
@@ -908,7 +913,7 @@ type response struct {
 > - 10 根据request选择handler，并且进入到这个handler的ServeHTTP：mux.handler(r).ServeHTTP(w, r)
 > - 11 选择handler：<br> A 判断是否有路由能满足这个request（循环遍历ServerMux的muxEntry）<br> B 如果有路由满足，调用这个路由handler的ServeHttp <br> C 如果没有路由满足，调用NotFoundHandler的ServeHttp
 
-### 一些使用细节：
+#### 一些使用细节：
 设置response的返回类型：
 [HTTP Response Snippets for Go](http://www.alexedwards.net/blog/golang-response-snippets)
 
@@ -925,6 +930,13 @@ if err != nil {
     fmt.Println(getint)
 }
 ```
+不能加入括号的原因在于：Golang 编译器会在源代码中自动添加分号 ;，如果 { 单独放在一行的开头，其前面可能会被加入 ;，造成编译错误。
+官方文档：[Semicolons](https://golang.org/ref/spec#Semicolons)
+并且不是因为：} 和 else { 之间不能插入注释，换行也是会造成编译错误：syntax error: unexpected else, expecting }
+因为如果这样做，将会在大括号的前方插入一个分号，这可能导致出现不想要的结果。
+具体可以参考：[GO 语言简介（上）— 语法](http://coolshell.cn/articles/8460.html)
+
+
 
 golang中使用了re2作为正则表达式的引擎：[RE2](https://github.com/google/re2)，并且默认支持UTF-8编码。
 golang提供了对中文的良好支持，对于中文的检测可以使用如下正则：
@@ -994,7 +1006,7 @@ WriteString 将字符串 s 写入到 w 中，返回写入的字节数和遇到�
 如果 w 实现了 WriteString 方法，则优先使用该方法将 s 写入 w 中。
 否则，将 s 转换为 []byte，然后调用 w.Write 方法将数据写入 w 中
 
-### go处理表单提交文件：
+#### go处理表单提交文件：
 概念学习：[细说 Form (表单)](http://www.cnblogs.com/fish-li/archive/2011/07/17/2108884.html)
 
 要使表单能够上传文件，首先第一步就是要添加form的enctype属性，enctype属性有如下三种情况:
@@ -1079,7 +1091,7 @@ map[Content-Disposition:[form-data; name="uploadfile"; filename="产品简介.zi
 ```
 可以看出是完全一样的。
 
-### 模拟POST表单提交文件：
+#### 模拟POST表单提交文件：
 我们还可以通过程序来模拟网页的POST表单提交，这个在测试HTTP接口的时候非常有帮助。
 具体的函数为：
 ```golang
@@ -1203,7 +1215,58 @@ func (w *Writer) FormDataContentType() string {
 	return "multipart/form-data; boundary=" + w.boundary
 }
 ```
-也就是说，函数FormDataContentType所属类型的对象为Writer指针对象，不接受参数，返回一个字符串。所谓的所属类型的对象，就是
+也就是说：函数FormDataContentType所属类型的对象为Writer指针对象；这个函数不接受参数，返回一个字符串。
+在Go中函数也是一种变量，我们通过type定义这种变量的类型。拥有相同参数和相同返回值的函数属于同一种类型。
+在Go中通过给函数标明所属类型，来给该类型定义方法，上面的 w *Writer 即表示给*Writer声明了一个方法，这个方法就是FormDataContentType。如果没有 w *Writer ，则纯粹是一个函数，通过包名称访问。
+再看看golang中函数的定义的示例：
+```golang
+func (variable Type) funcName(var1 Type1, var2 Type2, variabicPara ...TypeX) (ret1 ReturnType1, ret2 ReturnType2) {   }
+ ^        ^      ^      ^       ^     ^     ^     ^                 ^          ^        ^        ^        ^         ^
+ 1        2      3      4       5     6     7     8                 9          10       11       12       13        14
+```
+每一个位置的含义为：
+```golang
+1 使用 func 关键字来定义函数。
+2 如果定义时有 (variable Type) 的内容，variable 表示函数所属类型的对象，如果函数体中不需要用到则可以省略。
+3 如果定义时有 (variable Type) 的内容，Type 表示函数所属的类型，Type 本身也可以是一个类型的指针，比如 struct User 的指针 *User。
+4 函数的名称。
+5 函数可以有 0 个或者多个形参，函数第一个形参的名字。
+6 函数第一个形参的类型。
+7 函数第二个形参的名字。
+8 函数第二个形参的类型。
+9 variabicPara ... TypeX 表示可以有可变参数，也就是是零个或者多个同一类型 TypeX 的形参，实参传递的时候放入一个名为 variabicPara 的 slice 对象中。
+10 函数可以有多个返回值，第一个返回值的名称。（函数可以指定 命名返回值，也就是说返回值名称在定义函数时确定，并初始化为各自类型的零值。它们在函数内部的使用方式和函数传递的实参是一样的。）
+11 第一个返回值的类型。
+12 第二个返回值的名称。
+13 第二个返回值的类型。
+14 函数体，在里面可以定义函数的行为。
+```
+也就是说FormDataContentType定义属于Writer指针的一个方法，可以对照理解为一个类的成员函数。
+将函数作为一种类型的变量，我们可以将这种类型的函数作为值传递。
+
+总体上：客户端通过multipart.Write把文件的文本流写入一个缓存中，然后调用http的Post方法把缓存传到服务器。
+
+
+## golang的数据库连接：
+熟悉了web页面的开发，还需要结合数据库操作才能贴近真实的开发流程。因为对许多Web应用程序而言，数据库都是其核心所在。
+Go没有内置的驱动支持任何的数据库，但是Go定义了database/sql接口，用户可以基于驱动接口开发相应数据库的驱动。
+参考教程：[Go database/sql tutorial](http://go-database-sql.org/index.html)
+
+### 内置的sql接口：
+Go与PHP不同的地方是Go官方没有提供数据库驱动，而是为开发数据库驱动定义了一些标准接口，开发者可以根据定义的接口来开发相应的数据库驱动，这样做有一个好处，只要是按照标准接口开发的代码， 以后需要迁移数据库时，不需要任何修改。
+
+
+### 常见关系型数据库驱动：
+
+### 自己开发ORM框架：
+
+### 非关系型数据库驱动：
+
+
+
+
+
+
 
 
 
