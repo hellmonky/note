@@ -1,7 +1,7 @@
 <!-- TOC -->
 
 - [golang的数据库编程](#golang的数据库编程)
-    - [golang的数据库设计：](#golang的数据库设计)
+    - [golang的关系型数据库设计：](#golang的关系型数据库设计)
         - [数据库底层驱动接口定义：driver.go](#数据库底层驱动接口定义drivergo)
             - [数据库驱动接口：driver.Driver](#数据库驱动接口driverdriver)
             - [数据库链接接口定义：driver.Conn](#数据库链接接口定义driverconn)
@@ -18,14 +18,22 @@
             - [内部数据结构：sql.DB](#内部数据结构sqldb)
             - [注册数据库驱动：func Register(name string, driver driver.Driver)](#注册数据库驱动func-registername-string-driver-driverdriver)
             - [Statement数据结构：sql.Stmt](#statement数据结构sqlstmt)
-    - [golang的MySQL开发使用：](#golang的mysql开发使用)
-        - [驱动支持：](#驱动支持)
-        - [建表SQL：](#建表sql)
-        - [测试样例：](#测试样例)
-    - [golang的SQLite开发使用：](#golang的sqlite开发使用)
-        - [驱动支持：](#驱动支持-1)
-        - [建表SQL：](#建表sql-1)
-        - [样例代码：](#样例代码)
+        - [golang数据库驱动使用示例：](#golang数据库驱动使用示例)
+            - [golang的MySQL开发使用：](#golang的mysql开发使用)
+                - [驱动支持：](#驱动支持)
+                - [建表SQL：](#建表sql)
+                - [测试样例：](#测试样例)
+            - [golang的SQLite开发使用：](#golang的sqlite开发使用)
+                - [驱动支持：](#驱动支持-1)
+                - [建表SQL：](#建表sql-1)
+                - [样例代码：](#样例代码)
+            - [golang的PostgreSQL开发使用：](#golang的postgresql开发使用)
+                - [驱动支持：](#驱动支持-2)
+                - [建表SQL：](#建表sql-2)
+                - [示例代码：](#示例代码)
+    - [ORM框架使用：](#orm框架使用)
+        - [安装：](#安装)
+    - [golang的NoSQL支持：](#golang的nosql支持)
 
 <!-- /TOC -->
 
@@ -36,7 +44,7 @@ Go没有内置的驱动支持任何的数据库，但是Go定义了database/sql�
 参考教程：[Go database/sql tutorial](http://go-database-sql.org/index.html)
 
 
-## golang的数据库设计：
+## golang的关系型数据库设计：
 Go与PHP不同的地方是Go官方没有提供数据库驱动，而是为开发数据库驱动定义了一些标准接口，开发者可以根据定义的接口来开发相应的数据库驱动，这样做有一个好处，只要是按照标准接口开发的代码， 以后需要迁移数据库时，不需要任何修改。
 首先看看sql的包位于 C:\Go\src\database\sql\ 这个文件夹下，包含了一下文件：
 ```shell
@@ -607,9 +615,13 @@ func (s *Stmt) connStmt(ctx context.Context) (ci *driverConn, releaseConn func(e
 拿到driverConn实例和driver.Stmt后就可以直接调用驱动提供的method进行处理了。
 参考文档：[go database/sql 源码分析（四）sql.Stmt数据结构](http://blog.csdn.net/hittata/article/details/52122541)
 
-## golang的MySQL开发使用：
+### golang数据库驱动使用示例：
+目前golang官方支持的数据库驱动列表：
+[SQL database drivers](https://github.com/golang/go/wiki/SQLDrivers)
 
-### 驱动支持：
+#### golang的MySQL开发使用：
+
+##### 驱动支持：
 Go中支持MySQL的驱动目前比较多，有如下几种，有些是支持database/sql标准，而有些是采用了自己的实现接口,常用的有如下几种:
 https://github.com/go-sql-driver/mysql 支持database/sql，全部采用go写。
 https://github.com/ziutek/mymysql 支持database/sql，也支持自定义的接口，全部采用go写。
@@ -620,7 +632,7 @@ https://github.com/Philio/GoMySQL 不支持database/sql，自定义接口，全�
 > - 2. 完全支持database/sql接口
 > - 3. 支持keepalive，保持长连接,虽然星星fork的mymysql也支持keepalive，但不是线程安全的，这个从底层就支持了keepalive。
 
-### 建表SQL：
+##### 建表SQL：
 ```sql
 CREATE TABLE `userinfo` (
 	`uid` INT(10) NOT NULL AUTO_INCREMENT,
@@ -638,7 +650,7 @@ CREATE TABLE `userdetail` (
 )
 ```
 
-### 测试样例：
+##### 测试样例：
 新建一个工程，然后添加main.go，辨析内容为：
 ```golang
 package main
@@ -652,7 +664,7 @@ import (
 )
 
 func main() {
-	var mysql_configuration = "localhost:3306@/test?charset=utf8"
+	var mysql_configuration = "root:root123456@tcp(localhost:3306)/test?charset=utf8"
 	db, err := sql.Open("mysql", mysql_configuration)
 	checkErr(err)
 
@@ -732,18 +744,33 @@ stmt.Exec()函数用来执行stmt准备好的SQL语句
 
 而且我们可以看到我们传入的参数都是=?对应的数据，这样做的方式可以一定程度上防止SQL注入。
 
-## golang的SQLite开发使用：
+#### golang的SQLite开发使用：
 SQLite 是一个开源的嵌入式关系数据库，实现自包容、零配置、支持事务的SQL数据库引擎。其特点是高度便携、使用方便、结构紧凑、高效、可靠。 与其他数据库管理系统不同，SQLite 的安装和运行非常简单，在大多数情况下,只要确保SQLite的二进制文件存在即可开始创建、连接和使用数据库。如果您正在寻找一个嵌入式数据库项目或解决方案，SQLite是绝对值得考虑。SQLite可以是说开源的Access。
 
-### 驱动支持：
+##### 驱动支持：
 Go支持sqlite的驱动也比较多，但是好多都是不支持database/sql接口的：
 https://github.com/mattn/go-sqlite3 支持database/sql接口，基于cgo(关于cgo的知识请参看官方文档或者本书后面的章节)写的
 https://github.com/feyeleanor/gosqlite3 不支持database/sql接口，基于cgo写的
 https://github.com/phf/go-sqlite3 不支持database/sql接口，基于cgo写的
 
 目前支持database/sql的SQLite数据库驱动只有第一个，我目前也是采用它来开发项目的。采用标准接口有利于以后出现更好的驱动的时候做迁移。
+```shell
+go get https://github.com/mattn/go-sqlite3
+```
+出现：
+```shell
+C:\Go\src\database\sql>go get github.com/mattn/go-sqlite3
+# github.com/mattn/go-sqlite3
+exec: "gcc": executable file not found in %PATH%
+```
+看来需要依赖于GCC，找到问题：[gcc issue on windows 64](https://github.com/mattn/go-sqlite3/issues/214)
+所以这部分的内容不能在没有安装GCC支持的windows环境下进行调试了。
 
-### 建表SQL：
+> go get获取的第三方包删除：[Removing packages installed with go get](http://stackoverflow.com/questions/13792254/removing-packages-installed-with-go-get)
+也就是go还没有提供官方的删除命令和工具，只能从下载路径进行删除。
+
+
+##### 建表SQL：
 ```sql
 CREATE TABLE `userinfo` (
 	`uid` INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -760,6 +787,80 @@ CREATE TABLE `userdeatail` (
 );
 ```
 
-### 样例代码：
+##### 样例代码：
 新建一个工程，然后添加main.go，辨析内容为：
 ```golang
+```
+
+
+#### golang的PostgreSQL开发使用：
+PostgreSQL 是一个自由的对象-关系数据库服务器(数据库管理系统)，它在灵活的 BSD-风格许可证下发行。它提供了相对其他开放源代码数据库系统(比如 MySQL 和 Firebird)，和对专有系统比如 Oracle、Sybase、IBM 的 DB2 和 Microsoft SQL Server的一种选择。
+PostgreSQL和MySQL比较，它更加庞大一点，因为它是用来替代Oracle而设计的。所以在企业应用中采用PostgreSQL是一个明智的选择。
+MySQL被Oracle收购之后正在逐步的封闭（自MySQL 5.5.31以后的所有版本将不再遵循GPL协议），鉴于此，将来我们也许会选择PostgreSQL而不是MySQL作为项目的后端数据库。
+
+##### 驱动支持：
+Go实现的支持PostgreSQL的驱动也很多，因为国外很多人在开发中使用了这个数据库。
+https://github.com/lib/pq 支持database/sql驱动，纯Go写的
+https://github.com/jbarham/gopgsqldriver 支持database/sql驱动，纯Go写的
+https://github.com/lxn/go-pgsql 支持database/sql驱动，纯Go写的
+
+在下面的示例中采用了第一个驱动，因为它目前使用的人最多，在github上也比较活跃。
+
+##### 建表SQL：
+```sql
+CREATE TABLE userinfo
+(
+	uid serial NOT NULL,
+	username character varying(100) NOT NULL,
+	departname character varying(500) NOT NULL,
+	Created date,
+	CONSTRAINT userinfo_pkey PRIMARY KEY (uid)
+)
+WITH (OIDS=FALSE);
+
+CREATE TABLE userdeatail
+(
+	uid integer,
+	intro character varying(100),
+	profile character varying(100)
+)
+WITH(OIDS=FALSE);
+```
+
+##### 示例代码：
+
+## ORM框架使用：
+这儿使用教程作者自己编写的一个框架：[beego](https://github.com/astaxie/beego)
+beego 是一个快速开发 Go 应用的 HTTP 框架，他可以用来快速开发 API、Web 及后端服务等各种应用，是一个 RESTful 的框架，主要设计灵感来源于 tornado、sinatra 和 flask 这三个框架，但是结合了 Go 本身的一些特性（interface、struct 嵌入等）而设计的一个框架。
+其中，beego orm是支持database/sql标准接口的ORM库，所以理论上来说，只要数据库驱动支持database/sql接口就可以无缝的接入beego orm。
+
+### 安装：
+go get github.com/astaxie/beego
+
+更多详细内容参考：[ORM 使用方法](https://beego.me/docs/mvc/model/orm.md)
+
+
+## golang的NoSQL支持：
+NoSQL(Not Only SQL)，指的是非关系型的数据库。随着Web2.0的兴起，传统的关系数据库在应付Web2.0网站，特别是超大规模和高并发的SNS类型的Web2.0纯动态网站已经显得力不从心，暴露了很多难以克服的问题，而非关系型的数据库则由于其本身的特点得到了非常迅速的发展。
+而Go语言作为21世纪的C语言，对NOSQL的支持也是很好，目前流行的NOSQL主要有redis、mongoDB、Cassandra和Membase等。这些数据库都有高性能、高并发读写等特点，目前已经广泛应用于各种应用中。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
