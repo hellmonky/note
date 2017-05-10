@@ -20,9 +20,16 @@
             - [模拟POST表单提交文件：](#模拟post表单提交文件)
     - [session和数据存储：](#session和数据存储)
         - [cookie分析：](#cookie分析)
-            - [存储特点：](#存储特点)
+            - [特点：](#特点)
             - [golang中的处理：](#golang中的处理)
+                - [设置cookie：](#设置cookie)
+                - [获取cookie：](#获取cookie)
+                - [删除cookie：](#删除cookie)
+            - [cookie原理解析：](#cookie原理解析)
         - [session分析：](#session分析)
+            - [特点：](#特点-1)
+            - [golang中的处理：](#golang中的处理-1)
+            - [session原理解析：](#session原理解析)
 
 <!-- /TOC -->
 
@@ -1257,23 +1264,158 @@ Web开发中一个很重要的议题就是如何做好用户的整个浏览过�
 当然，最简单的解决方案就是所有的请求里面都带上用户名和密码，这样虽然可行，但大大加重了服务器的负担（对于每个request都需要到数据库验证），也大大降低了用户体验(每个页面都需要重新输入用户名密码，每个页面都带有登录表单)。既然直接在请求中带上用户名与密码不可行，那么就只有在服务器或客户端保存一些类似的可以代表身份的信息了，所以就有了cookie与session。
 
 cookie，简而言之就是在本地计算机保存一些用户操作的历史信息（当然包括登录信息），并在用户再次访问该站点时浏览器通过HTTP协议将本地cookie内容发送给服务器，从而完成验证，或继续上一步操作。
-比较直观的图示：![cookie原理图](cookie原理图.png)
+比较直观的图示：
+![cookie原理图](cookie原理图.png)
 
 session，简而言之就是在服务器上保存用户操作的历史信息。服务器使用session id来标识session，session id由服务器负责产生，保证随机性与唯一性，相当于一个随机密钥，避免在握手或传输中暴露用户真实密码。但该方式下，仍然需要将发送请求的客户端与session进行对应，所以可以借助cookie机制来获取客户端的标识（即session id），也可以通过GET方式将id提交给服务器。
-比较直观的图示：![session原理图](session原理图.png)
+比较直观的图示：
+![session原理图](session原理图.png)
 
 ### cookie分析：
 
-#### 存储特点：
+#### 特点：
 Cookie是由浏览器维持的，存储在客户端的一小段文本信息，伴随着用户请求和页面在Web服务器和浏览器之间传递。用户每次访问站点时，Web应用程序都可以读取cookie包含的信息。浏览器设置里面有cookie隐私数据选项，打开它，可以看到很多已访问网站的cookies。
 cookie是有时间限制的，根据生命期不同分成两种：会话cookie和持久cookie。
 > - 1. 如果不设置过期时间，则表示这个cookie生命周期为从创建到浏览器关闭止，只要关闭浏览器窗口，cookie就消失了。这种生命期为浏览会话期的cookie被称为会话cookie。会话cookie一般不保存在硬盘上而是保存在内存里。
 > - 2. 如果设置了过期时间(setMaxAge(606024))，浏览器就会把cookie保存到硬盘上，关闭后再次打开浏览器，这些cookie依然有效直到超过设定的过期时间。存储在硬盘上的cookie可以在不同的浏览器进程间共享，比如两个IE窗口。而对于保存在内存的cookie，不同的浏览器有不同的处理方式。
 
 #### golang中的处理：
+##### 设置cookie：
+Go语言中通过net/http包中的SetCookie来设置：
+```golang
+// SetCookie adds a Set-Cookie header to the provided ResponseWriter's headers.
+// The provided cookie must have a valid Name. Invalid cookies may be
+// silently dropped.
+func SetCookie(w ResponseWriter, cookie *Cookie) {
+	if v := cookie.String(); v != "" {
+		w.Header().Add("Set-Cookie", v)
+	}
+}
+```
+w表示需要写入的response，cookie是一个struct，定义为：
+```golang
+// A Cookie represents an HTTP cookie as sent in the Set-Cookie header of an
+// HTTP response or the Cookie header of an HTTP request.
+//
+// See http://tools.ietf.org/html/rfc6265 for details.
+type Cookie struct {
+	Name  string
+	Value string
 
+	Path       string    // optional
+	Domain     string    // optional
+	Expires    time.Time // optional
+	RawExpires string    // for reading cookies only
+
+	// MaxAge=0 means no 'Max-Age' attribute specified.
+	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+	// MaxAge>0 means Max-Age attribute present and given in seconds
+	MaxAge   int
+	Secure   bool
+	HttpOnly bool
+	Raw      string
+	Unparsed []string // Raw text of unparsed attribute-value pairs
+}
+```
+对应的代码为：
+```golang
+// cookie处理：设置服务端给定的cookie名称
+var cookieName string = "testWriteCookie"
+
+// cookie处理：服务端设置请求的cookie，这儿为了满足路由器的函数要求，添加了request端的指针，但是实际没有使用
+func WriteCookie(w http.ResponseWriter, req *http.Request) {
+	expiration := time.Now()
+	expiration = expiration.AddDate(1, 0, 0)
+	cookie := http.Cookie{Name: cookieName, Value: "hellmonky", Expires: expiration}
+	http.SetCookie(w, &cookie)
+	fmt.Println(cookie.Value)
+}
+```
+之所以函数带有两个参数，但是只用了一个的原因就在于：
+这个函数作为HTTP服务的路由器来添加到指定的域名进行测试，所以必须满足路由器函数的定义。
+
+##### 获取cookie：
+**golang只能获取满足RFC规范的cookie**，得到这个教训的代码就是上述写入的cookie值为一个单纯的字符串，在response解析cookie的时候被丢弃，所以无法返回。
+造成的现象就是：chrome调试中可以看到这个cookie，但是使用golang获取不到，但是可以删除成功。
+```golang
+// cookie处理：服务端读取用户保存的cookie信息，然后返回给用户页面显示
+func ReadCookie(w http.ResponseWriter, req *http.Request) {
+
+	for _, cookie := range req.Cookies() {
+		fmt.Fprint(w, cookie.Name)
+	}
+
+	cookie, err := req.Cookie(cookieName)
+	if err == nil {
+		cookievalue := cookie.Value
+		w.Write([]byte("<b>cookie的值是：" + cookievalue + "</b>\n"))
+	} else {
+		w.Write([]byte("<b>读取出现错误：" + err.Error() + "</b>\n"))
+	}
+}
+```
+> 参考文档：
+> [让人哭笑不得的原因（golang的cookie）](https://www.oschina.net/question/593413_139087)
+> [GO语言(golang)无法获取Cookie值](http://blog.sina.com.cn/s/blog_7047e44d01014waf.html)
+> [全面解读HTTP Cookie](http://www.webryan.net/2011/08/wiki-of-http-cookie/)
+> [cookie规范（RFC 6265）翻译](https://github.com/renaesop/blog/issues/4)
+
+chrome在windows7环境下的cookie默认存储位置为：
+```shell
+C:\Users\yuanlai.xwt\AppData\Local\Google\Chrome\User Data\Default\Cookies
+```
+这个文件是SQLite3的数据库文件，可以使用DBeaver这个软件打开查看。
+然后打开服务器，在chrome中访问生成cookie的服务，然后关闭浏览器，拷贝这个Cookies文件，打开查询：
+```sql
+select * from cookies where cookies.host_key = 'localhost'
+```
+可以看到已经有写入的内容了：
+```shell
+creation_utc	host_key	name	value	path	expires_utc	secure	httponly	last_access_utc	has_expires	persistent	priority	encrypted_value	firstpartyonly
+13138707405877370	localhost	Idea-6f89e3fb		/	13454067405877370	0	1	13138861844489448	1	1	1	    ¯óâ   ® óz ¿O½è     çCjÔô@Ãfý  ÛÎI           f  ¿       [r×Ü;  hç[Ñv :2L     ÿ  ß       Æ óvvÍ?e+Q  <(   ëTâÓ3¹¹}CM##Ù3$,Ád:%QSû èÑ!¦´ÓWõ,ÎÙV    :-ìç"Õ]nµeÔ¯µWÎP T	2
+13138854069735452	localhost	io		/	0	0	1	13138861844489448	0	0	1	    ¯óâ   ® óz ¿O½è     çCjÔô@Ãfý  ÛÎI           f  ¿       SàÞ]ÅÈ  Y&ý%; ;     ÿ  ß       þ­)¶Wl,   m MJT    ZÖÈ=ÙÂì^ÑÕ¥»Íx û^C ¹S©    ïÐ s,×Ô³5@ùì"Z² ÆÍ	0
+13138861844802311	localhost	testWriteCookie		/	13170397844802311	0	0	13138861844802311	1	1	1	    ¯óâ   ® óz ¿O½è     çCjÔô@Ãfý  ÛÎI           f  ¿       \ ÿ 0 <èÖ¡Ö     ÿ  ß       ® ¡ ýôûïj-yXôö    ®ËÁÈ~ ÊÆè jH³HôÏ) CBÇ;    a¾   ¿ b¿  =ZOX Æ	0
+```
+可以看到有对应的name出现了，但是value内容都为空。可是通过浏览器或者服务端还是可以获取具体的值的，那么这些值存放在哪里？可能需要根据chromium的源代码来确定了。
+> 参考文档：
+> [Chrome doesn't create cookie for domain=localhost in broken https](http://stackoverflow.com/questions/8134384/chrome-doesnt-create-cookie-for-domain-localhost-in-broken-https)
+> [Issue 56211 in chromium: chrome.cookies fails for localhost domains](https://groups.google.com/a/chromium.org/forum/#!topic/chromium-bugs/4HFLDhvvXsc)
+> [Cookies on localhost with explicit domain](http://stackoverflow.com/questions/1134290/cookies-on-localhost-with-explicit-domain)
+
+##### 删除cookie：
+golang中删除cookie很简单，就是将指定cookie的值覆盖为空，然后由浏览器自动清楚这个条目。具体代码为：
+```golang
+// cookie处理：删除用户端cookie信息
+func DeleteCookie(w http.ResponseWriter, req *http.Request) {
+	cookie := http.Cookie{Name: cookieName, Path: "/", MaxAge: -1}
+	fmt.Println("after delete, cookie value is : ", cookie.Value)
+	http.SetCookie(w, &cookie)
+	w.Write([]byte("<b>删除cookie成功。</b>\n"))
+}
+```
+
+#### cookie原理解析：
+[详解 Cookie 纪要](http://jeffjade.com/2016/10/31/115-summary-of-cookie/)
 
 ### session分析：
+session，中文经常翻译为会话，其本来的含义是指有始有终的一系列动作/消息，比如打电话是从拿起电话拨号到挂断电话这中间的一系列过程可以称之为一个session。然而当session一词与网络协议相关联时，它又往往隐含了“面向连接”和/或“保持状态”这样两个含义。
+
+session在Web开发环境下的语义又有了新的扩展，它的含义是指一类用来在客户端与服务器端之间保持状态的解决方案。有时候Session也用来指这种解决方案的存储结构。
+
+session机制是一种服务器端的机制，服务器使用一种类似于散列表的结构(也可能就是使用散列表)来保存信息。
+
+但程序需要为某个客户端的请求创建一个session的时候，服务器首先检查这个客户端的请求里是否包含了一个session标识－称为session id，如果已经包含一个session id则说明以前已经为此客户创建过session，服务器就按照session id把这个session检索出来使用(如果检索不到，可能会新建一个，这种情况可能出现在服务端已经删除了该用户对应的session对象，但用户人为地在请求的URL后面附加上一个JSESSION的参数)。如果客户请求不包含session id，则为此客户创建一个session并且同时生成一个与此session相关联的session id，这个session id将在本次响应中返回给客户端保存。
+
+session机制本身并不复杂，然而其实现和配置上的灵活性却使得具体情况复杂多变。这也要求我们不能把仅仅某一次的经验或者某一个浏览器，服务器的经验当作普遍适用的。
+
+#### 特点：
+session和cookie的目的相同，都是为了克服http协议无状态的缺陷，但完成的方法不同。session通过cookie，在客户端保存session id，而将用户的其他会话消息保存在服务端的session对象中，与此相对的，cookie需要将所有信息都保存在客户端。因此cookie存在着一定的安全隐患，例如本地cookie中保存的用户名密码被破译，或cookie被其他网站收集（例如：1. appA主动设置域B cookie，让域B cookie获取；2. XSS，在appA上通过javascript获取document.cookie，并传递给自己的appB）。
+
+#### golang中的处理：
+
+#### session原理解析：
+
+
 
 
 
