@@ -31,8 +31,9 @@
             - [golang中的处理：](#golang中的处理-1)
                 - [session创建流程：](#session创建流程)
                 - [session管理设计](#session管理设计)
-                    - [全局session管理器结构定义：](#全局session管理器结构定义)
-                    - [生成session管理器：](#生成session管理器)
+                    - [session管理器的设计：](#session管理器的设计)
+                    - [session的ID生成：](#session的id生成)
+                    - [session的生成：](#session的生成)
             - [session原理解析：](#session原理解析)
         - [参考文档：](#参考文档)
 
@@ -1439,7 +1440,7 @@ session的基本原理是由服务器为每个会话维护一份信息数据，�
 > - 4. session 的存储(可以存储到内存、文件、数据库等)
 > - 5. session 过期处理
 
-###### 全局session管理器结构定义：
+###### session管理器的设计：
 ```golang
 type Manager struct {
 	cookieName  string     //private cookiename
@@ -1448,17 +1449,12 @@ type Manager struct {
 	maxlifetime int64
 }
 ```
+一个管理器需要的参数为：cookie的名称，当前cookie的提供者，当前session的最长有效时间。
+
 需要注意的是，使用了互斥量作为线程同步的方式。关于多线程加锁保证并发的正确性是一个非常基本的问题，不管是在那种语言中，都会有原理上一致的解决方案，那就是对并发竞争的资源进行加锁处理，C++如此，java如此，在golang中也是如此。
-[Benign data races: what could possibly go wrong?](https://software.intel.com/en-us/blogs/2013/01/06/benign-data-races-what-could-possibly-go-wrong)
+> 参考文档：[Benign data races: what could possibly go wrong?](https://software.intel.com/en-us/blogs/2013/01/06/benign-data-races-what-could-possibly-go-wrong)
 
-
-> 关于实现session中的一些思考：
-> 因为实现一个功能，首先要明确的就是功能的要点，然后按照功能点的划分对整体设计进行一个合理的规划，规划完毕就需要指定明确的实现过程和方式，然后拆分并且按照优先级分派任务，接着并行执行，最后合并联调，完成功能的统一测试，最后交付。这个过程中，在整体设计规划的时候数据结构和算法的作用就会凸显，因为会影响整体的执行效率和开发方式，属于顶层设计。
-> [go-algorithms](https://github.com/0xAX/go-algorithms)
-> [Go 语言 Session 实现](http://blog.guoqiangti.com/?p=318)
-
-
-###### 生成session管理器：
+那么生成一个管理器的函数就应该是：
 ```golang
 func NewManager(provideName, cookieName string, maxlifetime int64) (*Manager, error) {
 	provider, ok := provides[provideName]
@@ -1468,6 +1464,91 @@ func NewManager(provideName, cookieName string, maxlifetime int64) (*Manager, er
 	return &Manager{provider: provider, cookieName: cookieName, maxlifetime: maxlifetime}, nil
 }
 ```
+
+我们知道session是保存在服务器端的数据，它可以以任何的方式存储，比如存储在内存、数据库或者文件中。因此我们抽象出一个Provider接口，用以表征session管理器底层存储结构。
+```golang
+type Provider interface {
+	SessionInit(sid string) (Session, error)
+	SessionRead(sid string) (Session, error)
+	SessionDestroy(sid string) error
+	SessionGC(maxLifeTime int64)
+}
+```
+> - 1. SessionInit函数实现Session的初始化，操作成功则返回此新的Session变量
+> - 2. SessionRead函数返回sid所代表的Session变量，如果不存在，那么将以sid为参数调用SessionInit函数创建并返回一个新的Session变量
+> - 3. SessionDestroy函数用来销毁sid对应的Session变量
+> - 4. SessionGC根据maxLifeTime来删除过期的数据
+
+那么Session接口需要实现什么样的功能呢？有过Web开发经验的读者知道，对Session的处理基本就 设置值、读取值、删除值以及获取当前sessionID这四个操作，所以我们的Session接口也就实现这四个操作：
+```golang
+type Session interface {
+	Set(key, value interface{}) error //set session value
+	Get(key interface{}) interface{}  //get session value
+	Delete(key interface{}) error     //delete session value
+	SessionID() string                //back current sessionID
+}
+```
+既然session定义为接口完成了具体实现和操作的解耦，那么就需要一种机制完成实际实现接口的管理，这种在驱动实现中非常常见，就是注册管理的方式：
+```golang
+var provides = make(map[string]Provider)
+
+// Register makes a session provide available by the provided name.
+// If Register is called twice with the same name or if driver is nil,
+// it panics.
+func Register(name string, provider Provider) {
+	if provider == nil {
+		panic("session: Register provide is nil")
+	}
+	if _, dup := provides[name]; dup {
+		panic("session: Register called twice for provide " + name)
+	}
+	provides[name] = provider
+}
+```
+将直接实现session的内容，和对应的名称以map的行书填写到全局的provides中，然后每次使用的时候就可以先查询map中是否已经存在，如果存在就直接取出来使用了。
+
+> 关于实现session管理器设计中的一些思考：
+> 因为实现一个功能，首先要明确的就是功能的要点，然后按照功能点的划分对整体设计进行一个合理的规划，规划完毕就需要指定明确的实现过程和方式，然后拆分并且按照优先级分派任务，接着并行执行，最后合并联调，完成功能的统一测试，最后交付。这个过程中，在整体设计规划的时候数据结构和算法的作用就会凸显，因为会影响整体的执行效率和开发方式，属于顶层设计。
+> [go-algorithms](https://github.com/0xAX/go-algorithms)
+> [Go 语言 Session 实现](http://blog.guoqiangti.com/?p=318)
+
+
+###### session的ID生成：
+唯一ID的生成非常常见，在Java中官方提供了唯一生成识别码的UUUID包来简化这一过程，在golang中应该怎么完成相同的功能？
+```golang
+func (manager *Manager) sessionId() string {
+	b := make([]byte, 32)
+	if _, err := io.ReadFull(rand.Reader, b); err != nil {
+		return ""
+	}
+	return base64.URLEncoding.EncodeToString(b)
+}
+```
+方式就是随机生成一个字符串，然后放在32位长的字节数组中，最后使用base64编码作为唯一识别码。
+需要注意的是，rand调用了IO包：[rand.Read() 和 io.ReadFull(rand.Reader) 的区别?](http://www.cnblogs.com/ghj1976/p/3435940.html)
+
+###### session的生成：
+到目前为止，设计了session的管理器和session的接口定义，可以补全生成session实例的方法了。
+我们需要为每个来访用户分配或获取与他相关连的Session，以便后面根据Session信息来验证操作。SessionStart这个函数就是用来检测是否已经有某个Session与当前来访用户发生了关联，如果没有则创建之。
+```golang
+func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (session Session) {
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	cookie, err := r.Cookie(manager.cookieName)
+	if err != nil || cookie.Value == "" {
+		sid := manager.sessionId()
+		session, _ = manager.provider.SessionInit(sid)
+		cookie := http.Cookie{Name: manager.cookieName, Value: url.QueryEscape(sid), Path: "/", HttpOnly: true, MaxAge: int(manager.maxlifetime)}
+		http.SetCookie(w, &cookie)
+	} else {
+		sid, _ := url.QueryUnescape(cookie.Value)
+		session, _ = manager.provider.SessionRead(sid)
+	}
+	return
+}
+```
+
+
 
 
 
