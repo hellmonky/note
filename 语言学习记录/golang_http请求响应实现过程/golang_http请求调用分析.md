@@ -1547,6 +1547,42 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	return
 }
 ```
+这个使用了管理器的锁保证一致性，并且使用defer在退出时自动解锁。
+首先，检查当前用户请求带上来的cookie的名称是否已经在服务器端存在；
+然后，如果不存在或者对应名称的cookie的值为空，就进入生成session流程：生成唯一ID，使用sessionInit生成session，将当前的cookiename和生成的session的ID等信息交给response，返回给用户；
+如果已经存在cookie名称对应的ID，就获取当前用户端cookie名称对应的值，然后将QueryEscape转码的字符串还原（它会把%AB改为字节0xAB，将'+'改为' '等），最后从session管理器中，通过获取到的session ID来得到对应的session本身。
+
+配合前面的login函数看看如何使用session：
+```golang
+func login(w http.ResponseWriter, r *http.Request) {
+	sess := globalSessions.SessionStart(w, r)
+	r.ParseForm()
+	if r.Method == "GET" {
+		t, _ := template.ParseFiles("login.gtpl")
+		w.Header().Set("Content-Type", "text/html")
+		t.Execute(w, sess.Get("username"))
+	} else {
+		sess.Set("username", r.Form["username"])
+		http.Redirect(w, r, "/", 302)
+	}
+}
+```
+用户访问login页面的时候，通过检查当前用户cookie中对应的ID来查询服务端的session：
+如果是GET请求，就对模板生成的内容，从session中获取用户名进行模板的执行（Template.Execute）；
+如果是其他请求，就将当前用户登录的名称写入session，然后重定位页面到/下。
+
+
+Redirect告诉request重定向到一个url,这个URL可以是请求路径的的相对路径。定义:：
+```golang
+func Redirect(w ResponseWriter, r *Request, urlStr string, code int)
+```
+w 服务器响应
+r 客户端请求
+urlStr 要重定向的地址
+code 定义在http里面，一般我们可以使用http.StatusFound
+
+> 需要注意的是：调用http.Redirect()函数后，并不会立刻进行跳转，而是继续顺序执行函数中的所有的代码后，再进行跳转。但是Redirect后面的写界面的代码不会发送到游览器前端的。
+
 
 
 
