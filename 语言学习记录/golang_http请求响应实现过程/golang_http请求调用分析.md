@@ -34,6 +34,7 @@
                     - [session管理器的设计：](#session管理器的设计)
                     - [session的ID生成：](#session的id生成)
                     - [session的生成：](#session的生成)
+                    - [session的销毁：](#session的销毁)
             - [session原理解析：](#session原理解析)
         - [参考文档：](#参考文档)
 
@@ -1582,6 +1583,30 @@ urlStr 要重定向的地址
 code 定义在http里面，一般我们可以使用http.StatusFound
 
 > 需要注意的是：调用http.Redirect()函数后，并不会立刻进行跳转，而是继续顺序执行函数中的所有的代码后，再进行跳转。但是Redirect后面的写界面的代码不会发送到游览器前端的。
+
+###### session的销毁：
+Web应用中有用户退出这个操作，那么当用户退出应用的时候，我们需要对该用户的session数据进行销毁操作。
+```golang
+//Destroy sessionid
+func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request){
+	cookie, err := r.Cookie(manager.cookieName)
+	if err != nil || cookie.Value == "" {
+		return
+	} else {
+		manager.lock.Lock()
+		defer manager.lock.Unlock()
+		manager.provider.SessionDestroy(cookie.Value)
+		expiration := time.Now()
+		cookie := http.Cookie{Name: manager.cookieName, Path: "/", HttpOnly: true, Expires: expiration, MaxAge: -1}
+		http.SetCookie(w, &cookie)
+	}
+}
+```
+首先检查用户cookie中是否有对应的键值对，如果没有就不用销毁session，如果存在，使用session管理将内容清空，然后将cookie失效时间写为现在，将用户的cookie失效写入。
+
+
+倒签报备手续完毕，干活，然后补签合同
+
 
 
 
