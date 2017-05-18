@@ -30,11 +30,13 @@
             - [特点：](#特点-1)
             - [golang中的处理：](#golang中的处理-1)
                 - [session创建流程：](#session创建流程)
-                - [session管理设计](#session管理设计)
-                    - [session管理器的设计：](#session管理器的设计)
+                - [session的管理流程设计：](#session的管理流程设计)
+                    - [session管理器和session的接口设计：](#session管理器和session的接口设计)
+                    - [session的注册管理：](#session的注册管理)
                     - [session的ID生成：](#session的id生成)
-                    - [session的生成：](#session的生成)
+                    - [session的用户绑定生成：](#session的用户绑定生成)
                     - [session的销毁：](#session的销毁)
+                    - [session的GC：](#session的gc)
             - [session原理解析：](#session原理解析)
         - [参考文档：](#参考文档)
 
@@ -1433,7 +1435,7 @@ session的基本原理是由服务器为每个会话维护一份信息数据，�
 > - 2. URL重写 所谓URL重写，就是在返回给用户的页面里的所有的URL后面追加session标识符，这样用户在收到响应之后，无论点击响应页面里的哪个链接或提交表单，都会自动带上session标识符，从而就实现了会话的保持。虽然这种做法比较麻烦，但是，如果客户端禁用了cookie的话，此种方案将会是首选。
 
 
-##### session管理设计
+##### session的管理流程设计：
 我们知道session管理涉及到如下几个因素
 > - 1. 全局session管理器
 > - 2. 保证sessionid 的全局唯一性
@@ -1441,7 +1443,8 @@ session的基本原理是由服务器为每个会话维护一份信息数据，�
 > - 4. session 的存储(可以存储到内存、文件、数据库等)
 > - 5. session 过期处理
 
-###### session管理器的设计：
+###### session管理器和session的接口设计：
+首先我们定义管理器自身需要的参数：
 ```golang
 type Manager struct {
 	cookieName  string     //private cookiename
@@ -1480,7 +1483,8 @@ type Provider interface {
 > - 3. SessionDestroy函数用来销毁sid对应的Session变量
 > - 4. SessionGC根据maxLifeTime来删除过期的数据
 
-那么Session接口需要实现什么样的功能呢？有过Web开发经验的读者知道，对Session的处理基本就 设置值、读取值、删除值以及获取当前sessionID这四个操作，所以我们的Session接口也就实现这四个操作：
+我们的session管理器只要实现这些接口函数就可以完成对session的管理了，那么Session需要实现什么样的功能呢？
+有过Web开发经验的读者知道，对Session的处理基本就 设置值、读取值、删除值以及获取当前sessionID这四个操作，所以我们的Session需要提供的接口也就实现这四个操作：
 ```golang
 type Session interface {
 	Set(key, value interface{}) error //set session value
@@ -1489,7 +1493,9 @@ type Session interface {
 	SessionID() string                //back current sessionID
 }
 ```
-既然session定义为接口完成了具体实现和操作的解耦，那么就需要一种机制完成实际实现接口的管理，这种在驱动实现中非常常见，就是注册管理的方式：
+
+###### session的注册管理：
+定义好了session管理器和session，我们就需要将管理器和session本身通过一种机制完成管理关联，这种在驱动实现中非常常见，就是注册管理的方式：
 ```golang
 var provides = make(map[string]Provider)
 
@@ -1510,12 +1516,15 @@ func Register(name string, provider Provider) {
 
 > 关于实现session管理器设计中的一些思考：
 > 因为实现一个功能，首先要明确的就是功能的要点，然后按照功能点的划分对整体设计进行一个合理的规划，规划完毕就需要指定明确的实现过程和方式，然后拆分并且按照优先级分派任务，接着并行执行，最后合并联调，完成功能的统一测试，最后交付。这个过程中，在整体设计规划的时候数据结构和算法的作用就会凸显，因为会影响整体的执行效率和开发方式，属于顶层设计。
-> [go-algorithms](https://github.com/0xAX/go-algorithms)
-> [Go 语言 Session 实现](http://blog.guoqiangti.com/?p=318)
+
+参考文档：
+> - [go-algorithms](https://github.com/0xAX/go-algorithms)
+> - [Go 语言 Session 实现](http://blog.guoqiangti.com/?p=318)
 
 
 ###### session的ID生成：
 唯一ID的生成非常常见，在Java中官方提供了唯一生成识别码的UUUID包来简化这一过程，在golang中应该怎么完成相同的功能？
+我们以session管理器生成唯一ID作为实例：
 ```golang
 func (manager *Manager) sessionId() string {
 	b := make([]byte, 32)
@@ -1528,8 +1537,8 @@ func (manager *Manager) sessionId() string {
 方式就是随机生成一个字符串，然后放在32位长的字节数组中，最后使用base64编码作为唯一识别码。
 需要注意的是，rand调用了IO包：[rand.Read() 和 io.ReadFull(rand.Reader) 的区别?](http://www.cnblogs.com/ghj1976/p/3435940.html)
 
-###### session的生成：
-到目前为止，设计了session的管理器和session的接口定义，可以补全生成session实例的方法了。
+###### session的用户绑定生成：
+到目前为止，设计了session的管理器和session的接口定义，可以从session管理器生成一个session实例的使用场景来进行描述。
 我们需要为每个来访用户分配或获取与他相关连的Session，以便后面根据Session信息来验证操作。SessionStart这个函数就是用来检测是否已经有某个Session与当前来访用户发生了关联，如果没有则创建之。
 ```golang
 func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (session Session) {
@@ -1548,12 +1557,13 @@ func (manager *Manager) SessionStart(w http.ResponseWriter, r *http.Request) (se
 	return
 }
 ```
-这个使用了管理器的锁保证一致性，并且使用defer在退出时自动解锁。
-首先，检查当前用户请求带上来的cookie的名称是否已经在服务器端存在；
-然后，如果不存在或者对应名称的cookie的值为空，就进入生成session流程：生成唯一ID，使用sessionInit生成session，将当前的cookiename和生成的session的ID等信息交给response，返回给用户；
-如果已经存在cookie名称对应的ID，就获取当前用户端cookie名称对应的值，然后将QueryEscape转码的字符串还原（它会把%AB改为字节0xAB，将'+'改为' '等），最后从session管理器中，通过获取到的session ID来得到对应的session本身。
+这个Manager类型的方法供用户调用生成对应的session。
+> - 首先，使用了管理器的锁保证一致性，并且使用defer在退出时自动解锁。
+> - 接着，检查当前用户请求带上来的cookie的名称是否已经在服务器端存在；
+> - 然后，如果不存在或者对应名称的cookie的值为空，就进入生成session流程：生成唯一ID，使用sessionInit生成session，将当前的cookiename和生成的session的ID等信息交给response，返回给用户；如果已经存在cookie名称对应的ID，就获取当前用户端cookie名称对应的值，然后将QueryEscape转码的字符串还原（它会把%AB改为字节0xAB，将'+'改为' '等）；
+> - 最后从session管理器中，通过获取到的session ID来得到对应的session本身。
 
-配合前面的login函数看看如何使用session：
+配合前面的login函数看看如何响应用户请求的同时检查生成session：
 ```golang
 func login(w http.ResponseWriter, r *http.Request) {
 	sess := globalSessions.SessionStart(w, r)
@@ -1568,24 +1578,24 @@ func login(w http.ResponseWriter, r *http.Request) {
 	}
 }
 ```
-用户访问login页面的时候，通过检查当前用户cookie中对应的ID来查询服务端的session：
+将这个函数和用户访问login页面绑定，通过检查当前用户cookie中对应的ID来查询服务端的session：
+首先，从全局函数获取
 如果是GET请求，就对模板生成的内容，从session中获取用户名进行模板的执行（Template.Execute）；
 如果是其他请求，就将当前用户登录的名称写入session，然后重定位页面到/下。
 
-
-Redirect告诉request重定向到一个url,这个URL可以是请求路径的的相对路径。定义:：
+Redirect告诉request重定向到一个url,这个URL可以是请求路径的的相对路径。定义为：
 ```golang
 func Redirect(w ResponseWriter, r *Request, urlStr string, code int)
 ```
-w 服务器响应
-r 客户端请求
-urlStr 要重定向的地址
-code 定义在http里面，一般我们可以使用http.StatusFound
+> - w：服务器响应
+> - r：客户端请求
+> - urlStr：要重定向的地址
+> - code：定义在http里面，一般我们可以使用http.StatusFound
 
 > 需要注意的是：调用http.Redirect()函数后，并不会立刻进行跳转，而是继续顺序执行函数中的所有的代码后，再进行跳转。但是Redirect后面的写界面的代码不会发送到游览器前端的。
 
 ###### session的销毁：
-Web应用中有用户退出这个操作，那么当用户退出应用的时候，我们需要对该用户的session数据进行销毁操作。
+Web应用中有用户退出这个操作，那么当用户退出应用的时候，我们需要对该用户的session数据进行销毁操作。也就是通过seesion管理器来销毁sid对应的Session变量。
 ```golang
 //Destroy sessionid
 func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request){
@@ -1602,13 +1612,16 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request){
 	}
 }
 ```
-首先检查用户cookie中是否有对应的键值对，如果没有就不用销毁session，如果存在，使用session管理将内容清空，然后将cookie失效时间写为现在，将用户的cookie失效写入。
+首先检查用户cookie中是否有对应的键值对，如果没有就不用销毁session，如果存在，使用session管理将内容清空；
+然后将cookie失效时间写为现在；
+接着，将用户的cookie对应key的value写为空，设置用户cookie，造成失效写入。
 
+###### session的GC：
+上面我们看到了怎么实际上在用户登出之后进行session销毁，还有一种情况需要对用户session进行回收，那就是超时。
+当用户长时间登入不执行session更新，那么就需要通过session管理器对超时的session进行回收，也就是GC，一般根据maxLifeTime来删除过期的数据。
+```golang
 
-倒签报备手续完毕，干活，然后补签合同
-
-
-
+```
 
 
 
