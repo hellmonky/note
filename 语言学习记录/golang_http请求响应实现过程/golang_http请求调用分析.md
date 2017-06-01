@@ -1704,6 +1704,23 @@ func AfterFunc(d Duration, f func()) *Timer {
 
 ##### session的内存存储实现：
 在理解了上述基本流程之后，需要进行实现来完后验证。毕竟实践是检验真理的唯一标准。这一节的主要内容就是从底层实现一个基于内存的session管理代码。
+通过init函数注册到session管理器中。这样就可以方便的调用了。具体的方式为：
+当import的时候已经执行了memory函数里面的init函数，来完成session注册到session管理器中，用户就可以使用了。
+
+
+
+
+注意：
+1 在引入一个功能比较独立的部分，需要将这部分作为一个独立的package进行组织。其他的package引用这个包的时候，需要根据当前GOPATH作为根，然后查询到这个引用包的位置进行描述。
+2 并且golang的可视范围就限制于package这个级别，分开文件只是为了方便编码，而不是逻辑概念上的区分，所以在一个package下，同名的interface和struct是会报redeclared错误的。
+参考文档：
+[Go: “instance” redeclared in this block](https://stackoverflow.com/questions/34344172/go-instance-redeclared-in-this-block)
+
+关于golang中的interface关键字和面向对象编程：
+golang使用了非侵入式接口实现（和java完全不一样），一个很重要的好处就是去掉了繁杂的继承体系。golang中接口的定义和类对接口的实现分离，减少了耦合，而且可以在类的实现过程中动态的决定需要实现那些接口规范，而不是全部都需要实现，增强了灵活性。但是在带来便利性的同时也会造成接口实现关系不明确的问题，太过于灵活不好把控。
+golang不支持完整的面向对象思想，它没有继承，多态则完全依赖接口实现。
+其中关键的一点就是：golang是通过 interface 类型接口实现的继承多态的效果。
+golang只能模拟继承，其本质是组合，只不过golang语言为我们提供了一些语法糖使其看起来达到了继承的效果。面向对象中一个很重要的基本原则--里氏代换原则(Liskov Substitution Principle LSP)在这里就行不通了，习惯面向对象语言的同学可能会有些不适应，当你将一个父类的指针指向子类的对象时，golang会毫不吝啬的抛出一个编译错误。
 
 
 
