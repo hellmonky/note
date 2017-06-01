@@ -3,8 +3,9 @@
 - [golang的类型系统](#golang的类型系统)
     - [类型是什么](#类型是什么)
     - [golang关键字type：](#golang关键字type)
-    - [golang关键字func：](#golang关键字func)
+    - [golang关键字struct：](#golang关键字struct)
     - [golang关键字interface：](#golang关键字interface)
+    - [给具体对象添加行为：](#给具体对象添加行为)
 
 <!-- /TOC -->
 
@@ -43,9 +44,9 @@ range用于读取slice、map、channel数据
 控制结构：break, case, chan, continue, default, defer, else, fallthrough, for, go, goto, if, range, return, select, switch, 
 组织管理：import, package
 
-在golang中，type和struct还有interface绑定使用：
-通过关键字type和struct，实现了用户定义具体类型的构造；
-通过type和interface，实现了对象行为的定义。
+在golang中，type关键词包含struct和interface这两种类型：
+struct类型，定义了具体类型的属性；
+interface类型，定义了具体对象的行为。
 
 本文就程序设计语言中的类型抽象入手，深入学习golang中提供的类型抽象手段和用法。
 
@@ -173,17 +174,7 @@ Go语言通过type关键字很好地揭示了事物的本质，就是同一个�
 [一人千面：谈谈Go语言中的type](http://blog.sina.com.cn/s/blog_9be3b8f10101ccpu.html)
 
 
-## golang关键字func：
-func关键字用于将一个代码块抽象为函数完成复用，func的定义为：
-```golang
-func (p myType ) funcName ( a, b int , c string ) ( r , s int ) {
-    return
-}
-```
-还需要区分出goalng的方法和函数。他们之间虽然都是通过func定义的，但还是有区别的。
-为特定类型定义函数，即为类型对象定义方法：
-在Go中通过给函数标明所属类型，来给该类型定义方法，上面的 p myType 即表示给myType声明了一个方法， p myType 不是必须的。如果没有，则纯粹是一个函数，通过包名称访问。
-
+## golang关键字struct：
 
 
 ## golang关键字interface：
@@ -195,13 +186,40 @@ An interface type specifies a method set called its interface. A variable of int
 一个 interface 类型定义了一个方法集，称为接口。
 
 
+## 给具体对象添加行为：
+按照上述说明，通过struct关键字定义的类型，只包含这个类型所拥有的属性，那么该如何给这个类型添加行为？还是通过func关键字来完成。
+func关键字用于将一个代码块抽象为函数完成复用，func的定义为：
+```golang
+func (p myType ) funcName ( a, b int , c string ) ( r , s int ) {
+    return
+}
+```
+在这个定义中(p myType )是可选的，就是通过这个可选属性，区分了golang中的类型的方法和一般函数。
+为特定类型定义函数，即为类型对象定义方法：
+在Go中通过给函数标明所属类型，来给该类型定义方法，上面的 p myType 即表示给myType声明了一个方法， p myType 不是必须的。如果没有，则纯粹是一个函数，通过包名称访问。
+
+这儿有一个问题：如果需要对已经存在的类型添加方法，能不能实现？
+答案是：需要看能不能在同一个package中进行修改，如果可以在同一个package中进行修改，那么就可以添加方法，否则不行。
+```text
+As the compiler mentions, you can't extend existing types in another package.
+```
+这是因为golang中，编译器可见范围最小层次为package，编译器无法对不同package中的类型进行处理，只能作为不同的类型进行处理，也就是通过package来进行访问。
+
+参考文档：
+[How to add new methods to an existing type in go?](https://stackoverflow.com/questions/28800672/how-to-add-new-methods-to-an-existing-type-in-go)
+
+
+
+
+
+
+
 
 
 参考文档：
 [Understanding Golang Type System](https://thenewstack.io/understanding-golang-type-system/)
 [Golang 语言基础之八： interface](http://xhrwang.me/2014/12/29/golang-fundamentals-8-interface.html)
 [关于golang struct interface的理解使用](http://xiaorui.cc/2016/03/11/%E5%85%B3%E4%BA%8Egolang-struct-interface%E7%9A%84%E7%90%86%E8%A7%A3%E4%BD%BF%E7%94%A8/)
-[一人千面：谈谈Go语言中的type](http://blog.sina.com.cn/s/blog_9be3b8f10101ccpu.html)
 
 []()
 []()
