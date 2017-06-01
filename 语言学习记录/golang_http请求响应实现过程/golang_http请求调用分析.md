@@ -37,6 +37,7 @@
                     - [session的用户绑定生成：](#session的用户绑定生成)
                     - [session的销毁：](#session的销毁)
                     - [session的GC：](#session的gc)
+                - [session的内存存储实现：](#session的内存存储实现)
             - [session原理解析：](#session原理解析)
         - [参考文档：](#参考文档)
 
@@ -1620,8 +1621,89 @@ func (manager *Manager) SessionDestroy(w http.ResponseWriter, r *http.Request){
 上面我们看到了怎么实际上在用户登出之后进行session销毁，还有一种情况需要对用户session进行回收，那就是超时。
 当用户长时间登入不执行session更新，那么就需要通过session管理器对超时的session进行回收，也就是GC，一般根据maxLifeTime来删除过期的数据。
 ```golang
+func init() {
+	go globalSessions.GC()
+}
 
+func (manager *Manager) GC() {
+	manager.lock.Lock()
+	defer manager.lock.Unlock()
+	manager.provider.SessionGC(manager.maxlifetime)
+	time.AfterFunc(time.Duration(manager.maxlifetime), func() { manager.GC() })
+}
 ```
+也就是通过在初始化的时候使用go关键字开启一个线程，然后在这个线程中添加GC操作。并且在GC操作中，使用time包的AfterFunc函数来完成调用。
+
+其中涉及到的知识点有两个：关键字go的使用和time包中AfterFunc函数的使用。
+go关键字开头的表达式会启动一个新的goroutine来执行关键字后面的函数。go关键字的使用方式有一下三种：
+```golang
+//go 关键字放在方法调用前新建一个 goroutine 并让他执行方法体
+go GetThingDone(param1, param2);
+
+//上例的变种，新建一个匿名方法并执行
+go func(param1, param2) {
+}(val1, val2)
+
+//直接新建一个 goroutine 并在 goroutine 中执行代码块
+go {
+    //do someting...
+}
+```
+需要注意的是，go关键字后面的函数（块）中，所有变量都是原goroutine中的值，只有函数执行是在新的goroutine中。新的goroutine不能和当前go线程用同一个栈，否则会相互覆盖。所以对go关键字的调用协议与普通函数调用是不同的。
+既然在新的goruntine中执行了，那么函数的执行结果该如何拿回到原goroutine中？这个时候就需要channel来帮助了。
+Channal是什么？Channal就是用来通信的，就像Unix下的管道一样，在Go中是这样使用Channel的。
+```golang
+package main
+ 
+import "fmt"
+ 
+func main() {
+    //创建一个string类型的channel
+    channel := make(chan string)
+ 
+    //创建一个goroutine向channel里发一个字符串
+    go func() { channel <- "hello" }()
+ 
+    msg := <- channel
+    fmt.Println(msg)
+}
+```
+首先，创建一个string类型的channel变量，用于在不同的goroutine中进行值传递。
+然后，使用go关键字开启一个新的goroutine，这个goroutine中将一个字符串变量传递给上面新建的channel变量；
+最后，在原goroutine中将channel变量中的内容拿出来交给msg，打印显示。
+
+但是上述对channel的使用有一个问题：开启了一个channel，但是没有关闭，会造成内存的泄露。
+关于goroutine开启堆栈的方式和演变，可以参考官方博客：
+> - [How Stacks are Handled in Go](http://blog.cloudflare.com/how-stacks-are-handled-in-go/)
+参考文章：
+> - [如何优雅地关闭Go channel](http://www.jianshu.com/p/d24dfbb33781)
+> - [Golang 语言基础之十： goroutine, channel](http://xhrwang.me/2014/12/31/golang-fundamentals-10-goroutine-channel.html)
+
+time包中的AfterFunc函数定义为：
+```golang
+// AfterFunc waits for the duration to elapse and then calls f
+// in its own goroutine. It returns a Timer that can
+// be used to cancel the call using its Stop method.
+func AfterFunc(d Duration, f func()) *Timer {
+	t := &Timer{
+		r: runtimeTimer{
+			when: when(d),
+			f:    goFunc,
+			arg:  f,
+		},
+	}
+	startTimer(&t.r)
+	return t
+}
+```
+可以看到，通过调用这个函数，会生成一个timer channel，然后在迟设置的时间之后，在func f在新的goroutine中执行。
+
+参考文档：
+> - [go语言的time包](https://my.oschina.net/u/943306/blog/149395)
+> - [How can I use 'time.After' and 'default' in Golang?](https://stackoverflow.com/questions/39212333/how-can-i-use-time-after-and-default-in-golang)
+
+##### session的内存存储实现：
+在理解了上述基本流程之后，需要进行实现来完后验证。毕竟实践是检验真理的唯一标准。这一节的主要内容就是从底层实现一个基于内存的session管理代码。
 
 
 
