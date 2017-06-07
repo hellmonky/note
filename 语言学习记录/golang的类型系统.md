@@ -177,6 +177,7 @@ Go语言通过type关键字很好地揭示了事物的本质，就是同一个�
 ## golang关键字struct：
 
 
+
 ## golang关键字interface：
 Golang 中没有 class 的概念，而是通过 interface 类型转换支持在动态类型语言中常见的 鸭子类型 达到运行时多态的效果。
 官方对于interface的定义为：
@@ -185,9 +186,19 @@ An interface type specifies a method set called its interface. A variable of int
 ```
 一个 interface 类型定义了一个方法集，称为接口。
 
+这个关键字是golang中模拟实现OOP中继承和多态的关键手段，
+
+
+
+参考文档：
+[golang技术随笔（一）深入理解interface](http://blog.csdn.net/justaipanda/article/details/43155949)
+[Coding(1): 侵入式接口、反向控制、依赖注入](https://github.com/clarkehe/Android/wiki/Coding(1):-%E4%BE%B5%E5%85%A5%E5%BC%8F%E6%8E%A5%E5%8F%A3%E3%80%81%E5%8F%8D%E5%90%91%E6%8E%A7%E5%88%B6%E3%80%81%E4%BE%9D%E8%B5%96%E6%B3%A8%E5%85%A5)
+[子类型、鸭子类型与非侵入式接口](http://yungkcx.github.io/jekyll/update/2017/02/08/subtype-and-nonintrusive-interface.html)
+[Go对OO的选择](http://www.cnblogs.com/Jerry-Chou/p/object-oriented-in-golang.html)
+
 
 ## 给具体对象添加行为：
-按照上述说明，通过struct关键字定义的类型，只包含这个类型所拥有的属性，那么该如何给这个类型添加行为？还是通过func关键字来完成。
+按照上述struct关键字定义的具体类型，只包含这个类型所拥有的属性，那么该如何给这个类型添加行为？还是通过func关键字来完成。
 func关键字用于将一个代码块抽象为函数完成复用，func的定义为：
 ```golang
 func (p myType ) funcName ( a, b int , c string ) ( r , s int ) {
@@ -203,7 +214,7 @@ func (p myType ) funcName ( a, b int , c string ) ( r , s int ) {
 ```text
 As the compiler mentions, you can't extend existing types in another package.
 ```
-这是因为golang中，编译器可见范围最小层次为package，编译器无法对不同package中的类型进行处理，只能作为不同的类型进行处理，也就是通过package来进行访问。
+**这是因为golang中，编译器可见范围最小层次为package，编译器无法对不同package中的类型进行处理，只能作为不同的类型进行处理，也就是通过package来进行访问。**
 
 参考文档：
 [How to add new methods to an existing type in go?](https://stackoverflow.com/questions/28800672/how-to-add-new-methods-to-an-existing-type-in-go)
