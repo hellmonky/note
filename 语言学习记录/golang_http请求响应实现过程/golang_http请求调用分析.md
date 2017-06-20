@@ -1805,3 +1805,12 @@ http://www.importnew.com/15881.html
 JSON format:
 https://jsonformatter.curiousconcept.com/
 
+参考教程：
+系列文章：
+[WEB请求处理一：浏览器请求发起处理](http://www.jianshu.com/p/558455228c43)
+[WEB请求处理二：Nginx请求反向代理](http://www.jianshu.com/p/bed000e1830b)
+[WEB请求处理三：Servlet容器请求处理](http://www.jianshu.com/p/571c474279af)
+[WEB请求处理四：Tomcat配置实践](http://www.jianshu.com/p/b5a3c269cae3)
+[WEB请求处理五：MVC框架请求处理](http://www.jianshu.com/p/6462e69ce241)
+[WEB请求处理六：浏览器HTTP协议漫谈](http://www.jianshu.com/p/b1ea16450fff)
+这个系列文章完整的描述了整个HTTP请求的处理流程，对于理解原理有非常重要的帮助。只有明白了网络通信和服务的原理才能正确的处理流程。
