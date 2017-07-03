@@ -20,12 +20,13 @@
                 - [设置标准输出和错误输出为 SystemLogHandler 接管：](#设置标准输出和错误输出为-systemloghandler-接管)
                 - [服务的启动：](#服务的启动)
                 - [启动时间计算：](#启动时间计算)
-    - [Tomcat启动过程梳理：](#tomcat启动过程梳理)
-        - [脚本启动和关闭服务：](#脚本启动和关闭服务)
-        - [配置文件解析和服务生成详解：](#配置文件解析和服务生成详解)
-        - [实例化的server启动：](#实例化的server启动)
-        - [Service.init()的调用：](#serviceinit的调用)
-        - [整体业务流程代码：](#整体业务流程代码)
+            - [Tomcat启动过程梳理：](#tomcat启动过程梳理)
+                - [脚本启动和关闭服务：](#脚本启动和关闭服务)
+                - [配置文件解析和服务生成详解：](#配置文件解析和服务生成详解)
+                - [实例化的server启动：](#实例化的server启动)
+                - [Service.init()的调用：](#serviceinit的调用)
+                - [完整的Server.init()调用流程：](#完整的serverinit调用流程)
+            - [Boostrap调用start方法启动服务器：](#boostrap调用start方法启动服务器)
 
 <!-- /TOC -->
 
@@ -1208,15 +1209,15 @@ if(log.isInfoEnabled()) {
 
 至此，tomcat的服务启动过程就结束了。
 
-## Tomcat启动过程梳理：
+#### Tomcat启动过程梳理：
 上述整个流程从启动脚本到内部实现，总体上完成了对tomcat服务启动的描述，但是其中包含很多的细节还缺少，导致很多内容并没出现在启动分析中。
 最重要的server的实例生成依赖于对xml的解析，使用的工具是：[commons-digester](https://commons.apache.org/proper/commons-digester/)。
 
-### 脚本启动和关闭服务：
+##### 脚本启动和关闭服务：
 我们在使用脚本的时候，可以在任意时候对当前的tomcat实例进行开启和关闭，如何保证操作的是同一个实例？
 我们使用脚本启动和关闭tomcat的时候，实际上最终都是执行bootstrap的main方法，正因为daemon是static的，所以，我们start和stop的时候，实际上操作的是同一个bootstrap对象，才能对同一个tomcat的启动和关闭。 
 
-### 配置文件解析和服务生成详解：
+##### 配置文件解析和服务生成详解：
 再来回过头看看createStartDigester这个函数创建digester的具体实现：
 ```java
 /**
@@ -1390,7 +1391,7 @@ digester.addSetNext("Server/Service/Listener","addLifecycleListener","org.apache
 [Tomcat源码的catalina中利用Digester解析conf/server.xml](http://blog.csdn.net/wgw335363240/article/details/5869660)
 
 
-### 实例化的server启动：
+##### 实例化的server启动：
 既然通过配置文件找到了需要启动的server和service，那么回到 getServer().init() 这里看看是如何启动的。
 
 解析完xml之后关闭文件流，接着设置StandardServer对象（该对象在上面解析xml时）的catalina的引用为当前对象。接下来将调用StandardServer对象的init方法。
@@ -1504,29 +1505,63 @@ StandardServer.initInternal()方法中主要完成的功能有：
 > - 从低向上逐级验证tomcat类加载器
 > - 使用循环逐个初始化service（在解析serverx.xml的时候已经实例化StandardService并调用StandardServer.addService()添加到StandardServer.services变量中）。在标准server.xml配置中只有一个service——StandardService，所以就是只调用StandardService.init()这一个service的方法了。
 
-完整的Server.init()调用流程图为：
-
-![tupian](tomcat_StandardService_init()调用.png)
-
+调用getServer().init()方法后，会进入 LifecycleBase#init，这个方法主要是设置生命周期以及触发相应的事件，之后会调用 StandardServer#init()，它首先会调用 LifecycleMBeanBase#init 把自己注册到MBeanServer中(JMX后面会具体说)，然后完成 StandardServer 自己初始化需要做的事情，最后在遍历数组，依次调用各个service的init方法。
 
 参考：
 [Tomcat启动部署](http://www.jianshu.com/p/150bb9bffab9)
-[How Tomcat works — 三、tomcat启动（2）](http://www.cnblogs.com/sunshine-2015/p/5745868.html)
+
+##### Service.init()的调用：
+继续上述Server.init()调用中，最后调用的是Service的init方法。
+这儿的调用和上述Server.init()的调用是一样的，还是通过父类来完成了中转调用：
+StandardService中也没有init方法，只能找其父类，也就是LifecycleMBeanBase的init方法，也没有，继续向上找其父类，也就是LifecycleBase的init方法，有这个方法，其中又调用了initInternal()方法；
+在StandardService中调用这个initInternal()方法为：
+```java
+/**
+* Invoke a pre-startup initialization. This is used to allow connectors
+* to bind to restricted ports under Unix operating environments.
+*/
+@Override
+protected void initInternal() throws LifecycleException {
+
+    super.initInternal();
+
+    if (engine != null) {
+        engine.init();
+    }
+
+    // Initialize any Executors
+    for (Executor executor : findExecutors()) {
+        if (executor instanceof JmxEnabled) {
+            ((JmxEnabled) executor).setDomain(getDomain());
+        }
+        executor.init();
+    }
+
+    // Initialize mapper listener
+    mapperListener.init();
+
+    // Initialize our defined Connectors
+    synchronized (connectorsLock) {
+        for (Connector connector : connectors) {
+            connector.init();
+        }
+    }
+}
+```
+又首先调用了LifecycleMBeanBase的initInternal()方法。
+
+各个Service调用init方法，总体上完成的主要功能有：
+> - 调用父类LifecycleMBeanBase.initInternal方法进行注册MBeang
+> - 如果container（这里的container是StandardEngine）不是null，则调用container的init方法进行初始化
+> - 如果有Executor则逐个初始化
+> - 最后使用循环逐个在初始化Connector，这里connector有两个，分别是用来处理两种协议：http和ajp
+
+在这儿，Connector第一次完整的出现了。
 
 
-### Service.init()的调用：
-继续上述Server.init()调用中，
+##### 完整的Server.init()调用流程：
 
-
-
-
-
-
-调用getServer().init()方法后，会进入 LifecycleBase#init，这个方法主要是设置生命周期以及触发相应的事件，之后会调用 StandardServer#init()，它首先会调用 LifecycleMBeanBase#init 把自己注册到MBeanServer中(JMX后面会具体说)，然后完成 StandardServer 自己初始化需要做的事情，最后在遍历数组，依次调用各个service的init方法。
-
-
-
-### 整体业务流程代码：
+整体业务流程代码：
 ```java
 Digester digester = createStartDigester();
 
@@ -1540,5 +1575,22 @@ getServer().setCatalina(this);
 
 getServer().init();
 ```
+
+Serivce.init调用流程图：
+
+![tupian](tomcat_StandardService_init()调用.png)
+
+参考：
+> - [How Tomcat works — 三、tomcat启动（2）](http://www.cnblogs.com/sunshine-2015/p/5745868.html)
+
+
+#### Boostrap调用start方法启动服务器：
+完成上述load之后，接下来在Boostrap中调用的就是start方法了：
+
+
+
+
+
+
 
 
