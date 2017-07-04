@@ -1851,7 +1851,8 @@ super.initInternal();
 执行的是父类LifecycleMBeanBase的initInternal方法，和Server中调用的一样，这个函数的作用是用来完成注册。
 
 ###### Engine的初始化：
-代码中的engine是已经被初始化的，要找到是在哪里初始化的，也是通过Catalina中的createStartDigester创建出来的：
+代码中的engine是已经被初始化的，要找到是在哪里初始化的。
+一切的来源都是从Catalina中的createStartDigester中进行创建的，先看看其中的内容：
 ```java
 digester.addRuleSet(new EngineRuleSet("Server/Service/"));   //engine元素的定义的处理，这里主要是创建eingie
 ```
@@ -1864,10 +1865,73 @@ digester对server.xml设置的标签动作有5种调用：
 > - addRule：调用rule的begin 、body、end、finish方法来解析xml，入栈和出栈给对象赋值
 > - addRuleSet：调用addRuleInstances来解析xml标签
 
-我们进入EngineRuleSet看看：
+根据上述规则，我们进入EngineRuleSet看看：
 ```java
-
+package org.apache.catalina.startup;
+import org.apache.tomcat.util.digester.Digester;
+import org.apache.tomcat.util.digester.RuleSetBase;
+public class EngineRuleSet extends RuleSetBase {
+    // ----------------------------------------------------- Instance Variables
+    protected final String prefix;
+    // ------------------------------------------------------------ Constructor
+    public EngineRuleSet() {
+        this("");
+    }
+    public EngineRuleSet(String prefix) {
+        this.namespaceURI = null;
+        this.prefix = prefix;
+    }
+    // --------------------------------------------------------- Public Methods
+    @Override
+    public void addRuleInstances(Digester digester) {
+        digester.addObjectCreate(prefix + "Engine",
+                                 "org.apache.catalina.core.StandardEngine",
+                                 "className");
+        digester.addSetProperties(prefix + "Engine");
+        digester.addRule(prefix + "Engine",
+                         new LifecycleListenerRule
+                         ("org.apache.catalina.startup.EngineConfig",
+                          "engineConfigClass"));
+        digester.addSetNext(prefix + "Engine",
+                            "setContainer",
+                            "org.apache.catalina.Engine");
+        //Cluster configuration start
+        digester.addObjectCreate(prefix + "Engine/Cluster",
+                                 null, // MUST be specified in the element
+                                 "className");
+        digester.addSetProperties(prefix + "Engine/Cluster");
+        digester.addSetNext(prefix + "Engine/Cluster",
+                            "setCluster",
+                            "org.apache.catalina.Cluster");
+        //Cluster configuration end
+        digester.addObjectCreate(prefix + "Engine/Listener",
+                                 null, // MUST be specified in the element
+                                 "className");
+        digester.addSetProperties(prefix + "Engine/Listener");
+        digester.addSetNext(prefix + "Engine/Listener",
+                            "addLifecycleListener",
+                            "org.apache.catalina.LifecycleListener");
+        digester.addRuleSet(new RealmRuleSet(prefix + "Engine/"));
+        digester.addObjectCreate(prefix + "Engine/Valve",
+                                 null, // MUST be specified in the element
+                                 "className");
+        digester.addSetProperties(prefix + "Engine/Valve");
+        digester.addSetNext(prefix + "Engine/Valve",
+                            "addValve",
+                            "org.apache.catalina.Valve");
+    }
+}
 ```
+可以看到重载了addRuleInstances方法，供digester调用，这儿就绑定了StandardEngine这个类，然后初始化为engine。
+
+
+
+
+
+
+
+
+
 
 并且，这段代码提示：engine对象在创建的时候会将parentClassLoader设置为sharLoader
 ```java
