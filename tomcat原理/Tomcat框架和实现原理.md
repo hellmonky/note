@@ -21,13 +21,26 @@
                 - [服务的启动：](#服务的启动)
                 - [启动时间计算：](#启动时间计算)
             - [Tomcat启动过程梳理：](#tomcat启动过程梳理)
-                - [脚本启动和关闭服务：](#脚本启动和关闭服务)
+                - [脚本启动和关闭的是同一个服务实例：](#脚本启动和关闭的是同一个服务实例)
                 - [配置文件解析和服务生成详解：](#配置文件解析和服务生成详解)
                 - [实例化的server启动：](#实例化的server启动)
-                    - [自己编写测试程序模拟这个调用流程：](#自己编写测试程序模拟这个调用流程)
+                    - [super.initInternal()流程分析：](#superinitinternal流程分析)
+                    - [globalNamingResources.init()流程分析：](#globalnamingresourcesinit流程分析)
+                    - [遍历类加载器，对加载jar包校验：](#遍历类加载器对加载jar包校验)
+                    - [编写测试程序模拟getServer().init()调用流程：](#编写测试程序模拟getserverinit调用流程)
                     - [完整的Server.init()调用流程：](#完整的serverinit调用流程)
                 - [Service.init()的调用：](#serviceinit的调用)
+                    - [父类的initInternal()调用：](#父类的initinternal调用)
+                    - [Executor的调用：](#executor的调用)
             - [Boostrap调用start方法启动服务器：](#boostrap调用start方法启动服务器)
+        - [Tomcat中框架分析：](#tomcat中框架分析)
+            - [总体结构：](#总体结构)
+            - [生命周期管理：LifeCycle接口](#生命周期管理lifecycle接口)
+            - [LifecycleMBeanBase的实现：](#lifecyclembeanbase的实现)
+            - [Registry的作用：](#registry的作用)
+            - [Service的构成：](#service的构成)
+        - [Tomcat编译脚本和整体呈现形式分析：](#tomcat编译脚本和整体呈现形式分析)
+            - [Ant构建脚本：](#ant构建脚本)
 
 <!-- /TOC -->
 
@@ -878,7 +891,8 @@ protected boolean arguments(String args[]) {
     return true;
 }
 ```
-这个函数将输入的参数进行检查，然后打印使用说明等，最终调用了无参数的load方法：
+这个函数将输入的参数进行检查，然后根据输入将开关进行打开关闭设置，控制后续调用流程，并且打印使用说明等。
+最终调用了无参数的load方法：
 ```java
 /**
 * Start a new server instance.
@@ -1001,7 +1015,8 @@ public void load() {
     }
 }
 ```
-这段代码比较长，核心功能是启动了一个server，我们快接近tomcat的container实现了！下面我们来认真看一下这段代码的实现过程。
+这段代码比较长，核心功能是启动了一个server，我们快接近tomcat的container实现了！
+下面我们来认真看一下这段代码的实现过程。
 
 参考：
 > - [Tomcat6源码解析--Bootstrap.java](http://blog.csdn.net/wzy26816812/article/details/40371809)
@@ -1212,9 +1227,10 @@ if(log.isInfoEnabled()) {
 
 #### Tomcat启动过程梳理：
 上述整个流程从启动脚本到内部实现，总体上完成了对tomcat服务启动的描述，但是其中包含很多的细节还缺少，导致很多内容并没出现在启动分析中。
-最重要的server的实例生成依赖于对xml的解析，使用的工具是：[commons-digester](https://commons.apache.org/proper/commons-digester/)。
+最重要的server的实例生成依赖于对xml的解析，使用的工具是：
+[commons-digester](https://commons.apache.org/proper/commons-digester/)。
 
-##### 脚本启动和关闭服务：
+##### 脚本启动和关闭的是同一个服务实例：
 我们在使用脚本的时候，可以在任意时候对当前的tomcat实例进行开启和关闭，如何保证操作的是同一个实例？
 我们使用脚本启动和关闭tomcat的时候，实际上最终都是执行bootstrap的main方法，正因为daemon是static的，所以，我们start和stop的时候，实际上操作的是同一个bootstrap对象，才能对同一个tomcat的启动和关闭。 
 
@@ -1380,7 +1396,16 @@ digester.addSetNext("Server/Service/Listener","addLifecycleListener","org.apache
 ```
 就会根据上面的规则，先创建一个org.apache.catalina.core.StandardService对象，然后调用 StandardServer 的 addService 方法将他们关联起来。其他的组件也是按类似的方式完成创建和关联的。
 
-这样经过对xml文件的解析将会产生org.apache.catalina.core.StandardServer、org.apache.catalina.core.StandardService、org.apache.catalina.connector.Connector、org.apache.catalina.core.StandardEngine、org.apache.catalina.core.StandardHost、org.apache.catalina.core.StandardContext等等一系列对象，这些对象从前到后前一个包含后一个对象的引用。
+这样经过对xml文件的解析将会产生：
+```java
+org.apache.catalina.core.StandardServer
+org.apache.catalina.core.StandardService
+org.apache.catalina.connector.Connector
+org.apache.catalina.core.StandardEngine
+org.apache.catalina.core.StandardHost
+org.apache.catalina.core.StandardContext
+```
+等等一系列对象，这些对象从前到后前一个包含后一个对象的引用。
 
 
 参考：
@@ -1481,13 +1506,21 @@ protected void initInternal() throws LifecycleException {
 ```java
 super.initInternal();
 ```
-也就是StandardServer的父类的initInternal方法，也就是LifecycleMBeanBase中的initInternal方法：
+也就是StandardServer的父类的initInternal方法，也就是LifecycleMBeanBase中的initInternal方法。
+
+总体上，StandardServer.initInternal()方法中主要完成的功能有：
+> - 调用父类LifecycleMBeanBase.initInternal方法进行注册MBean
+> - 从低向上逐级验证tomcat类加载器
+> - 使用循环逐个初始化service（在解析serverx.xml的时候已经实例化StandardService并调用StandardServer.addService()添加到StandardServer.services变量中）。在标准server.xml配置中只有一个service——StandardService，所以就是只调用StandardService.init()这一个service的方法了。
+
+需要注意的是这儿完成的调用流程：
+调用getServer().init()方法后，会进入 LifecycleBase#init，这个方法主要是设置生命周期以及触发相应的事件，之后会调用 StandardServer#init()，它首先会调用 LifecycleMBeanBase#init 把自己注册到MBeanServer中(JMX后面会具体说)，然后完成 StandardServer 自己初始化需要做的事情，最后在遍历数组，依次调用各个service的init方法。
+
+下面我们仔细看一下StandardServer的initInternal方法调用的细节。
+
+###### super.initInternal()流程分析：
+每次执行Server的init调用的时候都会进入到父类的这个方法中进行执行，这个方法调用父类LifecycleMBeanBase的initInternal()方法，具体方法实现为：
 ```java
-/**
-* Sub-classes wishing to perform additional initialization should override
-* this method, ensuring that super.initInternal() is the first call in the
-* overriding method.
-*/
 @Override
 protected void initInternal() throws LifecycleException {
 
@@ -1495,20 +1528,77 @@ protected void initInternal() throws LifecycleException {
     // preRegister().
     if (oname == null) {
         mserver = Registry.getRegistry(null, null).getMBeanServer();
-
         oname = register(this, getObjectNameKeyProperties());
     }
 }
 ```
+LifecycleMBeanBase这个类，是Tomcat提供的对MBeanRegistration的抽象实现类，运用抽象模板模式将所有容器统一注册到JMX。
+所以在StandardServer中调用这个方法，就实现了将StandardServer类的实例注册到JMX的服务器的过程。
+关于JMX的更多内容，后续章节再进行补充。
 
-StandardServer.initInternal()方法中主要完成的功能有：
-> - 调用父类LifecycleMBeanBase.initInternal方法进行注册MBean
-> - 从低向上逐级验证tomcat类加载器
-> - 使用循环逐个初始化service（在解析serverx.xml的时候已经实例化StandardService并调用StandardServer.addService()添加到StandardServer.services变量中）。在标准server.xml配置中只有一个service——StandardService，所以就是只调用StandardService.init()这一个service的方法了。
+在StandardServer的initInternal方法中，后续的调用：
+```java
+// Register global String cache
+// Note although the cache is global, if there are multiple Servers
+// present in the JVM (may happen when embedding) then the same cache
+// will be registered under multiple names
+onameStringCache = register(new StringCache(), "type=StringCache");
 
-调用getServer().init()方法后，会进入 LifecycleBase#init，这个方法主要是设置生命周期以及触发相应的事件，之后会调用 StandardServer#init()，它首先会调用 LifecycleMBeanBase#init 把自己注册到MBeanServer中(JMX后面会具体说)，然后完成 StandardServer 自己初始化需要做的事情，最后在遍历数组，依次调用各个service的init方法。
+// Register the MBeanFactory
+MBeanFactory factory = new MBeanFactory();
+factory.setContainer(this);
+onameMBeanFactory = register(factory, "type=MBeanFactory");
+```
+也是在对JMX进行注册。
 
-###### 自己编写测试程序模拟这个调用流程：
+参考：
+> - [Tomcat源码分析-JMX之Registry类（中）](http://blog.csdn.net/wojiushiwo945you/article/details/73648405)
+> - [TOMCAT源码分析——生命周期管理](http://www.cnblogs.com/jiaan-geng/p/4864501.html)
+
+
+###### globalNamingResources.init()流程分析：
+globalNamingResources这个变量是类NamingResourcesImpl的一个实例，这个类也是继承自LifecycleMBeanBase，所以这儿的init方法调用，做的工作和上述super.initInternal()方法中的方式一样，功能也是一样。
+GlobalNamingResources是支持JNDI资源配置的类，具体的作用后续再补充。
+
+###### 遍历类加载器，对加载jar包校验：
+```java
+if (getCatalina() != null) {
+    ClassLoader cl = getCatalina().getParentClassLoader();
+    // Walk the class loader hierarchy. Stop at the system class loader.
+    // This will add the shared (if present) and common class loaders
+    while (cl != null && cl != ClassLoader.getSystemClassLoader()) {
+        if (cl instanceof URLClassLoader) {
+            URL[] urls = ((URLClassLoader) cl).getURLs();
+            for (URL url : urls) {
+                if (url.getProtocol().equals("file")) {
+                    try {
+                        File f = new File (url.toURI());
+                        if (f.isFile() &&
+                                f.getName().endsWith(".jar")) {
+                            ExtensionValidator.addSystemResource(f);
+                        }
+                    } catch (URISyntaxException e) {
+                        // Ignore
+                    } catch (IOException e) {
+                        // Ignore
+                    }
+                }
+            }
+        }
+        cl = cl.getParent();
+    }
+}
+```
+从 Catalina 的 parentClassLoader 开始，向上一直遍历到 ExtClassLoader，把它们会加载的 jar 包都用ExtensionValidator记录下来，后面再 StandardContext 启动的时候，会用 ExtensionValidator 来校验 StandardContext 对应的 Web App 依赖的一些 jar 包是否已经被加进来了。
+需要注意的是：
+
+参考：
+[【Tomcat学习笔记】7-分析各个组件的init和start](https://fdx321.github.io/2017/05/21/%E3%80%90Tomcat%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E3%80%917-%E5%88%86%E6%9E%90%E5%90%84%E4%B8%AA%E7%BB%84%E4%BB%B6%E7%9A%84init%E5%92%8Cstart/)
+
+
+
+
+###### 编写测试程序模拟getServer().init()调用流程：
 首先，编写Lifecycle接口：
 ```java
 public interface Lifecycle {
@@ -1622,8 +1712,7 @@ getServer().setCatalina(this);
 getServer().init();
 ```
 
-Serivce.init调用流程图：
-
+然后这个getServer().init()调用的完整流程图为：
 ![tupian](tomcat_StandardService_init()调用.png)
 
 参考：
@@ -1631,8 +1720,11 @@ Serivce.init调用流程图：
 
 ##### Service.init()的调用：
 继续上述Server.init()调用中，最后调用的是Service的init方法。
+
 这儿的调用和上述Server.init()的调用是一样的，还是通过父类来完成了中转调用：
-StandardService中也没有init方法，只能找其父类，也就是LifecycleMBeanBase的init方法，也没有，继续向上找其父类，也就是LifecycleBase的init方法，有这个方法，其中又调用了initInternal()方法；
+StandardService中也没有init方法，只能找其父类，也就是LifecycleMBeanBase的init方法，也没有，继续向上找其父类，也就是LifecycleBase的init方法，有这个方法，其中又调用了initInternal()方法。
+
+
 在StandardService中调用这个initInternal()方法为：
 ```java
 /**
@@ -1676,13 +1768,290 @@ protected void initInternal() throws LifecycleException {
 > - 最后使用循环逐个在初始化Connector，这里connector有两个，分别是用来处理两种协议：http和ajp
 
 在这儿，Connector第一次完整的出现了。
+Service接口的调用在整个tomcat中非常重要，因为涉及到的就是服务启动的细节内容了。下面我们分小姐仔细看一下整个过程。
+
+###### 父类的initInternal()调用：
+```java
+super.initInternal();
+```
+执行的是父类LifecycleMBeanBase的initInternal方法，和Server中调用的一样，这个函数的作用是用来完成注册。
 
 
+
+###### Executor的调用：
 
 
 
 #### Boostrap调用start方法启动服务器：
 完成上述load之后，接下来在Boostrap中调用的就是start方法了：
+
+
+
+### Tomcat中框架分析：
+上述章节中我们梳理了调用的具体代码，现在需要距离代码细节稍微远一点，看看整个tomcat的主要实现功能是如何在这个启动流程中体现的。
+也就是tomcat的整体框架是如何从上述这些步骤中逐步搭建完成的。
+
+#### 总体结构：
+在 《Tomcat的功能描述》 这一节中，我们从一般的思路出发去猜测一个web服务的提供者需要给出那些功能才能完成这个服务。
+现在我们看看tomcat的总体结构来帮助我们结合代码来理解一下。
+
+![Tomcat的总体结构](Tomcat的总体结构.gif)
+
+从上图中可以看出 Tomcat 的心脏是两个组件：Connector 和 Container。
+Connector 组件是可以被替换，这样可以提供给服务器设计者更多的选择，因为这个组件是如此重要，不仅跟服务器的设计的本身，而且和不同的应用场景也十分相关，所以一个 Container 可以选择对应多个 Connector。多个 Connector 和一个 Container 就形成了一个 Service，Service 的概念大家都很熟悉了，有了 Service 就可以对外提供服务了，但是 Service 还要一个生存的环境，必须要有人能够给她生命、掌握其生死大权，那就非 Server 莫属了。所以整个 Tomcat 的生命周期由 Server 控制。
+
+
+#### 生命周期管理：LifeCycle接口
+通过上述章节的代码可以看到，Server，Service都是继承了LifecycleMBeanBase，并且实现了Lifecycle和Service接口，Service接口又继承自Lifecycle接口。
+也就是说，Tomcat的所有容器类都实现了统一的Lifecycle接口，由基类LifecycleBase提供统一的init方法来负责处理容器的状态，调用模板方法initInternal来处理各个容器自身所负责的内容。
+我们先看看所有的容器都要实现的接口定义：
+```java
+package org.apache.catalina;
+public interface Lifecycle {
+    // ----------------------------------------------------- Manifest Constants
+    public static final String BEFORE_INIT_EVENT = "before_init";
+    public static final String AFTER_INIT_EVENT = "after_init";
+    public static final String START_EVENT = "start";
+    public static final String BEFORE_START_EVENT = "before_start";
+    public static final String AFTER_START_EVENT = "after_start";
+    public static final String STOP_EVENT = "stop";
+    public static final String BEFORE_STOP_EVENT = "before_stop";
+    public static final String AFTER_STOP_EVENT = "after_stop";
+    public static final String AFTER_DESTROY_EVENT = "after_destroy";
+    public static final String BEFORE_DESTROY_EVENT = "before_destroy";
+    public static final String PERIODIC_EVENT = "periodic";
+    public static final String CONFIGURE_START_EVENT = "configure_start";
+    public static final String CONFIGURE_STOP_EVENT = "configure_stop";
+    // --------------------------------------------------------- Public Methods
+    public void addLifecycleListener(LifecycleListener listener);
+    public LifecycleListener[] findLifecycleListeners();
+    public void removeLifecycleListener(LifecycleListener listener);
+    public void init() throws LifecycleException;
+    public void start() throws LifecycleException;
+    public void stop() throws LifecycleException;
+    public void destroy() throws LifecycleException;
+    public LifecycleState getState();
+    public String getStateName();
+    public interface SingleUse {
+    }
+}
+```
+上述代码使用正则对源代码去除多余内容：
+```shell
+行注释：\/\/[^\n]*
+块注释：\/\*([^\*^\/]*|[\*^\/*]*|[^\**\/]*)*\*\/
+去除空行：^[ ]*\r\n+
+```
+
+Lifecycle实现了一个观察者模式，而上面这些事件就代表了tomcat中各个组件生命周期中的各个事件，当这些事件发生的时候，会通知感兴趣的观察者（LifecycleListener）
+
+
+参考：
+> - [java匹配注释的正则表达式](http://www.cnblogs.com/xiziyin/archive/2012/01/25/2329350.html)
+
+
+#### LifecycleMBeanBase的实现：
+因为LifecycleMBeanBase实现了JmxEnabled这个接口，进入JmxEnabled查看：
+```java
+package org.apache.catalina;
+import javax.management.MBeanRegistration;
+import javax.management.ObjectName;
+public interface JmxEnabled extends MBeanRegistration {
+    String getDomain();
+    void setDomain(String domain);
+    ObjectName getObjectName();
+}
+```
+继续找他的父类的定义为：
+```java
+package javax.management;
+public interface MBeanRegistration   {
+    public ObjectName preRegister(MBeanServer server,
+                                  ObjectName name) throws java.lang.Exception;
+    public void postRegister(Boolean registrationDone);
+    public void preDeregister() throws java.lang.Exception ;
+    public void postDeregister();
+ }
+```
+
+JmxEnable是Java Managed Bean相关的功能。它也是个抽象类，实现了父类的initInternal()和destroyInternal()，这两个方法也很简单，就是对ManabedBean的注册和注销。
+
+参考：
+[Tomcat源码分析-LifecycleMBeanBase](http://blog.csdn.net/wojiushiwo945you/article/details/73331057)
+[TOMCAT源码分析——生命周期管理](http://www.cnblogs.com/jiaan-geng/p/4864501.html)
+
+#### Registry的作用：
+Registry实现了单例模式。
+
+#### Service的构成：
+Service 只是在 Connector 和 Container 外面多包一层，把它们组装在一起，向外面提供服务，一个 Service 可以设置多个 Connector，但是只能有一个 Container 容器。
+我们看看Service这个接口的定义：
+```java
+package org.apache.catalina;
+import java.io.File;
+import org.apache.catalina.deploy.NamingResourcesImpl;
+import org.apache.catalina.startup.Catalina;
+public interface Server extends Lifecycle {
+    // ------------------------------------------------------------- Properties
+    public NamingResourcesImpl getGlobalNamingResources();
+    public void setGlobalNamingResources
+        (NamingResourcesImpl globalNamingResources);
+    public javax.naming.Context getGlobalNamingContext();
+    public int getPort();
+    public void setPort(int port);
+    public String getAddress();
+    public void setAddress(String address);
+    public String getShutdown();
+    public void setShutdown(String shutdown);
+    public ClassLoader getParentClassLoader();
+    public void setParentClassLoader(ClassLoader parent);
+    public Catalina getCatalina();
+    public void setCatalina(Catalina catalina);
+    public File getCatalinaBase();
+    public void setCatalinaBase(File catalinaBase);
+    public File getCatalinaHome();
+    public void setCatalinaHome(File catalinaHome);
+    // --------------------------------------------------------- Public Methods
+    public void addService(Service service);
+    public void await();
+    public Service findService(String name);
+    public Service[] findServices();
+    public void removeService(Service service);
+    public Object getNamingToken();
+}
+```
+
+
+参考：
+> - [Tomcat 系统架构与设计模式，第 1 部分 工作原理](https://www.ibm.com/developerworks/cn/java/j-lo-tomcat1/index.html)
+> - [Tomcat 系统架构与设计模式，第 2 部分 设计模式分析](https://www.ibm.com/developerworks/cn/java/j-lo-tomcat2/index.html)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### Tomcat编译脚本和整体呈现形式分析：
+我们拿到tomcat的源代码，然后进行编译，最终得到的是一个目录结构，查看out/build这个目录下的结果为：
+```shell
+|-- bin
+|   |-- bootstrap.jar
+|   |-- catalina-tasks.xml
+|   |-- catalina.bat
+|   |-- catalina.sh
+|   |-- commons-daemon-native.tar.gz
+|   |-- commons-daemon.jar
+|   |-- configtest.bat
+|   |-- configtest.sh
+|   |-- daemon.sh
+|   |-- digest.bat
+|   |-- digest.sh
+|   |-- service.bat
+|   |-- setclasspath.bat
+|   |-- setclasspath.sh
+|   |-- shutdown.bat
+|   |-- shutdown.sh
+|   |-- startup.bat
+|   |-- startup.sh
+|   |-- tomcat-juli.jar
+|   |-- tomcat-native.tar.gz
+|   |-- tool-wrapper.bat
+|   |-- tool-wrapper.sh
+|   |-- version.bat
+|   `-- version.sh
+|-- conf
+|   |-- Catalina
+|   |-- catalina.policy
+|   |-- catalina.properties
+|   |-- context.xml
+|   |-- jaspic-providers.xml
+|   |-- jaspic-providers.xsd
+|   |-- logging.properties
+|   |-- server.xml
+|   |-- tomcat-users.xml
+|   |-- tomcat-users.xsd
+|   `-- web.xml
+|-- lib
+|   |-- annotations-api.jar
+|   |-- catalina-ant.jar
+|   |-- catalina-ha.jar
+|   |-- catalina-storeconfig.jar
+|   |-- catalina-tribes.jar
+|   |-- catalina.jar
+|   |-- ecj-4.6.3.jar
+|   |-- el-api.jar
+|   |-- jasper-el.jar
+|   |-- jasper.jar
+|   |-- jaspic-api.jar
+|   |-- jsp-api.jar
+|   |-- servlet-api.jar
+|   |-- tomcat-api.jar
+|   |-- tomcat-coyote.jar
+|   |-- tomcat-dbcp.jar
+|   |-- tomcat-i18n-es.jar
+|   |-- tomcat-i18n-fr.jar
+|   |-- tomcat-i18n-ja.jar
+|   |-- tomcat-jdbc.jar
+|   |-- tomcat-jni.jar
+|   |-- tomcat-util-scan.jar
+|   |-- tomcat-util.jar
+|   |-- tomcat-websocket.jar
+|   `-- websocket-api.jar
+|-- logs
+|   |-- catalina.2017-06-29.log
+|   |-- host-manager.2017-06-29.log
+|   |-- localhost.2017-06-29.log
+|   |-- localhost_access_log.2017-06-29.txt
+|   `-- manager.2017-06-29.log
+|-- temp
+`-- webapps
+    |-- ROOT
+    |-- docs
+    |-- examples
+    |-- host-manager
+    `-- manager
+
+12 directories, 64 files
+```
+可以看到生成了很多的jar包，但是不同的jar包位于不同的目录下，那么这个分配是根据什么进行安排的？
+我们使用发编译打开这些jar包，能看到是源代码的不同package下的内容的打包，那么这些jar如何编译出来的？
+
+带着上述问题，我们进入tomcat的编译构建环节看看。
+
+#### Ant构建脚本：
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
