@@ -22,23 +22,27 @@
                 - [启动时间计算：](#启动时间计算)
             - [Tomcat启动过程梳理：](#tomcat启动过程梳理)
                 - [脚本启动和关闭的是同一个服务实例：](#脚本启动和关闭的是同一个服务实例)
-                - [配置文件解析和服务生成详解：](#配置文件解析和服务生成详解)
+                - [配置文件解析和服务实例的生成详解：](#配置文件解析和服务实例的生成详解)
                 - [实例化的server启动：](#实例化的server启动)
                     - [super.initInternal()流程分析：](#superinitinternal流程分析)
                     - [globalNamingResources.init()流程分析：](#globalnamingresourcesinit流程分析)
                     - [遍历类加载器，对加载jar包校验：](#遍历类加载器对加载jar包校验)
+                    - [对Service的初始化调用：](#对service的初始化调用)
                     - [编写测试程序模拟getServer().init()调用流程：](#编写测试程序模拟getserverinit调用流程)
                     - [完整的Server.init()调用流程：](#完整的serverinit调用流程)
                 - [Service.init()的调用：](#serviceinit的调用)
+                    - [Service的构成：](#service的构成)
                     - [父类的initInternal()调用：](#父类的initinternal调用)
-                    - [Executor的调用：](#executor的调用)
-            - [Boostrap调用start方法启动服务器：](#boostrap调用start方法启动服务器)
-        - [Tomcat中框架分析：](#tomcat中框架分析)
+                    - [Engine的初始化：](#engine的初始化)
+                - [Boostrap调用start方法启动服务器：](#boostrap调用start方法启动服务器)
+        - [Tomcat的总体结构小结：](#tomcat的总体结构小结)
             - [总体结构：](#总体结构)
+            - [类和对应的概念：](#类和对应的概念)
+        - [Tomcat容器的生命周期管理：](#tomcat容器的生命周期管理)
             - [生命周期管理：LifeCycle接口](#生命周期管理lifecycle接口)
             - [LifecycleMBeanBase的实现：](#lifecyclembeanbase的实现)
             - [Registry的作用：](#registry的作用)
-            - [Service的构成：](#service的构成)
+            - [](#)
         - [Tomcat编译脚本和整体呈现形式分析：](#tomcat编译脚本和整体呈现形式分析)
             - [Ant构建脚本：](#ant构建脚本)
 
@@ -1234,7 +1238,7 @@ if(log.isInfoEnabled()) {
 我们在使用脚本的时候，可以在任意时候对当前的tomcat实例进行开启和关闭，如何保证操作的是同一个实例？
 我们使用脚本启动和关闭tomcat的时候，实际上最终都是执行bootstrap的main方法，正因为daemon是static的，所以，我们start和stop的时候，实际上操作的是同一个bootstrap对象，才能对同一个tomcat的启动和关闭。 
 
-##### 配置文件解析和服务生成详解：
+##### 配置文件解析和服务实例的生成详解：
 再来回过头看看createStartDigester这个函数创建digester的具体实现：
 ```java
 /**
@@ -1394,9 +1398,32 @@ digester.addSetNext("Server/Service/Listener","addLifecycleListener","org.apache
   ...
   ...
 ```
-就会根据上面的规则，先创建一个org.apache.catalina.core.StandardService对象，然后调用 StandardServer 的 addService 方法将他们关联起来。其他的组件也是按类似的方式完成创建和关联的。
+就会根据上面的规则，首先通过代码关联创建一个org.apache.catalina.core.StandardService对象：
+```java
+digester.addObjectCreate("Server",
+                            "org.apache.catalina.core.StandardServer",
+                            "className");
+digester.addSetProperties("Server");
+digester.addSetNext("Server",
+                    "setServer",
+                    "org.apache.catalina.Server");
+```
+并且调用当前的setServer，将生成的Server赋值给当前类的server变量。
+然后使用如下代码：
+```java
+digester.addObjectCreate("Server/Service",
+                            "org.apache.catalina.core.StandardService",
+                            "className");
+digester.addSetProperties("Server/Service");
+digester.addSetNext("Server/Service",
+                    "addService",
+                    "org.apache.catalina.Service");
+```
+调用 StandardServer 的 addService 方法将StandardService添加到StandardServer中。
 
-这样经过对xml文件的解析将会产生：
+总体上：**createStartDigester方法返回的是一个Digester类的实例，它的作用就是根据设置的一系列规则，解析config/server.xml文件，组织创建关系描述中所有具有相互依赖关系的对象。**
+
+其他的组件也是按类似的方式完成创建和关联的。这样经过对xml文件的解析将会产生：
 ```java
 org.apache.catalina.core.StandardServer
 org.apache.catalina.core.StandardService
@@ -1418,7 +1445,7 @@ org.apache.catalina.core.StandardContext
 
 
 ##### 实例化的server启动：
-既然通过配置文件找到了需要启动的server和service，那么回到 getServer().init() 这里看看是如何启动的。
+既然通过配置文件创建了需要启动的server和service，那么回到 getServer().init() 这里看看是如何启动的。
 
 解析完xml之后关闭文件流，接着设置StandardServer对象（该对象在上面解析xml时）的catalina的引用为当前对象。接下来将调用StandardServer对象的init方法。
 
@@ -1573,8 +1600,7 @@ if (getCatalina() != null) {
                 if (url.getProtocol().equals("file")) {
                     try {
                         File f = new File (url.toURI());
-                        if (f.isFile() &&
-                                f.getName().endsWith(".jar")) {
+                        if (f.isFile() && f.getName().endsWith(".jar")) {
                             ExtensionValidator.addSystemResource(f);
                         }
                     } catch (URISyntaxException e) {
@@ -1590,12 +1616,21 @@ if (getCatalina() != null) {
 }
 ```
 从 Catalina 的 parentClassLoader 开始，向上一直遍历到 ExtClassLoader，把它们会加载的 jar 包都用ExtensionValidator记录下来，后面再 StandardContext 启动的时候，会用 ExtensionValidator 来校验 StandardContext 对应的 Web App 依赖的一些 jar 包是否已经被加进来了。
-需要注意的是：
+
+从common ClassLoader开始往上查看，直到SystemClassLoader，遍历各个classLoader对应的查看路径，找到jar结尾的文件，读取Manifest信息，加入到ExtensionValidator#containerManifestResources属性中。
 
 参考：
 [【Tomcat学习笔记】7-分析各个组件的init和start](https://fdx321.github.io/2017/05/21/%E3%80%90Tomcat%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0%E3%80%917-%E5%88%86%E6%9E%90%E5%90%84%E4%B8%AA%E7%BB%84%E4%BB%B6%E7%9A%84init%E5%92%8Cstart/)
 
-
+###### 对Service的初始化调用：
+```java
+// Initialize our defined Services
+for (int i = 0; i < services.length; i++) {
+    services[i].init();
+}
+```
+完成上述操作之后，就可以对当前Server下的多个service进行init调用了。
+对于Service调用init的过程在后续章节中继续。
 
 
 ###### 编写测试程序模拟getServer().init()调用流程：
@@ -1701,6 +1736,7 @@ LifecycleBase init end
 > - [Tomcat启动部署](http://www.jianshu.com/p/150bb9bffab9)
 > - [tomcat 7 源码分析-4 server初始化背后getServer().init()](http://smartvessel.iteye.com/blog/716492)
 
+
 ###### 完整的Server.init()调用流程：
 将上述整体业务流程代码简化为：
 ```java
@@ -1721,11 +1757,17 @@ getServer().init();
 ##### Service.init()的调用：
 继续上述Server.init()调用中，最后调用的是Service的init方法。
 
-这儿的调用和上述Server.init()的调用是一样的，还是通过父类来完成了中转调用：
-StandardService中也没有init方法，只能找其父类，也就是LifecycleMBeanBase的init方法，也没有，继续向上找其父类，也就是LifecycleBase的init方法，有这个方法，其中又调用了initInternal()方法。
+各个Service调用init方法，总体上完成的主要功能有：
+> - 调用父类LifecycleMBeanBase.initInternal方法进行注册MBeang
+> - 如果container（这里的container是StandardEngine）不是null，则调用container的init方法进行初始化
+> - 如果有Executor则逐个初始化
+> - 最后使用循环逐个在初始化Connector，这里connector有两个，分别是用来处理两种协议：http和ajp
 
+而通过默认server.xml配置生成的Service是StandardService的一个实例。
+分析对StandardService的init()的调用和上述Server.init()的调用是一样的，都是通过父类来完成了中转调用：
+StandardService中也没有init方法，只能找其父类，也就是LifecycleMBeanBase的init方法，也没有，继续向上找其父类，也就是LifecycleBase的init方法，有这个方法，其中又调用了StandardService自己的initInternal()方法。
 
-在StandardService中调用这个initInternal()方法为：
+我们来看看在StandardService中调用这个initInternal()方法实现：
 ```java
 /**
 * Invoke a pre-startup initialization. This is used to allow connectors
@@ -1759,16 +1801,48 @@ protected void initInternal() throws LifecycleException {
     }
 }
 ```
-又首先调用了LifecycleMBeanBase的initInternal()方法。
-
-各个Service调用init方法，总体上完成的主要功能有：
-> - 调用父类LifecycleMBeanBase.initInternal方法进行注册MBeang
-> - 如果container（这里的container是StandardEngine）不是null，则调用container的init方法进行初始化
-> - 如果有Executor则逐个初始化
-> - 最后使用循环逐个在初始化Connector，这里connector有两个，分别是用来处理两种协议：http和ajp
-
 在这儿，Connector第一次完整的出现了。
-Service接口的调用在整个tomcat中非常重要，因为涉及到的就是服务启动的细节内容了。下面我们分小姐仔细看一下整个过程。
+
+Service接口的调用在整个tomcat中非常重要，因为涉及到的就是服务启动的细节内容了。
+下面我们分小节仔细看一下整个过程。
+
+###### Service的构成：
+Service 只是在 Connector 和 Container 外面多包一层，把它们组装在一起，向外面提供服务，一个 Service 可以设置多个 Connector，但是只能有一个 Container 容器。
+我们看看Service这个接口的定义：
+```java
+package org.apache.catalina;
+import java.io.File;
+import org.apache.catalina.deploy.NamingResourcesImpl;
+import org.apache.catalina.startup.Catalina;
+public interface Server extends Lifecycle {
+    // ------------------------------------------------------------- Properties
+    public NamingResourcesImpl getGlobalNamingResources();
+    public void setGlobalNamingResources
+        (NamingResourcesImpl globalNamingResources);
+    public javax.naming.Context getGlobalNamingContext();
+    public int getPort();
+    public void setPort(int port);
+    public String getAddress();
+    public void setAddress(String address);
+    public String getShutdown();
+    public void setShutdown(String shutdown);
+    public ClassLoader getParentClassLoader();
+    public void setParentClassLoader(ClassLoader parent);
+    public Catalina getCatalina();
+    public void setCatalina(Catalina catalina);
+    public File getCatalinaBase();
+    public void setCatalinaBase(File catalinaBase);
+    public File getCatalinaHome();
+    public void setCatalinaHome(File catalinaHome);
+    // --------------------------------------------------------- Public Methods
+    public void addService(Service service);
+    public void await();
+    public Service findService(String name);
+    public Service[] findServices();
+    public void removeService(Service service);
+    public Object getNamingToken();
+}
+```
 
 ###### 父类的initInternal()调用：
 ```java
@@ -1776,20 +1850,125 @@ super.initInternal();
 ```
 执行的是父类LifecycleMBeanBase的initInternal方法，和Server中调用的一样，这个函数的作用是用来完成注册。
 
+###### Engine的初始化：
+代码中的engine是已经被初始化的，要找到是在哪里初始化的，也是通过Catalina中的createStartDigester创建出来的：
+```java
+digester.addRuleSet(new EngineRuleSet("Server/Service/"));   //engine元素的定义的处理，这里主要是创建eingie
+```
+这儿将当前的Service和EngineRuleSet绑定。
+
+digester对server.xml设置的标签动作有5种调用：
+> - addObjectCreate：遇到起始标签的元素，初始化一个实例对象入栈
+> - addSetProperties：遇到某个属性名，使用setter来赋值
+> - addSetNext：遇到结束标签的元素，调用相应的方法
+> - addRule：调用rule的begin 、body、end、finish方法来解析xml，入栈和出栈给对象赋值
+> - addRuleSet：调用addRuleInstances来解析xml标签
+
+我们进入EngineRuleSet看看：
+```java
+
+```
+
+并且，这段代码提示：engine对象在创建的时候会将parentClassLoader设置为sharLoader
+```java
+digester.addRule("Server/Service/Engine",  
+                new SetParentClassLoaderRule(parentClassLoader));
+```
 
 
-###### Executor的调用：
 
 
 
-#### Boostrap调用start方法启动服务器：
-完成上述load之后，接下来在Boostrap中调用的就是start方法了：
+
+
+还是要从Catalina中createStartDigester函数将Service和Server绑定的方式说起。
+他调用了StandardServer的addService方法来绑定StandardService，我们看看这个方法：
+```java
+ @Override
+public void addService(Service service) {
+
+    service.setServer(this);
+
+    synchronized (servicesLock) {
+        Service results[] = new Service[services.length + 1];
+        System.arraycopy(services, 0, results, 0, services.length);
+        results[services.length] = service;
+        services = results;
+
+        if (getState().isAvailable()) {
+            try {
+                service.start();
+            } catch (LifecycleException e) {
+                // Ignore
+            }
+        }
+
+        // Report this property change to interested listeners
+        support.firePropertyChange("service", null, service);
+    }
+}
+```
+其中的 service.start() 完成了service的初始化设置。
+但是StandardService中没有start方法，找其父类LifecycleMBeanBase也没有这个方法，继续向上查找，在LifecycleBase中有start方法，具体看看代码：
+```java
+@Override
+public final synchronized void start() throws LifecycleException {
+
+    if (LifecycleState.STARTING_PREP.equals(state) || LifecycleState.STARTING.equals(state) ||
+            LifecycleState.STARTED.equals(state)) {
+
+        if (log.isDebugEnabled()) {
+            Exception e = new LifecycleException();
+            log.debug(sm.getString("lifecycleBase.alreadyStarted", toString()), e);
+        } else if (log.isInfoEnabled()) {
+            log.info(sm.getString("lifecycleBase.alreadyStarted", toString()));
+        }
+
+        return;
+    }
+
+    if (state.equals(LifecycleState.NEW)) {
+        init();
+    } else if (state.equals(LifecycleState.FAILED)) {
+        stop();
+    } else if (!state.equals(LifecycleState.INITIALIZED) &&
+            !state.equals(LifecycleState.STOPPED)) {
+        invalidTransition(Lifecycle.BEFORE_START_EVENT);
+    }
+
+    try {
+        setStateInternal(LifecycleState.STARTING_PREP, null, false);
+        startInternal();
+        if (state.equals(LifecycleState.FAILED)) {
+            // This is a 'controlled' failure. The component put itself into the
+            // FAILED state so call stop() to complete the clean-up.
+            stop();
+        } else if (!state.equals(LifecycleState.STARTING)) {
+            // Shouldn't be necessary but acts as a check that sub-classes are
+            // doing what they are supposed to.
+            invalidTransition(Lifecycle.AFTER_START_EVENT);
+        } else {
+            setStateInternal(LifecycleState.STARTED, null, false);
+        }
+    } catch (Throwable t) {
+        // This is an 'uncontrolled' failure so put the component into the
+        // FAILED state and throw an exception.
+        handleSubClassException(t, "lifecycleBase.startFail", toString());
+    }
+}
+```
+又调用到了startInternal这个方法，
+
+
+##### Boostrap调用start方法启动服务器：
+完成上述load之后，接下来在Boostrap中调用的就是start方法来启动整个服务了。
 
 
 
-### Tomcat中框架分析：
+
+### Tomcat的总体结构小结：
 上述章节中我们梳理了调用的具体代码，现在需要距离代码细节稍微远一点，看看整个tomcat的主要实现功能是如何在这个启动流程中体现的。
-也就是tomcat的整体框架是如何从上述这些步骤中逐步搭建完成的。
+也就是tomcat的整体框架是如何从上述这些步骤中逐步搭建完成的。从一个整体的框架层次上梳理一下整体的调用过程，然后补充一些实现细节。
 
 #### 总体结构：
 在 《Tomcat的功能描述》 这一节中，我们从一般的思路出发去猜测一个web服务的提供者需要给出那些功能才能完成这个服务。
@@ -1800,6 +1979,30 @@ super.initInternal();
 从上图中可以看出 Tomcat 的心脏是两个组件：Connector 和 Container。
 Connector 组件是可以被替换，这样可以提供给服务器设计者更多的选择，因为这个组件是如此重要，不仅跟服务器的设计的本身，而且和不同的应用场景也十分相关，所以一个 Container 可以选择对应多个 Connector。多个 Connector 和一个 Container 就形成了一个 Service，Service 的概念大家都很熟悉了，有了 Service 就可以对外提供服务了，但是 Service 还要一个生存的环境，必须要有人能够给她生命、掌握其生死大权，那就非 Server 莫属了。所以整个 Tomcat 的生命周期由 Server 控制。
 
+
+#### 类和对应的概念：
+Server：代表整个Catalina Servlet容器，可以包含一个或多个Service
+
+Service：包含Connector和Container的集合，Service用适当的Connector接收用户的请求，再发给相应的Container来处理
+
+Connector：实现某一协议的连接器，用来处理客户端发送来的协议，如默认的实现协议有HTTP、HTTPS、AJP
+
+Engine：接到来自不同Connector请求，处理后将结果返回给Connector。Engine是一个逻辑容器
+
+Host：虚拟主机，即域名或网络名，一个Engine可以包含多个Host。
+
+Context：部署的具体Web应用的上下文，每个请求都在是相应的上下文里处理，如一个war包
+
+Wrapper：对应定义的Servlet
+
+由上可知，Catalina中有两个主要的模块：连接器（Connector）和容器（Container）
+
+### Tomcat容器的生命周期管理：
+所有的对象都会经历从创建到消亡的过程。
+Tomcat也有生命，在执行java Bootstrap命令的时候，tomcat类实例被创建，初始化后提供服务；当关闭tomcat服务窗口或者kill掉tomcat进程的时候，tomcat被消亡。
+在这个过程中，被tomcat所管理的java web应用也会有新生和终结，这些对象的生命周期管理也交给tomcat进行管理了。
+
+[tomcat学习之生命周期模型](https://my.oschina.net/psuyun/blog/298500)
 
 #### 生命周期管理：LifeCycle接口
 通过上述章节的代码可以看到，Server，Service都是继承了LifecycleMBeanBase，并且实现了Lifecycle和Service接口，Service接口又继承自Lifecycle接口。
@@ -1883,43 +2086,7 @@ JmxEnable是Java Managed Bean相关的功能。它也是个抽象类，实现了
 #### Registry的作用：
 Registry实现了单例模式。
 
-#### Service的构成：
-Service 只是在 Connector 和 Container 外面多包一层，把它们组装在一起，向外面提供服务，一个 Service 可以设置多个 Connector，但是只能有一个 Container 容器。
-我们看看Service这个接口的定义：
-```java
-package org.apache.catalina;
-import java.io.File;
-import org.apache.catalina.deploy.NamingResourcesImpl;
-import org.apache.catalina.startup.Catalina;
-public interface Server extends Lifecycle {
-    // ------------------------------------------------------------- Properties
-    public NamingResourcesImpl getGlobalNamingResources();
-    public void setGlobalNamingResources
-        (NamingResourcesImpl globalNamingResources);
-    public javax.naming.Context getGlobalNamingContext();
-    public int getPort();
-    public void setPort(int port);
-    public String getAddress();
-    public void setAddress(String address);
-    public String getShutdown();
-    public void setShutdown(String shutdown);
-    public ClassLoader getParentClassLoader();
-    public void setParentClassLoader(ClassLoader parent);
-    public Catalina getCatalina();
-    public void setCatalina(Catalina catalina);
-    public File getCatalinaBase();
-    public void setCatalinaBase(File catalinaBase);
-    public File getCatalinaHome();
-    public void setCatalinaHome(File catalinaHome);
-    // --------------------------------------------------------- Public Methods
-    public void addService(Service service);
-    public void await();
-    public Service findService(String name);
-    public Service[] findServices();
-    public void removeService(Service service);
-    public Object getNamingToken();
-}
-```
+#### 
 
 
 参考：
