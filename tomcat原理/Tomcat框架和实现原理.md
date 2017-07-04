@@ -24,8 +24,9 @@
                 - [脚本启动和关闭服务：](#脚本启动和关闭服务)
                 - [配置文件解析和服务生成详解：](#配置文件解析和服务生成详解)
                 - [实例化的server启动：](#实例化的server启动)
+                    - [自己编写测试程序模拟这个调用流程：](#自己编写测试程序模拟这个调用流程)
+                    - [完整的Server.init()调用流程：](#完整的serverinit调用流程)
                 - [Service.init()的调用：](#serviceinit的调用)
-                - [完整的Server.init()调用流程：](#完整的serverinit调用流程)
             - [Boostrap调用start方法启动服务器：](#boostrap调用start方法启动服务器)
 
 <!-- /TOC -->
@@ -1507,8 +1508,126 @@ StandardServer.initInternal()方法中主要完成的功能有：
 
 调用getServer().init()方法后，会进入 LifecycleBase#init，这个方法主要是设置生命周期以及触发相应的事件，之后会调用 StandardServer#init()，它首先会调用 LifecycleMBeanBase#init 把自己注册到MBeanServer中(JMX后面会具体说)，然后完成 StandardServer 自己初始化需要做的事情，最后在遍历数组，依次调用各个service的init方法。
 
+###### 自己编写测试程序模拟这个调用流程：
+首先，编写Lifecycle接口：
+```java
+public interface Lifecycle {
+    public void init() throws Exception;
+}
+```
+然后，编写一个抽象类LifecycleBase来实现这个接口：
+```java
+public abstract class LifecycleBase implements Lifecycle {
+
+    @Override
+    public void init() throws Exception {
+        System.out.println("LifecycleBase init start");
+        initInternal();
+        System.out.println("LifecycleBase init end");
+    }
+
+
+    protected abstract void initInternal() throws Exception;
+}
+```
+接着，再编写抽象类LifecycleMBeanBase来继承上述抽象类：
+```java
+public abstract class LifecycleMBeanBase extends LifecycleBase{
+    @Override
+    protected void initInternal() throws Exception {
+        System.out.println("in LifecycleMBeanBase initInternal");
+    }
+}
+```
+最后，编写一个不允许被继承的类StandardServer，来继承LifecycleMBeanBase：
+```java
+public final class StandardServer extends LifecycleMBeanBase{
+    @Override
+    protected void initInternal() throws Exception {
+        super.initInternal();
+        System.out.println("in StandardServer initInternal");
+    }
+}
+```
+上述代码就完成了tomcat中，从Boostrap中使用反射调用Catalina的load函数中，getServer().init()的函数调用流程。
+现在我们来测试一下：
+```java
+public class CallerTest {
+    public static void main(String[] args){
+        StandardServer standardServer = new StandardServer();
+        try {
+            standardServer.init();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+最后返回的结果为：
+```shell
+LifecycleBase init start
+in LifecycleMBeanBase initInternal
+in StandardServer initInternal
+LifecycleBase init end
+```
+通过上述简化，可以非常明白的看懂，在tomcat代码中的整个调用流程是如何进行的。
+
+这个可以理解为new出来的对象保存了实际上这个对象的“指针”，通过这个“指针”进行的调用按照继承的方式进行：
+```java
+public class CallerTest {
+    public static void main(String[] args){
+        try {
+            StandardServer standardServer = new StandardServer();
+            standardServer.init();
+
+            LifecycleMBeanBase lserver = new StandardServer();
+            lserver.init();
+
+            Lifecycle lcserver = new StandardServer();
+            lcserver.init();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+可以看到返回的结果是还是一样的：
+```shell
+LifecycleBase init start
+in LifecycleMBeanBase initInternal
+in StandardServer initInternal
+LifecycleBase init end
+LifecycleBase init start
+in LifecycleMBeanBase initInternal
+in StandardServer initInternal
+LifecycleBase init end
+LifecycleBase init start
+in LifecycleMBeanBase initInternal
+in StandardServer initInternal
+LifecycleBase init end
+```
+
 参考：
-[Tomcat启动部署](http://www.jianshu.com/p/150bb9bffab9)
+> - [Tomcat启动部署](http://www.jianshu.com/p/150bb9bffab9)
+> - [tomcat 7 源码分析-4 server初始化背后getServer().init()](http://smartvessel.iteye.com/blog/716492)
+
+###### 完整的Server.init()调用流程：
+将上述整体业务流程代码简化为：
+```java
+Digester digester = createStartDigester();
+inputSource.setByteStream(inputStream);
+digester.push(this);
+digester.parse(inputSource);
+getServer().setCatalina(this);
+getServer().init();
+```
+
+Serivce.init调用流程图：
+
+![tupian](tomcat_StandardService_init()调用.png)
+
+参考：
+> - [How Tomcat works — 三、tomcat启动（2）](http://www.cnblogs.com/sunshine-2015/p/5745868.html)
 
 ##### Service.init()的调用：
 继续上述Server.init()调用中，最后调用的是Service的init方法。
@@ -1559,29 +1678,7 @@ protected void initInternal() throws LifecycleException {
 在这儿，Connector第一次完整的出现了。
 
 
-##### 完整的Server.init()调用流程：
 
-整体业务流程代码：
-```java
-Digester digester = createStartDigester();
-
-inputSource.setByteStream(inputStream);
-
-digester.push(this);
-
-digester.parse(inputSource);
-
-getServer().setCatalina(this);
-
-getServer().init();
-```
-
-Serivce.init调用流程图：
-
-![tupian](tomcat_StandardService_init()调用.png)
-
-参考：
-> - [How Tomcat works — 三、tomcat启动（2）](http://www.cnblogs.com/sunshine-2015/p/5745868.html)
 
 
 #### Boostrap调用start方法启动服务器：
