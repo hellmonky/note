@@ -952,6 +952,7 @@ cmake ../CMakeLists.txt -G 'Unix Makefiles'
 
 > - 参考文档：
 [使用thrift做c++,java和python的相互调用](http://jinghong.iteye.com/blog/1222713)
+[利用thrift实现js与C#通讯的例子](http://www.cnblogs.com/xxxteam/archive/2013/04/15/3023159.html)
 
 ## thrift基本语法学习：
 
