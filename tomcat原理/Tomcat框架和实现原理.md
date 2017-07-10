@@ -10,6 +10,7 @@
                 - [导入Eclipse：](#导入eclipse)
                 - [修改调试入口脚本：](#修改调试入口脚本)
                 - [开始调试：](#开始调试)
+            - [偷懒的调试方式：](#偷懒的调试方式)
     - [Tomcat的启动逻辑：](#tomcat的启动逻辑)
         - [从启动脚本开始：](#从启动脚本开始)
         - [Tomcat的启动入口代码：](#tomcat的启动入口代码)
@@ -17,6 +18,9 @@
         - [实例化Boostrap对象：](#实例化boostrap对象)
         - [Boostrap调用init初始化方法：](#boostrap调用init初始化方法)
             - [初始化类加载器：](#初始化类加载器)
+                - [JVM的父类委托机制类加载：](#jvm的父类委托机制类加载)
+                - [java的双亲委派机制类加载：](#java的双亲委派机制类加载)
+                - [tomcat的类加载机制：](#tomcat的类加载机制)
             - [设置当前线程的上下文类加载器：](#设置当前线程的上下文类加载器)
             - [使用这个加载器来加载自己的类：](#使用这个加载器来加载自己的类)
             - [最后将这个实例作为catalinaDaemon：](#最后将这个实例作为catalinadaemon)
@@ -151,7 +155,10 @@ VM arguments : -Dcatalina.home=${project_loc:/tomcat/java/org/apache/catalina/st
 > - [idea中编译tomcat源码(译)](http://foolchild.cn/2015/12/28/import_tomcat_to_idea)
 > - [编写自己的tomcat, 并运行tomcat源码于eclipse中](https://my.oschina.net/xpbug/blog/53610)
 
-
+#### 偷懒的调试方式：
+因为java的类加载机制，会优先加载src下的java文件（编译出的class），而不是jar包中的class。
+所以我们可以将tomcat的源代码放在自己的web工程下，然后直接进行调试的。
+具体方式后续补充。
 
 
 ## Tomcat的启动逻辑：
@@ -468,6 +475,48 @@ catalinaDaemon = startupInstance;
 下面我们来逐一过一遍。
 
 #### 初始化类加载器：
+所谓的类加载器，他的主要作用是：
+新建一个Java对象的时候，JVM要将这个对象对应的字节码加载到内存中，这个字节码的原始信息存放在编译生成的.class文件中，类加载器需要将这些存储在硬盘（或者网络）的.class文件经过一些处理之后变成字节码在加载到内存中。
+要创建用户自己的类加载器，只需要扩展java.lang.ClassLoader类，然后覆盖它的findClass(String name)方法即可，该方法根据参数指定类的名字，返回对应的Class对象的引用。
+
+##### JVM的父类委托机制类加载：
+在JVM中并不是一次性把所有的文件都加载到，而是一步一步的，按照需要来加载。因此使用哪种类加载器、在什么位置加载类都是JVM中重要的内容，也是理解整个类加载的核心所在。
+因为我们在启动tomcat之前，java的运行环境已经可用了，然后通过java命令来对tomcat进行启动，那么首先完成的必然是JVM对当前java执行环境的类加载，并且提供系统类加载给java应用使用。
+
+JVM的初始化类加载器是最特殊的，首先需要从native环境启动JVM，然后通过JVM的类加载器初始化执行环境。
+JVM的类加载采用了父类委托机制。JVM的ClassLoader通过Parent属性定义父子关系，可以形成树状结构。其中引导类、扩展类、系统类三个加载器是JVM内置的。
+它们的作用分别是：
+> - 1）启动（Bootstrap）类加载器：是用本地代码实现的类装入器，它负责将 <Java_Runtime_Home>/lib下面的类库加载到内存中（比如rt.jar）。由于引导类加载器涉及到虚拟机本地实现细节，开发者无法直接获取到启动类加载器的引用，所以不允许直接通过引用进行操作。
+> - 2）标准扩展（Extension）类加载器：是由 Sun 的 ExtClassLoader（sun.misc.Launcher$ExtClassLoader）实现的。它负责将< Java_Runtime_Home >/lib/ext或者由系统变量 java.ext.dir指定位置中的类库加载到内存中。开发者可以直接使用标准扩展类加载器。
+> - 3）系统（System）类加载器：是由 Sun 的 AppClassLoader（sun.misc.Launcher$AppClassLoader）实现的。它负责将系统类路径（CLASSPATH）中指定的类库加载到内存中。开发者可以直接使用系统类加载器。
+
+Java虚拟机的第一个类加载器是Bootstrap，这个加载器很特殊，它不是Java类，因此它不需要被别人加载，它嵌套在Java虚拟机内核里面，也就是JVM启动的时候Bootstrap就已经启动，它是用C++写的二进制代码（不是字节码），它可以去加载别的类。
+这也是我们在测试时为什么发现System.class.getClassLoader()结果为null的原因，这并不表示System这个类没有类加载器，而是它的加载器比较特殊，是BootstrapClassLoader，由于它不是Java类，因此获得它的引用肯定返回null。
+
+总结父类委托机制为：
+> - 1 用户自己的类加载器，把加载请求传给父加载器，父加载器再传给其父加载器，一直到加载器树的顶层。
+> - 2 最顶层的类加载器首先针对其特定的位置加载，如果加载不到就转交给子类。
+> - 3 如果一直到底层的类加载（引导类加载器）都没有加载到，那么就会抛出异常ClassNotFoundException。
+
+##### java的双亲委派机制类加载：
+在完成了JVM的启动和环境初始化之后，对于java应用的加载，使用双亲委派机制进行加载。
+因为JVM默认的类加载器之后就是用户自定义的加载器了，这样就从系统加载器开始形成了类加载的树形结构，那加载应用类时就需要定义类到底由当前加载器还是父加载器去搜索加载。
+
+所谓双亲委派是指子类加载器如果没有加载过该目标类，就先委托父类加载器加载该目标类，只有在父类加载器找不到字节码文件的情况下才从自己的类路径中查找并装载目标类。“双亲委派”机制加载Class的具体过程是：
+> - 源ClassLoader先判断该Class是否已加载，如果已加载，则返回Class对象；如果没有则委托给父类加载器。
+> - 父类加载器判断是否加载过该Class，如果已加载，则返回Class对象；如果没有则委托给祖父类加载器。
+> - 依此类推，直到始祖类加载器（引用类加载器）。
+> - 始祖类加载器判断是否加载过该Class，如果已加载，则返回Class对象；如果没有则尝试从其对应的类路径下寻找class字节码文件并载入。如果载入成功，则返回Class对象；如果载入失败，则委托给始祖类加载器的子类加载器。
+> - 始祖类加载器的子类加载器尝试从其对应的类路径下寻找class字节码文件并载入。如果载入成功，则返回Class对象；如果载入失败，则委托给始祖类加载器的孙类加载器。
+> - > - 依此类推，直到源ClassLoader。
+> - 源ClassLoader尝试从其对应的类路径下寻找class字节码文件并载入。如果载入成功，则返回Class对象；如果载入失败，源ClassLoader不会再委托其子类加载器，而是抛出异常。
+
+需要注意的是，“双亲委派”机制只是Java推荐的机制，并不是强制的机制。
+
+##### tomcat的类加载机制：
+因为tomcat作为java应用，如果要完成功能，首先能依赖的就只有系统类加载器，然后自己在构建自己的类加载体系。
+
+我们进入tomcat的boostrap看看他自己的类加载器初始化在干什么：
 ```java
 private void initClassLoaders() {
     try {
@@ -485,9 +534,7 @@ private void initClassLoaders() {
     }
 }
 ```
-所谓的类加载器，他的主要作用是：
-新建一个Java对象的时候，JVM要将这个对象对应的字节码加载到内存中，这个字节码的原始信息存放在编译生成的.class文件中，类加载器需要将这些存储在硬盘（或者网络）的.class文件经过一些处理之后变成字节码在加载到内存中。
-要创建用户自己的类加载器，只需要扩展java.lang.ClassLoader类，然后覆盖它的findClass(String name)方法即可，该方法根据参数指定类的名字，返回对应的Class对象的引用。
+
 
 上述代码中，实现了三个自定义类加载器的初始化：
 ```java
@@ -540,11 +587,16 @@ private ClassLoader createClassLoader(String name, ClassLoader parent)
     return ClassLoaderFactory.createClassLoader(repositories, parent);
 }
 ```
+首先，通过CatalinaProperties获取当前的配置文件，然后获取要创建的类加载器的名称对应的值；
+然后，将这个值从相对路径，使用replace转换为绝对路径（这个值是当前需要加载的所有lib的路径）；
+接着，对这些需要加载的库路径进行检查，按照路径和对应的类型放在Repository的列表中；
+最后，调用ClassLoaderFactory来对当前的所有Repository对象创建类加载器。
+
 可以看到是在读取配置文件，然后交给一个工厂来完成类加载器的生成。
 
 具体方式为：
 > - 1. 从CatalinaProperties中获取属性值：
-进入apache-tomcat-9.0.0.M22-src\java\org\apache\catalina\startup\CatalinaProperties.java
+进入java\org\apache\catalina\startup\CatalinaProperties.java
 在静态代码段中，对配置文件进行了设置：
 ```java
 static {
@@ -631,13 +683,19 @@ private static void loadProperties() {
 ```xml
 common.loader="${catalina.base}/lib","${catalina.base}/lib/*.jar","${catalina.home}/lib","${catalina.home}/lib/*.jar"
 ```
+这儿出现的${catalina.home}是通过启动脚本获取，然后传递进入的：
+```bat
+-Dcatalina.home="%CATALINA_HOME%"
+```
+也就是当前tomcat的根目录，所以上述配置文件设置的路径就是当前tomcat运行环境的根目录下的lib，对应的也就是out/build目录下的lib文件夹。
+
 > - 2. 将这个这个属性的值做一些处理（因为有分好分割的多个，最终转换为一个list），得到一个Repository的列表，然后交给类加载器工厂处理，简化后的流程代码为：
 ```java
 List<Repository> repositories = new ArrayList<>();
 repositories.add(new Repository(repository, RepositoryType.URL));
 ClassLoaderFactory.createClassLoader(repositories, parent);
 ```
-其中，Repository这个类型是在ClassLoaderFactory内部定义的子类，进入apache-tomcat-9.0.0.M22-src\java\org\apache\catalina\startup\ClassLoaderFactory.java，查看代码为：
+其中，Repository这个类型是在ClassLoaderFactory内部定义的子类，进入java\org\apache\catalina\startup\ClassLoaderFactory.java，查看代码为：
 ```java
 public static class Repository {
     private final String location;
@@ -768,6 +826,7 @@ public enum RepositoryType {
 }
 ```
 也就是Repository中的属性的类型，总体上，支持从：路径，全局设置，jar包和URL创建类加载器。
+这个Repository作为ClassLoaderFactory的内部类，用于创建类加载器的时候给予属性记录的辅助功能。
 
 createClassLoader的主要流程为：
 > - 首先创建一个Set容器，用来存放要创建的类加载器的URL：
@@ -2141,7 +2200,7 @@ protected void initInternal() throws LifecycleException {
     super.initInternal();
 }
 ```
-他的初始化很简单，就是调用父的内部初始化函数了，进入ContainerBase查看：
+除去getRealm这个调用，他的初始化很简单，就是调用父的内部初始化函数了，进入ContainerBase查看：
 ```java
 @Override
 protected void initInternal() throws LifecycleException {
@@ -2169,7 +2228,29 @@ protected void initInternal() throws LifecycleException {
 所谓Realm，官方解释为：
 A Realm is a "database" of usernames and passwords that identify valid users of a web application (or set of web applications), plus an enumeration of the list of roles associated with each valid user. You can think of roles as similar to groups in Unix-like operating systems, because access to specific web application resources is granted to all users possessing a particular role (rather than enumerating the list of associated usernames).
 
-所以这个的getRealm调用就是在创建用户登录管理的内容，暂时忽略。
+Realm（安全域）其实就是一个存储用户名和密码的“数据库”再加上一个枚举列表。“数据库”中的用户名和密码是用来验证 Web 应用（或 Web 应用集合）用户合法性的，而每一合法用户所对应的角色存储在枚举列表中。可以把这些角色看成是类似 UNIX 系统中的 group（分组），因为只有能够拥有特定角色的用户才能访问特定的 Web 应用资源（而不是通过对用户名列表进行枚举适配）。特定用户的用户名下可以配置多个角色。
+虽然 Servlet 规范描述了一个可移植机制，使应用可以在 web.xml 部署描述符中声明它们的安全需求，但却没有提供一种可移植 API 来定义出 Servlet 容器与相应用户及角色信息的接口。然而，在很多情况下，非常适于将 Servlet 容器与一些已有的验证数据库或者生产环境中已存在的机制“连接”起来。因此，Tomcat 定义了一个 Java 接口（org.apache.catalina.Realm），通过“插入”组件来建立连接。
+Tomcat提供了 6 种标准插件，支持与各种验证信息源的连接：
+> - JDBCRealm——通过 JDBC 驱动器来访问保存在关系型数据库中的验证信息。
+> - DataSourceRealm——访问保存在关系型数据库中的验证信息。
+> - JNDIRealm——访问保存在 LDAP 目录服务器中的验证信息。
+> - UserDatabaseRealm——访问存储在一个 UserDatabase JNDI 数据源中的认证信息，通常依赖一个 XML 文档（conf/tomcat-users.xml）。
+> - MemoryRealm——访问存储在一个内存中对象集合中的认证信息，通过 XML 文档初始化（conf/tomcat-users.xml）。
+> - JAASRealm——通过 Java 认证与授权服务（JAAS）架构来获取认证信息。
+
+另外，还可以编写自定义 Realm 实现，将其整合到 Tomcat 中，只需这样做：
+> - 实现 org.apache.catalina.Realm 接口。
+> - 将编译好的 realm 放到 $CATALINA_HOME/lib 中。
+> - 声明自定义 realm，具体方法详见“配置 Realm”一节。
+> - 在 MBeans 描述符文件中声明自定义realm。
+
+
+所以这个的getRealm调用就是在创建用户登录管理的内容，具体的细节后续再进行补充。
+
+参考：
+[Tomcat8权威指南 - Realm 配置](http://wiki.jikexueyuan.com/project/tomcat/realms-aaa.html)
+
+
 
 
 ###### ContainerBase调用reconfigureStartStopExecutor：
