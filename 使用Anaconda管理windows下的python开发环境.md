@@ -57,3 +57,10 @@ conda install -n python36 tensorflow
 
 IDEAServer:
 cmd /k  "C:\Users\yuanlai.xwt\Desktop\idea.bat" -new_console:d:%USERPROFILE%
+
+
+和pycharm搭配使用问题：
+在pycharm中升级的源，和anaconda中添加的源不同，导致虽然现在可以在pycharm中进行升级，但是对于conda中的conda-meta文件夹下的包说明并没有修改，导致现在pycharm中查看到的版本和使用conda查看的库版本不同。
+但是实际上现在这个库确实存放的位置还是一样的，只有一个最新版本。
+现在的处理方式就是保证conda和pycharm使用了同一个源。而且，
+
