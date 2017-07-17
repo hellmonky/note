@@ -1,3 +1,16 @@
+<!-- TOC -->
+
+- [使用Anaconda管理windows下的python开发环境](#使用anaconda管理windows下的python开发环境)
+    - [Anaconda简介：](#anaconda简介)
+        - [windows环境下的安装：](#windows环境下的安装)
+        - [使用国内镜像源：](#使用国内镜像源)
+    - [Conda使用：](#conda使用)
+    - [开发环境搭建：](#开发环境搭建)
+        - [搭建TensorFlow开发环境：](#搭建tensorflow开发环境)
+        - [使用cmder完成搭建：](#使用cmder完成搭建)
+
+<!-- /TOC -->
+
 # 使用Anaconda管理windows下的python开发环境
 
 Python由于2和3版本的过渡，在使用中存在很多的麻烦，而且在使用pip安装第三方库支持的时候也会遇到各种问题，所以习惯了maven或者gradle等管理工具的java开发工程师对于python的版本感觉就是一个字：乱。
@@ -50,6 +63,64 @@ deactivate python27
 ### 搭建TensorFlow开发环境：
 因为在widnows环境下，TensorFlow只支持python3.6及以上版本，所以现在需要切换到python36环境下，然后使用包安装命令：
 conda install -n python36 tensorflow
+使用如下代码进行测试：
+```pytho
+#引入os，关闭“The TensorFlow library wasn't compiled to use SSE instructions”警告提示
+#解决方法可以参考TensorFlow官方的解答：https://github.com/tensorflow/tensorflow/issues/7778
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
+#导入TensorFlow python API库
+import tensorflow as tf
+import numpy as np
+
+#随机生成100点（x，y）
+x_data = np.random.rand(100).astype(np.float32)
+y_data = x_data * 0.1 + 0.3
+
+#构建线性模型的tensor变量W, b
+W = tf.Variable(tf.random_uniform([1], -1.0, 1.0))
+b = tf.Variable(tf.zeros([1]))
+y = W * x_data + b
+
+#构建损失方程，优化器及训练模型操作train
+loss = tf.reduce_mean(tf.square(y - y_data))
+optimizer = tf.train.GradientDescentOptimizer(0.5)
+train = optimizer.minimize(loss)
+
+#构建变量初始化操作init
+init = tf.global_variables_initializer()
+
+#构建TensorFlow session
+sess = tf.Session()
+
+#初始化所有TensorFlow变量
+sess.run(init)
+
+#训练该线性模型，每隔20次迭代，输出模型参数
+for step in range(201):
+    sess.run(train)
+    if step % 20 == 0:
+        print(step, sess.run(W), sess.run(b))
+```
+将上述内容保存为env.py文件，然后使用如下命令运行测试：
+```shell
+python env.py
+```
+返回结果为：
+```shell
+0 [ 0.13292471] [ 0.3931849]
+20 [ 0.09660753] [ 0.30185246]
+40 [ 0.09916805] [ 0.30045429]
+60 [ 0.09979595] [ 0.30011144]
+80 [ 0.09994994] [ 0.30002734]
+100 [ 0.09998773] [ 0.30000672]
+120 [ 0.099997] [ 0.30000165]
+140 [ 0.09999926] [ 0.30000043]
+160 [ 0.09999982] [ 0.3000001]
+180 [ 0.0999999] [ 0.30000007]
+200 [ 0.0999999] [ 0.30000007]
+```
+上述结果出现，表示当前TensorFlow环境搭建成功，可以正常开发了。
 
 
 ### 使用cmder完成搭建：
