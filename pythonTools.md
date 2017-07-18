@@ -202,7 +202,7 @@ DIR_FOR_GIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 > - 如果本地的超前，就提交直接覆盖github上的；
 > - 如果本地落后，就拉取github上，直接覆盖本地的。
 
-
+关于这部分的内容，涉及到git的原理，找到了篇不错的文章：[git-recipes](#参考1)
 
 
 
@@ -211,7 +211,8 @@ DIR_FOR_GIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 ### 参考文档
-[基于Git的文件自动同步的思考和实现](http://wuzhiwei.net/file_sync_git/)
-[watchdog--监控文件系统变化](http://sapser.github.io/python/2014/07/25/watchdog)
-[watchdog 0.8.2 documentation](http://pythonhosted.org/watchdog/api.html#event-classes)
-[pygit: Just enough of a Git client to create a repo, commit, and push itself to GitHub](http://benhoyt.com/writings/pygit/)
+> - [基于Git的文件自动同步的思考和实现](http://wuzhiwei.net/file_sync_git/)
+> - [watchdog--监控文件系统变化](http://sapser.github.io/python/2014/07/25/watchdog)
+> - [watchdog 0.8.2 documentation](http://pythonhosted.org/watchdog/api.html#event-classes)
+> - [pygit: Just enough of a Git client to create a repo, commit, and push itself to GitHub](http://benhoyt.com/writings/pygit/)
+> - <span id = "参考1">[git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)</span>
