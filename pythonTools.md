@@ -7,10 +7,12 @@
         - [完成远程的文件变更自动更新：](#完成远程的文件变更自动更新)
         - [添加系统开机启动：](#添加系统开机启动)
         - [参考文档](#参考文档)
+        - [[git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)](#git-recipeshttpsgithubcomgeeeeeeeeekgit-recipeswiki)
 
 <!-- /TOC -->
 
 # small tool by python
+[git-recipes](#git-recipes)
 
 ## python同步任务：
 主要参考了：https://github.com/iWoz/file_sync
@@ -202,7 +204,7 @@ DIR_FOR_GIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 > - 如果本地的超前，就提交直接覆盖github上的；
 > - 如果本地落后，就拉取github上，直接覆盖本地的。
 
-关于这部分的内容，涉及到git的原理，找到了篇不错的文章：[git-recipes](#参考1)
+关于这部分的内容，涉及到git的原理，找到了篇不错的文章：
 
 
 
@@ -215,4 +217,4 @@ DIR_FOR_GIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 > - [watchdog--监控文件系统变化](http://sapser.github.io/python/2014/07/25/watchdog)
 > - [watchdog 0.8.2 documentation](http://pythonhosted.org/watchdog/api.html#event-classes)
 > - [pygit: Just enough of a Git client to create a repo, commit, and push itself to GitHub](http://benhoyt.com/writings/pygit/)
-> - <span id = "参考1">[git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)</span>
+### [git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)
