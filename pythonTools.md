@@ -6,13 +6,32 @@
         - [添加自定义文件变化监听事件处理：](#添加自定义文件变化监听事件处理)
         - [完成远程的文件变更自动更新：](#完成远程的文件变更自动更新)
         - [添加系统开机启动：](#添加系统开机启动)
-        - [参考文档](#参考文档)
-        - [[git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)](#git-recipeshttpsgithubcomgeeeeeeeeekgit-recipeswiki)
+            - [Linux系统的开机启动：](#linux系统的开机启动)
+            - [windows添加为开机服务：](#windows添加为开机服务)
+    - [python类和继承](#python类和继承)
+        - [面向对象编程基础：](#面向对象编程基础)
+        - [在python中的体现：](#在python中的体现)
+            - [定义一个类：](#定义一个类)
+            - [创建实例对象](#创建实例对象)
+            - [访问属性](#访问属性)
+            - [Python内置类属性](#python内置类属性)
+        - [反思：](#反思)
+    - [在线获取图像和视频：](#在线获取图像和视频)
+        - [搭建scrapy框架：](#搭建scrapy框架)
+    - [平台环境自动化安装：](#平台环境自动化安装)
+        - [使用python自动安装软件：](#使用python自动安装软件)
+        - [另外一种思路：监控每一个软件的安装过程](#另外一种思路监控每一个软件的安装过程)
+    - [python实现RESTFul API接口：](#python实现restful-api接口)
+    - [参考文档](#参考文档)
 
 <!-- /TOC -->
 
 # small tool by python
-[git-recipes](#git-recipes)
+
+> - life is short, so i need python
+
+对于糟糕的python2和3版本问题，实在无法吐槽，原则就是：
+**尽量使用3，如果使用了2会明确的说明。**
 
 ## python同步任务：
 主要参考了：https://github.com/iWoz/file_sync
@@ -204,17 +223,269 @@ DIR_FOR_GIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 > - 如果本地的超前，就提交直接覆盖github上的；
 > - 如果本地落后，就拉取github上，直接覆盖本地的。
 
-关于这部分的内容，涉及到git的原理，找到了篇不错的文章：
+关于这部分的内容，涉及到git的原理，找到了篇不错的文章：[git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)
+可以对照学习一下git的实际操作流程。
 
 
 
 ### 添加系统开机启动：
 可以将上述代码作为服务，在系统启动的时候自动开启，给用户提供后台服务，完成自动化操作。
+对于不同的操作系统，开启启动的方式是不同的。
+#### Linux系统的开机启动：
+#### windows添加为开机服务：
+
+## python类和继承
+python作为脚本语言，还支持类和继承，所以是可以面向对象编程的。
+
+### 面向对象编程基础：
+首先看看python中面向对象编程的基本概念：
+> - 类(Class): 用来描述具有相同的属性和方法的对象的集合。它定义了该集合中每个对象所共有的属性和方法。对象是类的实例。
+> - 类变量：类变量在整个实例化的对象中是公用的。类变量定义在类中且在函数体之外。类变量通常不作为实例变量使用。
+> - 数据成员：类变量或者实例变量用于处理类及其实例对象的相关的数据。
+> - 方法重写：如果从父类继承的方法不能满足子类的需求，可以对其进行改写，这个过程叫方法的覆盖（override），也称为方法的重写。
+> - 实例变量：定义在方法中的变量，只作用于当前实例的类。
+> - 继承：即一个派生类（derived class）继承基类（base class）的字段和方法。继承也允许把一个派生类的对象作为一个基类对象对待。例如，有这样一个设计：一个Dog类型的对象派生自Animal类，这是模拟"是一个（is-a）"关系（例图，Dog是一个Animal）。
+> - 实例化：创建一个类的实例，类的具体对象。
+> - 方法：类中定义的函数。
+> - 对象：通过类定义的数据结构实例。对象包括两个数据成员（类变量和实例变量）和方法。
+
+### 在python中的体现：
+面向对象在不同的程序设计语言中有不同的切入角度和体现，我们看看python中的具体体现。
+
+#### 定义一个类：
+使用class语句来创建一个新类，class之后为类的名称并以冒号结尾，如下实例:
+```python
+class ClassName:
+   '类的帮助信息'   #类文档字符串
+   class_suite  #类体
+```
+> - 类的帮助信息可以通过ClassName.__doc__查看。
+> - class_suite 由类成员，方法，数据属性组成。
+
+以下是一个简单的Python类实例:
+```python
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+ 
+class Employee:
+   '所有员工的基类'
+   empCount = 0
+ 
+   def __init__(self, name, salary):
+      self.name = name
+      self.salary = salary
+      Employee.empCount += 1
+   
+   def displayCount(self):
+     print("Total Employee %d", Employee.empCount)
+ 
+   def displayEmployee(self):
+      print("Name : ", self.name,  ", Salary: ", self.salary)
+```
+empCount 变量是一个类变量，它的值将在这个类的所有实例之间共享。你可以在内部类或外部类使用 Employee.empCount 访问；
+第一种方法__init__()方法是一种特殊的方法，被称为类的构造函数或初始化方法，当创建了这个类的实例时就会调用该方法；
+self 代表类的实例，self 在定义类的方法时是必须有的，虽然在调用时不必传入相应的参数。
+self代表类的实例，而非类
+类的方法与普通的函数只有一个特别的区别——它们必须有一个额外的第一个参数名称, 按照惯例它的名称是 self：
+```python
+class Test:
+    def prt(self):
+        print(self)
+        print(self.__class__)
+ 
+t = Test()
+t.prt()
+```
+以上实例执行结果为：
+```shell
+<__main__.Test instance at 0x10d066878>
+__main__.Test
+```
+从执行结果可以很明显的看出，self 代表的是类的实例，代表当前对象的地址，而 self.class 则指向类。
+self 不是 python 关键字，我们把他换成 runoob 也是可以正常执行的:
+```python
+class Test:
+    def prt(runoob):
+        print(runoob)
+        print(runoob.__class__)
+ 
+t = Test()
+t.prt()
+```
+以上实例执行结果为：
+```shell
+<__main__.Test instance at 0x10d066878>
+__main__.Test
+```
+#### 创建实例对象
+实例化类其他编程语言中一般用关键字 new，但是在 Python 中并没有这个关键字，类的实例化类似函数调用方式。
+以下使用类的名称 Employee 来实例化，并通过 __init__ 方法接受参数。
+```python
+"创建 Employee 类的第一个对象"
+emp1 = Employee("Zara", 2000)
+"创建 Employee 类的第二个对象"
+emp2 = Employee("Manni", 5000)
+```
+#### 访问属性
+您可以使用点(.)来访问对象的属性。使用如下类的名称访问类变量:
+```python
+emp1.displayEmployee()
+emp2.displayEmployee()
+print("Total Employee %d", Employee.empCount)
+```
+完整实例：
+```python
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+ 
+class Employee:
+   '所有员工的基类'
+   empCount = 0
+ 
+   def __init__(self, name, salary):
+      self.name = name
+      self.salary = salary
+      Employee.empCount += 1
+   
+   def displayCount(self):
+     print("Total Employee %d", Employee.empCount)
+ 
+   def displayEmployee(self):
+      print("Name : ", self.name,  ", Salary: ", self.salary)
+ 
+"创建 Employee 类的第一个对象"
+emp1 = Employee("Zara", 2000)
+"创建 Employee 类的第二个对象"
+emp2 = Employee("Manni", 5000)
+emp1.displayEmployee()
+emp2.displayEmployee()
+print("Total Employee %d", Employee.empCount)
+```
+执行以上代码输出结果如下：
+```shell
+Name :  Zara ,Salary:  2000
+Name :  Manni ,Salary:  5000
+Total Employee 2
+```
+你可以添加，删除，修改类的属性，如下所示：
+```python
+emp1.age = 7  # 添加一个 'age' 属性
+emp1.age = 8  # 修改 'age' 属性
+del emp1.age  # 删除 'age' 属性
+```
+你也可以使用以下函数的方式来访问属性：
+```python
+getattr(obj, name[, default]) : 访问对象的属性。
+hasattr(obj,name) : 检查是否存在一个属性。
+setattr(obj,name,value) : 设置一个属性。如果属性不存在，会创建一个新属性。
+delattr(obj, name) : 删除属性。
+hasattr(emp1, 'age')    # 如果存在 'age' 属性返回 True。
+getattr(emp1, 'age')    # 返回 'age' 属性的值
+setattr(emp1, 'age', 8) # 添加属性 'age' 值为 8
+delattr(empl, 'age')    # 删除属性 'age'
+```
+#### Python内置类属性
+```python
+__dict__ : 类的属性（包含一个字典，由类的数据属性组成）
+__doc__ :类的文档字符串
+__name__: 类名
+__module__: 类定义所在的模块（类的全名是'__main__.className'，如果类位于一个导入模块mymod中，那么className.__module__ 等于 mymod）
+__bases__ : 类的所有父类构成元素（包含了一个由所有父类组成的元组）
+```
+Python内置类属性调用实例如下：
+```python
+#!/usr/bin/python
+# -*- coding: UTF-8 -*-
+ 
+class Employee:
+   '所有员工的基类'
+   empCount = 0
+ 
+   def __init__(self, name, salary):
+      self.name = name
+      self.salary = salary
+      Employee.empCount += 1
+   
+   def displayCount(self):
+     print "Total Employee %d" % Employee.empCount
+ 
+   def displayEmployee(self):
+      print "Name : ", self.name,  ", Salary: ", self.salary
+ 
+print "Employee.__doc__:", Employee.__doc__
+print "Employee.__name__:", Employee.__name__
+print "Employee.__module__:", Employee.__module__
+print "Employee.__bases__:", Employee.__bases__
+print "Employee.__dict__:", Employee.__dict__
+```
+执行以上代码输出结果如下：
+```shell
+Employee.__doc__: 所有员工的基类
+Employee.__name__: Employee
+Employee.__module__: __main__
+Employee.__bases__: ()
+Employee.__dict__: {'__module__': '__main__', 'displayCount': <function displayCount at 0x10a939c80>, 'empCount': 0, 'displayEmployee': <function displayEmployee at 0x10a93caa0>, '__doc__': '\xe6\x89\x80\xe6\x9c\x89\xe5\x91\x98\xe5\xb7\xa5\xe7\x9a\x84\xe5\x9f\xba\xe7\xb1\xbb', '__init__': <function __init__ at 0x10a939578>}
+```
+
+### 反思：
+这种语法的罗列是没有意义的，个人感受还是通过实际的工程需求来刺激自己学习，这样主动的学习效果是要好于知识的罗列的，更好于灌输性的方式。
+建议还是从实际的应用出发，看看有什么需求，然后这个需求是如何通过python来解决的。
+
+## 在线获取图像和视频：
+python最拿手的就是爬虫了，丰富功能的爬虫框架，可以帮助我们快速批量的从www上获取需要的资料，这个功能对于资源收集者来说是非常重要的。
+现在我们借助于scrapy来对特定网站的音视频资料进行获取。
+
+### 搭建scrapy框架：
 
 
-### 参考文档
+## 平台环境自动化安装：
+痛点：每一次重新安装操作系统之后，都需要下载安装基础软件，然后通过添加环境变量等方式完成环境搭建，然后将需要启动的软件作为服务添加启动；而且软件的升级也是需要手动执行的，需要用户自己去维护。
+这种环境的维护也是需要成本的，例如：
+（1）安装的软件冲突，需要回退，但是这个时候环境变量已经混乱了，无法正常通过卸载软件恢复（尤其是国产的全家桶系列）；
+（2）如果想要将当前的系统环境保持，就需要定期的系统备份，问题在于操作系统本身也是在不断升级的，这种备份无法完成环境和系统的去耦合，而且备份的生成非常耗时，占用空间巨大。
+上述问题，可以通过自动化脚本的形式给予处理。每次安装操作系统之后，运行脚本，结束后，个性化的定制环境就已经生效了，这个时候用户关注的就是按照原来的喜好继续使用环境，而不是花费很多的精力安装部署环境。
+
+### 使用python自动安装软件：
+将需要安装的安装包放在特定路径下，然后使用脚本完成定制安装。
+这个内容在windows下有了Chocolatey，Mac下有Homebrew。
+那么是否可以通过python调用这些工具来完成整个软件的安装和管理。
+并且windows环境下的安装需要重新后生效，如果存在链式的依赖关系，那么自动化安装就无法顺利进行，这个时候[BoxStarter](http://boxstarter.org/)，一个封装了Chocolatey的能解决windows烦人的reboot问题命令行方式就出现了。
+这个软件在github上开源了：https://github.com/mwrock/boxstarter
+并且boxstarter还能将软件的配置通过git进行同步，能够满足现在的需求了。
+
+> - 同时还有一个开发环境搭建的工具vagrant，Vagrant是一个软件，可以自动化虚拟机的安装和配置流程。这个软件可以帮助在非Linux系统环境下，对于基于Linux的开发环境进行管理。也就是说，只能对于虚拟机进行包管理，这个和当前在物理机层面的需求是类似的，但是实现方式是不同的。
+
+
+具体的内容可以参考：
+[路径（二）：更好的安装软件的方法（Windows：Chocolatey，Mac：Homebrew）](https://ninghao.net/blog/2071)
+[Chocolatey - kind of like apt-get, but for Windows](https://chocolatey.org/docs)
+[choco](https://github.com/chocolatey/choco)
+[在Windows平台上实现云自动化](http://www.infoq.com/cn/articles/cloud-automation-windows)
+
+### 另外一种思路：监控每一个软件的安装过程
+将每一个软件在安装中涉及到的文件进行管理，然后对于这些文件变化监听和记录，这样就对于每一个软件做备案。
+然后通过，这个记录来帮助自动化管理。
+估计涉及到的有windows官方出的fileMonitor工具，现在合并到[Process Monitor](https://technet.microsoft.com/en-us/sysinternals/processmonitor)了，可以通过这个工具完成对文件变化的监听。
+但是这种方式涉及到的文件会比较多，管理流程也是很麻烦的，而且不容易区分软件本身的资源文件和配置文件之间的差异，无法实现对软件配置项的备份。
+
+
+
+
+
+## python实现RESTFul API接口：
+现在需要对不同的IaaS厂商提供的接口做封装调用，并且对外提供RESTFul的接口，作为一个Proxy。
+然后将python程序打包为可执行文件（包含windows和linux环境）。
+
+
+参考：
+[使用 Python 和 Flask 设计 RESTful API](http://www.pythondoc.com/flask-restful/first.html)
+[eve - an open source Python REST API framework](https://github.com/pyeve/eve)
+
+
+## 参考文档
 > - [基于Git的文件自动同步的思考和实现](http://wuzhiwei.net/file_sync_git/)
 > - [watchdog--监控文件系统变化](http://sapser.github.io/python/2014/07/25/watchdog)
 > - [watchdog 0.8.2 documentation](http://pythonhosted.org/watchdog/api.html#event-classes)
 > - [pygit: Just enough of a Git client to create a repo, commit, and push itself to GitHub](http://benhoyt.com/writings/pygit/)
-### [git-recipes](https://github.com/geeeeeeeeek/git-recipes/wiki)
+[图解git 用图片分析学习git原理](http://huanglei.me/git-theory.html)
+[小白进阶之Scrapy第一篇](http://cuiqingcai.com/3472.html)
