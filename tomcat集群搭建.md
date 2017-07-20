@@ -6,9 +6,13 @@
             - [apache的安装：](#apache的安装)
             - [Apache Tomcat Connector的编译：](#apache-tomcat-connector的编译)
             - [nginx的编译安装：](#nginx的编译安装)
+            - [Redis的编译安装：](#redis的编译安装)
         - [多个tomcat实例的配置修改：](#多个tomcat实例的配置修改)
     - [tomcat集群搭建：](#tomcat集群搭建)
         - [单机多实例tomcat集群的搭建：](#单机多实例tomcat集群的搭建)
+            - [使用apache搭建tomcat集群：](#使用apache搭建tomcat集群)
+            - [使用nginx搭建tomcat集群：](#使用nginx搭建tomcat集群)
+                - [nginx配置：](#nginx配置)
         - [多机多实例tomcat集群的搭建：](#多机多实例tomcat集群的搭建)
 
 <!-- /TOC -->
@@ -127,6 +131,63 @@ configure arguments: --user=www --group=www --prefix=/usr/local/bin/tomcatCluste
 ```
 表示当前的nginx编译成功。
 
+
+```shell
+#添加用户跟用户组
+/usr/sbin/groupadd -f www
+/usr/sbin/useradd -g www www
+
+#启动
+/server/service/nginx/sbin/nginx -c /server/service/nginx/conf/nginx.conf
+./nginx -s reload
+
+#查询nginx主进程号 
+ps -ef | grep nginx
+#停止进程 
+kill -QUIT 主进程号 
+#快速停止 
+kill -TERM 主进程号 
+#强制停止 
+pkill -9 nginx
+```
+
+#### Redis的编译安装：
+从Redis官方网站：https://redis.io/  获取最新的稳定版本代码
+解压缩之后进行编译安装：
+```shell
+make PREFIX=/usr/local/bin/redis install
+yum install tcl
+make test
+```
+如果使用：
+```shell
+make
+make install
+```
+如果make的时候没有设置参数，执行上述命令，会自动把redis-server,redis-cli,redis-benchmark,redis-check-aof,redis-check-dump复制到/usr/local/bin目录下。我们也可以手动将当前编译的文件拷贝过去，作为运行环境。
+
+然后使用默认配置文件启动redis服务：
+```shell
+./redis-server
+```
+也可以自己设置配置来启动：
+```shell
+./redis-server redis.conf
+```
+启动redis服务进程后，就可以使用测试客户端程序redis-cli和redis服务交互了。例如：
+```shell
+./redis-cli 
+127.0.0.1:6379> set hello world 
+OK
+127.0.0.1:6379> get hello
+"world"
+```
+到此为止，Redis就是可用状态了。
+更多细节可以参考《Redis实战》
+关于Redis在tomcat集群中的使用，可以参考：
+[CentOS7 Nginx+Redis+Tomcat集群实现session保持和共享](https://my.oschina.net/huangweibin/blog/671485)
+
+
 ### 多个tomcat实例的配置修改：
 同时复制两个tomcat到目录下，修改server.xml文件，具体修改为：
 可以通过命令查看：
@@ -177,7 +238,17 @@ diff -urNa server.xml /usr/local/bin/tomcatCluster/tomcatServer_2/conf/server.xm
 ## tomcat集群搭建：
 
 ### 单机多实例tomcat集群的搭建：
+当前测试的场景为，在一台主机上启动多个tomcat实例，部署相同的应用。
+
+#### 使用apache搭建tomcat集群：
 采用apache和tomcat来一起处理，可以达到目的是负载均衡，通过多个tomcat服务器来提高最高访问并发，充分使用当前服务器的性能。
 
+
+
+
+
+#### 使用nginx搭建tomcat集群：
+##### nginx配置：
+nginx的配置位于conf文件夹下，主要用于
 
 ### 多机多实例tomcat集群的搭建：
