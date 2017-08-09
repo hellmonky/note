@@ -3,21 +3,34 @@
 - [KVM原理和学习](#kvm原理和学习)
     - [基本概念：](#基本概念)
     - [基本环境搭建：](#基本环境搭建)
-        - [环境检测：](#环境检测)
-        - [打开虚拟化支持：](#打开虚拟化支持)
+        - [环境检查：](#环境检查)
+            - [硬件环境检测：](#硬件环境检测)
+            - [打开BIOS中的虚拟化支持：](#打开bios中的虚拟化支持)
+            - [软件环境检查：](#软件环境检查)
+                - [检查当前是否有kvm内核模块：](#检查当前是否有kvm内核模块)
+                - [编译kvm模块，然后加载到内核：](#编译kvm模块然后加载到内核)
         - [安装kvm运行环境：](#安装kvm运行环境)
             - [ubuntu安装基本运行环境：](#ubuntu安装基本运行环境)
             - [centos7环境下安装运行环境：](#centos7环境下安装运行环境)
             - [安装kvm-qemu：](#安装kvm-qemu)
-        - [kvm基本使用流程：](#kvm基本使用流程)
+    - [kvm基本使用流程：](#kvm基本使用流程)
+        - [创建镜像，并且安装centos7：](#创建镜像并且安装centos7)
             - [（1）首先创建一个虚拟机镜像，类型为qcow2，文件名为centos.img，大小为50G：](#1首先创建一个虚拟机镜像类型为qcow2文件名为centosimg大小为50g)
             - [（2）然后使用IOS启动虚拟机：](#2然后使用ios启动虚拟机)
             - [（3）安装虚拟机，然后做基本设置，保证基础镜像准确：](#3安装虚拟机然后做基本设置保证基础镜像准确)
             - [（4）从基础镜像做差分镜像，减少空间用量：](#4从基础镜像做差分镜像减少空间用量)
             - [（5）搭建差分镜像的集群：](#5搭建差分镜像的集群)
-                - [NAT方式：](#nat方式)
-                - [Bridge方式：](#bridge方式)
+            - [（6）命令总结：](#6命令总结)
+    - [kvm中的网络设置：](#kvm中的网络设置)
+        - [NAT方式：](#nat方式)
+        - [Bridge方式：](#bridge方式)
+    - [tun虚拟化网卡：](#tun虚拟化网卡)
+        - [tun原理：](#tun原理)
+        - [启用tun内核支持：](#启用tun内核支持)
+        - [使用tun创建多个网卡：](#使用tun创建多个网卡)
+    - [KVM基本原理学习：](#kvm基本原理学习)
     - [Libvirt学习：](#libvirt学习)
+        - [libvirt的python API调用封装：](#libvirt的python-api调用封装)
     - [Virtio学习：](#virtio学习)
 
 <!-- /TOC -->
@@ -71,7 +84,8 @@ Qemu模拟其他的硬件，如Network, Disk，同样会影响这些设备的性
 ## 基本环境搭建：
 为了使用kvm，我们需要一个运行linux系统的物理机，这儿选择了ThinkPad X1 Carbon，安装ubuntu 16.04作为基本环境。
 
-### 环境检测： 
+### 环境检查：
+#### 硬件环境检测： 
 KVM 需要有 CPU 的支持（Intel vmx 或 AMD svm）,在安装 KVM 之前检查一下 CPU 是否提供了虚拟技术的支持,有显示,有显示则说明宿主机处理器具有VT功能。
 全虚拟化支持可以通过获取cpu信息来检查：
 ```shell
@@ -94,14 +108,59 @@ rpm -qa | grep qemu*
 > - [阿里云ECS上能否再做虚拟化？](https://bbs.aliyun.com/read/273042.html)
 
 
-### 打开虚拟化支持：
+#### 打开BIOS中的虚拟化支持：
 要使用kvm，必须首先确保当前的处理器有虚拟化支持，并且需要在BIOS中打开。
 
+#### 软件环境检查：
+##### 检查当前是否有kvm内核模块：
+lsmod | grep kvm
+然后检查是否有 /device/kvm 这个块存储设备。
+如果都存在就说明当前内核支持kvm模块，并且提供了接口，只需要安装后端模拟器和管理工具就可以了。
+如果没有就需要重新编译内核，打开对kvm的支持。
+
+##### 编译kvm模块，然后加载到内核：
+kvm作为kernel的一个模块，如果需要在特定的内核版本上完成支持，就需要结合当前内核版本进行kvm的编译安装。
+并且内核模块可以方便的动态加载，可以单独编译KVM模块，而不必每次重新编译内核，增加了灵活性。
+
+
+
+
+编译安装kvm-kmod：
+（1）首先下载kvm-kmod源码并解压。
+（2）进入源码目录。
+（3）./configure--kerneldir=/lib/modules/2.6.38.8/source   //注意该路径是自己想要使用的内核路径
+（4）make
+（5）make install
+
+如果过程中一切正常就是安装完成了。
+
+加载编译完成的内核模块：
+此时需要加载kvm.ko以及kvm-intel.ko模块。
+（1）首先查看一下当前系统有没有加载这两个模块。lsmod |grep kvm
+（2）如果已经加载了这两个模块，卸载掉。rmmod kvm-intel.ko        rmmod kvm.ko
+卸载完成后加载自己编译好的模块。
+这里注意要选中自己新编译的ko文件，这个可以在前面限定路径
+insmod kvm.ko
+insmod kvm-intel.ko
+
+每次修改源码可以通过这种方式重新编译加载。
+    
+
+
+
+
 ### 安装kvm运行环境：
+完成上述基本硬件和软件检查后，我们就可以正式搭建kvm的运行环境了。
+因为除了在内核空间的KVM模块之外，在用户空间需要QEMU来模拟所需要CPU和设备模型以及用于启动客户机进程，这样才有了一个完整的KVM运行环境。
+也可以使用qemu-kvm，这是一个为了针对KVM专门做了修改和优化的QEMU分支。可以从官方网站下载最新的qemu-kvm源码：
+git clone git://git.kernel.org/pub/scm/virt/kvm/qemu-kvm.git
+
 #### ubuntu安装基本运行环境：
 需要注意的是：安装qemu-kvm和libvirt-bin将自动创建用户组：
 https://linux.cn/article-7060-1.html
 然后就可以使用界面管理了，否则会出现没有权限访问的错误。
+
+因为需要频繁使用终端，安装了guake之后效率提升非常大，太方便了。
 
 
 #### centos7环境下安装运行环境：
@@ -152,7 +211,9 @@ kvm负责cpu虚拟化+内存虚拟化,实现了cpu和内存的虚拟化,但kvm�
 [虚拟化方案之－－kvm简单教程](http://xstarcd.github.io/wiki/Cloud/kvm_tap_bridge_virtio.html)
 
 
-### kvm基本使用流程：
+## kvm基本使用流程：
+
+### 创建镜像，并且安装centos7：
 #### （1）首先创建一个虚拟机镜像，类型为qcow2，文件名为centos.img，大小为50G：
 ```shell
 ubuntu@ubuntu:~/kvm_dev/centos$ qemu-img create -f qcow2 centos.img 50G
@@ -191,23 +252,7 @@ qemu-img create -b centos.img -f qcow2 vm_3.qcow2
 所谓用户模式就是：虚拟机可以使用网络服务，但局域网中其他机器包括宿主机无法连接它。比如，它可以浏览网页，但外部机器不能访问架设在它里面的web服务器。
 默认的，虚拟机得到的ip空间为10.0.2.0/24，主机ip为10.0.2.2供虚拟机访问。可以ssh到主机(10.0.2.2)，用scp来拷贝文件。
 
-##### NAT方式：
-我们为了保证每个虚拟机都有固定的IP，修改网络配置文件：
-nano /etc/sysconfig/network-scripts/ifcfg-ens3
-然后添加内容为：
-IPADDR=10.0.2.11
-GATEWAY=10.0.2.2
-NETMASK=255.255.255.0
-DNS1=10.0.2.2
-DNS2=8.8.8.8
-保存后，重启网络：
-systemctl restart network.service
-然后重新查看当前IP内容为：
-ifconfig
-
-##### Bridge方式：
-和其他同事沟通了一下，如果内部vm组网，最好的方式就是通过bridge的方式进行网络规划，这样每个节点都有自己的独立IP。
-
+#### （6）命令总结：
 
 qemu-img create -f qcow2 centos1.img 50G
 
@@ -242,13 +287,270 @@ qemu-system-x86_64 --enable-kvm  -cpu kvm64 -m 2048 /home/ubuntu/kvm_dev/centos/
 
 virt-install -n centostst2 --ram 2048 --disk /home/ubuntu/kvm_dev/centos_cluster/centos_2.img --import --network bridge=virbr0
 
-
 首先启动说上述三个镜像，然后修改网络地址：
 需要注意的是，当前的kvm使用的网卡为virbr0。
 
-参考：
-[KVM/QEMU桥接网络设置及kvm资料](http://blog.csdn.net/cd520yy/article/details/10003343)
+## kvm中的网络设置：
+网络是非常重要的一个内容，需要认证仔细的进行组网才能保证整个集群运行稳定。这方面自己很欠缺，还是要多多学习。
+KVM提供了两种组网方式：NAT模式和Bridge模式。
 
+### NAT方式：
+我们为了保证每个虚拟机都有固定的IP，修改网络配置文件：
+nano /etc/sysconfig/network-scripts/ifcfg-ens3
+然后添加内容为：
+IPADDR=10.0.2.11
+GATEWAY=10.0.2.2
+NETMASK=255.255.255.0
+DNS1=10.0.2.2
+DNS2=8.8.8.8
+保存后，重启网络：
+systemctl restart networking.service
+然后重新查看当前IP内容为：
+ifconfig
+
+### Bridge方式：
+和其他同事沟通了一下，如果内部vm组网，最好的方式就是通过bridge的方式进行网络规划，这样每个节点都有自己的独立IP。
+
+安装KVM完毕后，使用iconfig检查就会发现多处一个virtbr0。
+KVM 会自己创建一个 virbr0 的桥接网络，但是这个是一个 NAT 的网络，没有办法跟局域网内的其他主机进行通信。
+
+首先需要在host上，新建一个桥接：
+nano /etc/network/interface
+在文件后面添加内容：
+```shell
+# The bridged network interface
+auto br0
+iface br0 inet static
+    address 1.2.3.4
+    netmask 255.255.255.0
+    gateway 1.2.3.1
+    dns-nameservers 1.2.3.1
+    bridge_ports enp9s0
+    bridge_stop off
+    bridge_fd 0
+    bridge_maxwait 0
+```
+保存后重启网络：
+sudo /etc/init.d/networking restart
+或者
+sudo systemctl restart networking.service
+重启完毕后使用ifconfig就可以看到br0这个桥接生效了：
+```shell
+ubuntu@ubuntu:/etc/network$ ifconfig
+br0       Link encap:Ethernet  HWaddr 3e:2a:4f:6b:0c:be  
+          inet addr:1.2.3.4  Bcast:1.2.3.255  Mask:255.255.255.0
+          inet6 addr: fe80::3c2a:4fff:fe6b:cbe/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:60 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:6246 (6.2 KB)
+
+enp0s25   Link encap:Ethernet  HWaddr 54:ee:75:1e:6d:dd  
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+          Interrupt:20 Memory:f0500000-f0520000 
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:478 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:478 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:35248 (35.2 KB)  TX bytes:35248 (35.2 KB)
+
+tap0      Link encap:Ethernet  HWaddr c6:11:76:03:e9:03  
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+virbr0    Link encap:Ethernet  HWaddr 00:00:00:00:00:00  
+          inet addr:192.168.122.1  Bcast:192.168.122.255  Mask:255.255.255.0
+          UP BROADCAST MULTICAST  MTU:1500  Metric:1
+          RX packets:0 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:0 (0.0 B)  TX bytes:0 (0.0 B)
+
+wlp3s0    Link encap:Ethernet  HWaddr 28:b2:bd:08:4d:96  
+          inet addr:30.27.84.212  Bcast:30.27.87.255  Mask:255.255.252.0
+          inet6 addr: fe80::58bf:8c91:6af5:32ce/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:8886 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:1561 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:1230738 (1.2 MB)  TX bytes:189619 (189.6 KB)
+```
+然后验证一下桥接状态：
+sudo brctl show
+也能够看到这个网桥了：
+```shell
+ubuntu@ubuntu:/etc/network$ sudo brctl show
+bridge name	bridge id		STP enabled	interfaces
+br0		8000.000000000000	no		
+virbr0		8000.000000000000	yes	
+```
+
+参考文档：
+> - [KVM/QEMU桥接网络设置及kvm资料](http://blog.csdn.net/cd520yy/article/details/10003343)
+> - [在 Ubuntu 的 KVM 中安装 Windows 系统](https://tommy.net.cn/2017/01/06/install-windows-under-ubuntu-and-kvm/)
+
+
+## tun虚拟化网卡：
+如果需要在一台物理机上进行多个vm的组网，我们的一个物理网卡就不够用了，需要使用虚拟网卡来辅助组网。
+
+### tun原理：
+Tun/Tap都是虚拟网卡，没有直接映射到物理网卡，是一种纯软件的实现。
+Tun是三层虚拟设备，能够处理三层即IP包，Tap是二层设备，能处理链路层网络包如以太网包。使用虚拟网络设备，可以实现隧道，如OpenVPN的实现。
+
+tun/tap驱动程序实现了虚拟网卡的功能，tun表示虚拟的是点对点设备，tap表示虚拟的是以太网设备，这两种设备针对网络包实施不同的封装。利用tun/tap驱动，可以将tcp/ip协议栈处理好的网络分包传给任何一个使用tun/tap驱动的进程，由进程重新处理后再发到物理链路中。
+
+linux中使用uml-utilities工具提供tunctl,用来生成tun接口(三层)；bridge_utils提供brctl工具，用来生成tap接口(二层)。
+
+参考文档：
+[Linux下Tun/Tap设备通信原理](http://blog.csdn.net/flyforfreedom2008/article/details/46038853)
+[虚拟网卡 TUN/TAP 驱动程序设计原理](https://www.ibm.com/developerworks/cn/linux/l-tuntap/)
+[tun／tap工作原理分析](http://itoedr.blog.163.com/blog/static/12028429720143561235469/)
+
+
+### 启用tun内核支持：
+对于虚拟网卡，可以使用：
+sudo apt-get install uml-utilities
+完成安装，然后检查内核模块：
+lsmod | grep tun
+是没有的，但是查看设备驱动是已经存在：
+ll /dev/net/tun
+然后加载一下tun模块：
+modprobe tun
+lsmod | grep tun
+还是没有，找一下tun.ko模块是否存在：
+/lib/modules/xxx/kernel/drivers/net/tun.ko
+发现虽然安装了uml-utilities，但是实际上并没有提供这个模块，造成这种情况的原因就是内核编译的时候，tun模块没有被打开，需要重新编译内核打开这个模块。
+
+根据tun/tap的原理，uml-utilities这个工具只是提供了tunctl进行管理，对于内核模块是没有办法提供支持的。所以上述步骤中，安装前就应该检查是否存在这个内核模块。
+
+
+（1）下载对应当前内核版本的源代码：
+首先，检查当前使用的内核版本：
+uname -a
+然后下载当前内核版本对应的linux源代码：
+sudo apt-get install linux-source-4.4.0
+源码一般会被安装到/usr/src/linux-source-x.x.x/目录下,x.x.x是版本号。
+然后在这个目录下就能找到刚刚下载的源代码tar包了。
+然后解压缩到工作目录（不建议在这个文件夹下解压？）
+tar -xvjf linux-source-4.8.0.tar.bz2 -C /x/x/x
+
+（2）编译：
+首先安装依赖：
+apt-get install libncurses5-dev libssl-dev
+然后配置需要编译的模块:
+make menuconfig
+找到Device Drivers -->,回车选择:
+继续找到Network Device Support -->,回车选择:
+找到Universal TUN/TAP device driver support,看到前面是<*>，键盘输入M，变成<M>，退出并保存,回到终端:
+
+> 注：[*],<*>表示编译进内核，<M>表示编译成模块，如果不知道某选项为何时，且有模块可选时，那么就可以直接选择为模块,如果有疑惑,可以去翻鸟哥的linux私房菜基础篇这本书.
+
+开始执行命令:
+make -j4 modules
+
+（3）复制加载模块
+编译完成后,可以想内核中加载模块了:
+cp /xxx/linux-source-4.8.0/drivers/net/tun.ko  /lib/modules/xxx/kernel/net/tun.ko
+将编译过后的tun.ko复制到/lib/modules/xxx/kernel/net/目录下去,xxx是一个和你当前内核版本号相关的目录,一般而言,这个目录下也就xxx这么一个目录.
+然后执行安装：
+modprope tun
+检查内核日志：
+dmesg | tail
+显示：
+tun: no symbol version for module_layout
+原因是内核的版本不匹配,因为我之前使用的内核版本和我编译的内核版本版本存在差异。
+
+这个时候modinfo tun也是没有任何信息的，但是如果指定tun.ko的具体路径，可以看到：
+ubuntu@ubuntu:~$ modinfo /lib/modules/4.4.0-89-generic/kernel/net/tun.ko 
+filename:       /lib/modules/4.4.0-89-generic/kernel/net/tun.ko
+alias:          devname:net/tun
+alias:          char-major-10-200
+license:        GPL
+author:         (C) 1999-2004 Max Krasnyansky <maxk@qualcomm.com>
+description:    Universal TUN/TAP device driver
+srcversion:     8E2E080DACF43BA28D7EFB5
+depends:        
+intree:         Y
+vermagic:       4.4.76 SMP mod_unload modversions 
+
+（4）最终解决方法，重新编译内核：
+上述方式都不行，还是只能重新编译内核，为了方便区分，我选择了4.11版本的内核来进行编译：
+sudo apt-get install linxu-source-4.11.0
+然后解压，添加基本依赖：
+tar -zjvf /usr/src/linux-source-4.11.0//usr/src/linux-source-4.11.0.tar.bz2 -C /home/ubuntu/kvm_dev/origin/
+sudo apt-get install bc
+复制旧版本的配置：
+cp /boot/config-3.19.0-81-generic /home/ubuntu/kvm_dev/origin/linux-source-4.11.0/.config 
+使用配置：
+make oldconfig
+或者图形界面的配置：
+make menuconfig
+设置，将tun作为模块进行编译。
+
+然后编译：
+make -j4
+安装：
+make modules_install
+make install
+完成安装后，检查/boot下面对应的内核镜像是否正确安装，然后重启。
+登入后检查，发现tun模块以及存在了：
+ubuntu@ubuntu:~/kvm_dev/origin/linux-source-4.11.0$ modinfo tun
+filename:       /lib/modules/4.11.12/kernel/drivers/net/tun.ko
+alias:          devname:net/tun
+alias:          char-major-10-200
+license:        GPL
+author:         (C) 1999-2004 Max Krasnyansky <maxk@qualcomm.com>
+description:    Universal TUN/TAP device driver
+srcversion:     04567545119E104B8EEC972
+depends:        
+intree:         Y
+vermagic:       4.11.12 SMP mod_unload modversions 
+
+
+（5）反思：
+如果使用tun来做多网卡的模拟，那么就对底层linux发布版本有要求，不然还需要重新编译内核来打开tun，这点对于用户来将是非常不方便的。
+是否采用其他全软件模拟的方式来完成多网卡的支持，而不需要通过内核支持？
+
+
+参考文档：
+[Ubuntu 16.04虚拟网络设备tun安装](http://blog.csdn.net/lishuhuakai/article/details/70305543)
+[Ubuntu 16.04虚拟网络设备tun安装](http://www.linuxdiyf.com/linux/30181.html)
+[linux内核扩展模块编译tun.ko](http://www.360doc.com/content/14/0124/13/14451193_347548588.shtml)
+
+
+### 使用tun创建多个网卡：
+确认打开tun之后，使用tun来做多网卡的模拟：
+
+创建一个虚拟网卡：
+sudo tunctl -t tap0 -u xxx
+其中的xxx表示用户，默认是root用户，这儿可以指定为当前用户。还可以使用下面的命令创建默认虚拟网卡：
+sudo tunctl -b
+
+激活创建的tap：
+sudo ip link set tap0 up
+这个时候就可以在ifconfig中看到具体的网卡信息了：
+
+将tap0虚拟网卡添加到指定网桥上：
+brctl addif br0 tap0
+
+给网桥配制ip地址：
+ifconfig br0 169.254.251.4 up
+
+
+## KVM基本原理学习：
+熟悉了基本的使用流程，然后深入一点原理，帮助最大效率的使用kvm。
 
 
 ## Libvirt学习：
@@ -280,6 +582,13 @@ libvirt API 的实现是在各个 Hypervisor driver 和 Storage dirver 内。所
 参考文档：
 [KVM 介绍（5）：libvirt 介绍 [ Libvrit for KVM/QEMU ]](http://www.cnblogs.com/sammyliu/p/4558638.html)
 [Libvirt学习总结](http://blog.csdn.net/gaoxingnengjisuan/article/details/9674315)
+
+### libvirt的python API调用封装：
+从官方网站：[libvirt-python](https://github.com/libvirt/libvirt-python) 可以看到最新的发布情况。
+我们的开发也是从这一层开始。
+并且对于这个库的封装使用，还可以参考：[virt-manager](https://github.com/virt-manager/virt-manager) 中的实现。
+例如virt-install这个工具。
+
 
 
 ## Virtio学习：
