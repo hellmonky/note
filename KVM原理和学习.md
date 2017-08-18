@@ -24,14 +24,14 @@
     - [kvm中的网络设置：](#kvm中的网络设置)
         - [NAT方式：](#nat方式)
         - [Bridge方式：](#bridge方式)
-    - [tun虚拟化网卡：](#tun虚拟化网卡)
+    - [Virtio学习：](#virtio学习)
+    - [虚拟网络实现：tun/tap：](#虚拟网络实现tuntap)
         - [tun原理：](#tun原理)
         - [启用tun内核支持：](#启用tun内核支持)
         - [使用tun创建多个网卡：](#使用tun创建多个网卡)
-    - [KVM基本原理学习：](#kvm基本原理学习)
     - [Libvirt学习：](#libvirt学习)
         - [libvirt的python API调用封装：](#libvirt的python-api调用封装)
-    - [Virtio学习：](#virtio学习)
+    - [KVM基本原理学习：](#kvm基本原理学习)
 
 <!-- /TOC -->
 
@@ -121,9 +121,6 @@ lsmod | grep kvm
 ##### 编译kvm模块，然后加载到内核：
 kvm作为kernel的一个模块，如果需要在特定的内核版本上完成支持，就需要结合当前内核版本进行kvm的编译安装。
 并且内核模块可以方便的动态加载，可以单独编译KVM模块，而不必每次重新编译内核，增加了灵活性。
-
-
-
 
 编译安装kvm-kmod：
 （1）首先下载kvm-kmod源码并解压。
@@ -402,7 +399,30 @@ virbr0		8000.000000000000	yes
 > - [在 Ubuntu 的 KVM 中安装 Windows 系统](https://tommy.net.cn/2017/01/06/install-windows-under-ubuntu-and-kvm/)
 
 
-## tun虚拟化网卡：
+
+## Virtio学习：
+根据 [Virtio](https://wiki.libvirt.org/page/Virtio) 上的介绍：
+```text
+Virtio is a virtualization standard for network and disk device drivers where just the guest's device driver "knows" it is running in a virtual environment, and cooperates with the hypervisor. This enables guests to get high performance network and disk operations, and gives most of the performance benefits of paravirtualization.
+```
+也就是说：virtio是针对半虚拟化做的IO优化，即virtio是半虚拟化hypervisor中位于设备之上的抽象层。
+所谓的半虚拟化，就是Guest OS知道它运行在hypervisor之上，并包含了对这个hypervisor特化的驱动程序。而hypervisor也为特定的设备模拟实现后端驱动程序。
+virtio就体现在这两者中，通过在这些前端和后端驱动程序中的virtio，为开发模拟设备提供标准化接口，从而增加代码的跨平台重用率并提高效率。
+
+那么现在需要确认一个问题：alios是否支持半虚拟化，以及网络相关的支持如何？
+
+参考教程：
+[Virtio：针对 Linux 的 I/O 虚拟化框架](https://www.ibm.com/developerworks/cn/linux/l-virtio/index.html)
+[Linux 中的虚拟网络](https://www.ibm.com/developerworks/cn/linux/l-virtual-networking/)
+
+
+
+## 虚拟网络实现：tun/tap：
+libvirt networking 的主要元件是 virtual network switch，也就是 Linux 中的 bridge devices，而連接在 bridge 上的 interface，我們稱為 TAP devices。
+TAP device 是由 Linux 的 TUN/TAP 模組所實作出來，其中 TUN(tunnel) 用來模擬 layer 3 的設備，而 TAP(network tap) 則是用來模擬 layer 2 設備
+
+也就是说tun这个内核提供的网络虚拟化，就是virtio中的网络模块的底层实现了？
+
 如果需要在一台物理机上进行多个vm的组网，我们的一个物理网卡就不够用了，需要使用虚拟网卡来辅助组网。
 
 ### tun原理：
@@ -549,8 +569,6 @@ brctl addif br0 tap0
 ifconfig br0 169.254.251.4 up
 
 
-## KVM基本原理学习：
-熟悉了基本的使用流程，然后深入一点原理，帮助最大效率的使用kvm。
 
 
 ## Libvirt学习：
@@ -591,24 +609,9 @@ libvirt API 的实现是在各个 Hypervisor driver 和 Storage dirver 内。所
 
 
 
-## Virtio学习：
-根据 [Virtio](https://wiki.libvirt.org/page/Virtio) 上的介绍：
-```text
-Virtio is a virtualization standard for network and disk device drivers where just the guest's device driver "knows" it is running in a virtual environment, and cooperates with the hypervisor. This enables guests to get high performance network and disk operations, and gives most of the performance benefits of paravirtualization.
-```
-也就是说：virtio是针对半虚拟化做的IO优化，即virtio是半虚拟化hypervisor中位于设备之上的抽象层。
-所谓的半虚拟化，就是Guest OS知道它运行在hypervisor之上，并包含了对这个hypervisor特化的驱动程序。而hypervisor也为特定的设备模拟实现后端驱动程序。
-virtio就体现在这两者中，通过在这些前端和后端驱动程序中的virtio，为开发模拟设备提供标准化接口，从而增加代码的跨平台重用率并提高效率。
 
-那么现在需要确认一个问题：alios是否支持半虚拟化，以及网络相关的支持如何？
-
-参考教程：
-[Virtio：针对 Linux 的 I/O 虚拟化框架](https://www.ibm.com/developerworks/cn/linux/l-virtio/index.html)
-
-
-
-
-
+## KVM基本原理学习：
+熟悉了基本的使用流程，然后深入一点原理，帮助最大效率的使用kvm。
 
 
 
