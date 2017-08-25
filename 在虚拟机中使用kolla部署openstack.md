@@ -528,9 +528,9 @@ openstack server create \
 ```
 ### （14）进入dashboard创建虚拟机，绑定浮动ip：
 进入dashboard创建与主机即可，网络选择demo-net网络，创建完成后标定浮动ip即可。
-这部分就是在创建虚拟机了。
-使用cirros模板创建的虚机，用户为cirros，密码默认为cubswin:)
-ssh cirros@192.168.122.18
+这部分就是在创建虚拟机了，在dashboard中进行配置就可以了。
+默认只有一个cirros模板，用他来创建的虚机，用户名为：cirros，密码默认为：cubswin:)
+sshpass -p cubswin:) ssh cirros@192.168.122.18
 就可以进入查看当前创建的虚拟机了。
 默认的这个模板为了尽量小，在bin目录下使用了busybox，可以使用：
 busybox --list
@@ -566,9 +566,29 @@ openstack server list
 +--------------------------------------+------+--------+------------------------------------+--------+---------+
 ```
 可以看到当前创建的虚拟机的基本信息，包含网络信息。
-同时，如果要测试KVM中嵌套KVM，就需要将：
+### （16）KVM嵌套虚拟化：
+openstack默认是kvm嵌套虚拟化支持的，但是在之前的设置中，已经修改为qemu的软虚拟化。
+首先检查当前的物理主机是否支持嵌套虚拟化：
+cat /sys/module/kvm_intel/parameters/nested
+如果返回是Y，就表示支持（默认已经打开，否则看其他嵌套虚拟化的打开方式教程）。
+同时，如果要测试KVM中嵌套KVM，就需要将当前openstack的nova设置修改回去：
 /etc/kolla/config/nova/nova-compute.conf
 将其中的qemu修改为kvm就可以了。
+然后重启Nova服务，新建的虚拟机就是嵌套的kvm虚机了。
+### （17）迁移虚拟机：
+将当前测试完毕的kolla虚拟机进行迁移，放在服务器上实际运行。
+那么就需要将当前的这个虚拟机配置文件找到，然后用这个配置文件和镜像来完成迁移。进入：
+/etc/libvirt/qemu/
+就可以看到在virt-manager中命名的虚拟机的xml配置文件，拷贝出来就可以了。
+然后就可以用制作好的镜像和xml配置文件来创建并启动虚拟机：
+virsh define XXX.xml 
+virsh start XXX_NAME
+其中的 XXX_NAME 就是在 XXX.xml中定义的虚拟机的名称。
+测试完毕后，可以使用：
+virsh shutdown XXX_NAME
+关闭虚拟机。
+
+
 
 
 
