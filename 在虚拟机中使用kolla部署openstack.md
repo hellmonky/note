@@ -529,14 +529,46 @@ openstack server create \
 ### （14）进入dashboard创建虚拟机，绑定浮动ip：
 进入dashboard创建与主机即可，网络选择demo-net网络，创建完成后标定浮动ip即可。
 这部分就是在创建虚拟机了。
+使用cirros模板创建的虚机，用户为cirros，密码默认为cubswin:)
+ssh cirros@192.168.122.18
+就可以进入查看当前创建的虚拟机了。
+默认的这个模板为了尽量小，在bin目录下使用了busybox，可以使用：
+busybox --list
+查看支持的命令，然后使用：
+busybox ifconfig
+查看当前的网络配置。
+进入/boot查看内容为：
+```shell
+$ ls -l
+total 8486
+-rw-r--r--    1 root     root        140805 Mar 23  2015 config-3.2.0-80-virtual
+drwxr-xr-x    2 root     root          1024 May  7  2015 grub
+-rw-r--r--    1 root     root       3530665 May  7  2015 initrd.img-3.2.0-80-virtual
+-rw-------    1 root     root       4979632 Mar 23  2015 vmlinuz-3.2.0-80-virtual
+```
 ### （15）检查虚拟网络：
 如果上一步中没有绑定浮动IP，这个查看是没有结果的。
 openstack server list
+如果回显：
+```shell
+Missing value auth-url required for auth plugin password
+```
+需要将之前的export的内容重新载入一下：
+source /etc/kolla/admin-openrc.sh
+然后再次执行：
+openstack server list
 回显：
 ```shell
-
++--------------------------------------+------+--------+------------------------------------+--------+---------+
+| ID                                   | Name | Status | Networks                           | Image  | Flavor  |
++--------------------------------------+------+--------+------------------------------------+--------+---------+
+| 94c5b076-9319-4666-9253-7e1877d94daa | test | ACTIVE | demo-net=10.0.0.11, 192.168.122.18 | cirros | m1.tiny |
++--------------------------------------+------+--------+------------------------------------+--------+---------+
 ```
-
+可以看到当前创建的虚拟机的基本信息，包含网络信息。
+同时，如果要测试KVM中嵌套KVM，就需要将：
+/etc/kolla/config/nova/nova-compute.conf
+将其中的qemu修改为kvm就可以了。
 
 
 
