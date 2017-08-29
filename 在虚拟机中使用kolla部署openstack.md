@@ -1,3 +1,32 @@
+<!-- TOC -->
+
+- [在虚拟机中使用kolla部署openstack](#在虚拟机中使用kolla部署openstack)
+    - [主机配置要求：](#主机配置要求)
+    - [单机搭建流程：](#单机搭建流程)
+        - [（0）设置当前host的网络：](#0设置当前host的网络)
+        - [（1）修改主机名：](#1修改主机名)
+        - [（2）关闭firewalld和iptables：](#2关闭firewalld和iptables)
+        - [（3）重启，然后安装repl源：](#3重启然后安装repl源)
+        - [（4）安装基础软件：](#4安装基础软件)
+        - [（5）安装并且设置docker：](#5安装并且设置docker)
+        - [（6）安装Ansible：](#6安装ansible)
+        - [（7）搭建Registry服务器：](#7搭建registry服务器)
+        - [（8）下载kolla官方提供的ocata镜像：](#8下载kolla官方提供的ocata镜像)
+        - [（9）安装kolla-ansible：](#9安装kolla-ansible)
+        - [（10）安装kolla：](#10安装kolla)
+        - [（11）验证部署：](#11验证部署)
+        - [（12）安装安装OpenStack client端](#12安装安装openstack-client端)
+        - [（13）创建网络：](#13创建网络)
+        - [（14）进入dashboard创建虚拟机，绑定浮动ip：](#14进入dashboard创建虚拟机绑定浮动ip)
+        - [（15）检查虚拟网络：](#15检查虚拟网络)
+        - [（16）KVM嵌套虚拟化：](#16kvm嵌套虚拟化)
+        - [（17）迁移虚拟机：](#17迁移虚拟机)
+        - [（18）使用libvirt管理虚拟机：](#18使用libvirt管理虚拟机)
+    - [OpenStack的命令行工具使用：](#openstack的命令行工具使用)
+    - [OpenStack的编程开发：](#openstack的编程开发)
+
+<!-- /TOC -->
+
 # 在虚拟机中使用kolla部署openstack
 
 我果然变成了运维~
@@ -571,6 +600,12 @@ openstack默认是kvm嵌套虚拟化支持的，但是在之前的设置中，�
 首先检查当前的物理主机是否支持嵌套虚拟化：
 cat /sys/module/kvm_intel/parameters/nested
 如果返回是Y，就表示支持（默认已经打开，否则看其他嵌套虚拟化的打开方式教程）。
+在ubuntu上，嵌套虚拟化的打开配置放在：
+/etc/modprobe.d/qemu-system-x86.conf
+内容为：
+```shell
+options kvm_intel nested=1
+```
 同时，如果要测试KVM中嵌套KVM，就需要将当前openstack的nova设置修改回去：
 /etc/kolla/config/nova/nova-compute.conf
 将其中的qemu修改为kvm就可以了。
@@ -585,13 +620,186 @@ virsh define XXX.xml
 virsh start XXX_NAME
 其中的 XXX_NAME 就是在 XXX.xml中定义的虚拟机的名称。
 测试完毕后，可以使用：
+virsh list
+查看当前正在运行的虚拟机。如果要关闭，可以使用：
 virsh shutdown XXX_NAME
 关闭虚拟机。
+### （18）使用libvirt管理虚拟机：
+常规情况下，安装完 KVM 之后，可能都会通过 VNC 连接到 KVM 虚拟机里面去设置相应的 IP 等信息。但是这样子，一方面可能会因为打开过多的端口造成安全问题，另一方面也不是会便捷。针对此种情况，我们可以使用 KVM 为我们提供的 console 接口功能，它可以采用字符界面进行 linux 虚拟机控制台连接。这样子，及时 KVM 虚拟机没有 IP 地址，又或者 KVM 虚拟机出现了问题通过 IP 连接不进去了，都可以很便捷的快速进入到 KVM 虚拟机里面去排查问题。
+在远程服务器上也存在这个问题，如果KVM虚机的VNC端口没有打开，网络也没有设置通过，那么就需要通过SSH到远程服务器，然后virsh来进入虚机，设置好网络之后，再SSH进入进行管理。
+这样也说明，只需要在远程服务器安装好libvirt就可以了，本地只需要SSH上去就可以执行操作。
+
+打开KVM虚机的console支持：
+> - 当前以centos7为例进行说明，具体的修改方法因系统不同存在差异。
+
+（1）由于 /etc/securetty 文件允许你规定 root 用户可以从哪个 TTY 设备登录，因此我们需要添加 ttyS0 的安全许可，即将 ttyS0 添加至该文件，来允许我们的 root 用户登录。
+echo "ttyS0" >> /etc/securetty
+在centos7中，已经默认添加。
+（2）通过在 /etc/inittab 里加一个 ttyS0 ，来使得系统启动时能够生成一个 ttyS0 来接收来自内核的数据：
+vim /etc/inittab
+在文件的最后添加如下内容：
+S0:12345:respawn:/sbin/agetty ttyS0 115200
+（3）通过为内核传递参数 console=ttyS0，来让内核把输出定向至 ttyS0：
+grubby --update-kernel=ALL --args="console=ttyS0"
+重启虚机后生效。
+（4）使用virsh console来进行连接：
+virsh console instance001
+然后等待：
+```shell
+连接到域 centos7_base
+换码符为 ^]
+```
+然后回车，进入系统，输入密码。
+（5）如果需要退出，输入：
+Ctrl+]
+
+参考文档：
+> - [配置KVM宿主机使用vish console命令直接进入CentOS6虚拟机](http://blog.csdn.net/oyym_mv/article/details/52412797)
+> - [Virsh Console CentOS7](https://paulmellorsblog.wordpress.com/2015/01/23/virsh-console-centos7/)
+
+如果在本地也安装了libvirt，也可以通过他来对远程的kvm虚机进行管理：
+virsh --connect qemu+ssh://root@10.20.190.3/system list --all
 
 
 
 
 
 参考文档：
-[利用kolla快速搭建openstack-ocata单节点](https://www.lijiawang.org/posts/kolla-openstack-ocata.html)
+> - [利用kolla快速搭建openstack-ocata单节点](https://www.lijiawang.org/posts/kolla-openstack-ocata.html)：
 本文就是按照这个文档，在KVM的centos7_x86-64上面完成了部署测试。
+
+> - [陈沙克日志](http://www.chenshake.com/)：
+这位是kolla的开发团队人员，可以通过开发者的视角多了解一下。
+
+
+## OpenStack的命令行工具使用：
+使用：
+pip install python-openstackclient
+默认安装完毕后，就可以在浏览器中使用dashboard进行管理了。
+但是很多时候命令行工具能给出更快速和自由的交互方式，本质上dashboard也是通过openstackclient来进行调用和操作的。
+根据[OpenStackClient官方文档](https://docs.openstack.org/python-openstackclient/latest/index.html)，可以进行调用测试。
+并且对于计算资源，可以使用nova来进行管理和创建。
+
+
+
+
+## OpenStack的编程开发：
+这儿使用OpenStack的python库来进行开发。
+```shell
+python-keystoneclient
+python-glanceclient
+python-novaclient
+python-quantumclient
+python-cinderclient
+python-swiftclient
+```
+安装完毕之后，查看当前openstakc的入口地址：
+```shell
+openstack endpoint list
++----------------------------------+-----------+--------------+----------------+---------+-----------+------------------------------------------------+
+| ID                               | Region    | Service Name | Service Type   | Enabled | Interface | URL                                            |
++----------------------------------+-----------+--------------+----------------+---------+-----------+------------------------------------------------+
+| 161aa03fc28b45d8a6928fcbb753cee0 | RegionOne | neutron      | network        | True    | internal  | http://192.168.122.100:9696                    |
+| 2349cac6df434fdba502f561107c18bb | RegionOne | heat         | orchestration  | True    | internal  | http://192.168.122.100:8004/v1/%(tenant_id)s   |
+| 2bb403d3de094524a1211f704224e8fa | RegionOne | glance       | image          | True    | public    | http://192.168.122.100:9292                    |
+| 31299bf472264b24bd3876666c6b13e9 | RegionOne | glance       | image          | True    | admin     | http://192.168.122.100:9292                    |
+| 3349396ee2634075b2fb228f6f7f78ae | RegionOne | nova_legacy  | compute_legacy | True    | internal  | http://192.168.122.100:8774/v2/%(tenant_id)s   |
+| 3bcce02b97824046a5df683fd43afec7 | RegionOne | nova         | compute        | True    | public    | http://192.168.122.100:8774/v2.1/%(tenant_id)s |
+| 40f8f4202bbc42a18784d0c3832440f5 | RegionOne | placement    | placement      | True    | public    | http://192.168.122.100:8780                    |
+| 42a0ada41b764a0095ae779d015cd930 | RegionOne | placement    | placement      | True    | internal  | http://192.168.122.100:8780                    |
+| 4c2bdc52bc294afea5dace9a2a7e3ed3 | RegionOne | heat-cfn     | cloudformation | True    | public    | http://192.168.122.100:8000/v1                 |
+| 6ba1a237771b41559fb40d0a03afcc43 | RegionOne | neutron      | network        | True    | public    | http://192.168.122.100:9696                    |
+| 6d158ec24d3a4e88a2d3ea609989ce17 | RegionOne | heat-cfn     | cloudformation | True    | internal  | http://192.168.122.100:8000/v1                 |
+| 7a450afba3284b7798e96555cdd55bbb | RegionOne | nova         | compute        | True    | admin     | http://192.168.122.100:8774/v2.1/%(tenant_id)s |
+| 981d1525c635455a81cd01360b180963 | RegionOne | nova_legacy  | compute_legacy | True    | admin     | http://192.168.122.100:8774/v2/%(tenant_id)s   |
+| af831d0b1f7d49168dd34bd4c31c1582 | RegionOne | keystone     | identity       | True    | public    | http://192.168.122.100:5000/v3                 |
+| b398aa78ab554cd39e3ae0c6d83c86eb | RegionOne | nova         | compute        | True    | internal  | http://192.168.122.100:8774/v2.1/%(tenant_id)s |
+| b61826aeefcd4b4e8d4554e8fe2390c8 | RegionOne | placement    | placement      | True    | admin     | http://192.168.122.100:8780                    |
+| bbf369e7e0ab41fc9067e3892c8528ee | RegionOne | heat         | orchestration  | True    | admin     | http://192.168.122.100:8004/v1/%(tenant_id)s   |
+| c2c2c6a56bfa4157a8a1fdbff965505c | RegionOne | keystone     | identity       | True    | admin     | http://192.168.122.100:35357/v3                |
+| d289ef07783b47c7a5d14344f1736554 | RegionOne | glance       | image          | True    | internal  | http://192.168.122.100:9292                    |
+| dd0143e0a7704638ba8683d751b09841 | RegionOne | keystone     | identity       | True    | internal  | http://192.168.122.100:5000/v3                 |
+| e128a9b245214088a75805064b07ea94 | RegionOne | nova_legacy  | compute_legacy | True    | public    | http://192.168.122.100:8774/v2/%(tenant_id)s   |
+| e37fadd15e864b7ead54f7b63dab4c29 | RegionOne | heat-cfn     | cloudformation | True    | admin     | http://192.168.122.100:8000/v1                 |
+| fb012310791648bc85bcee4c022cfd0f | RegionOne | neutron      | network        | True    | admin     | http://192.168.122.100:9696                    |
+| fe7e389e1c934ccd8f9e1d8b6b502b81 | RegionOne | heat         | orchestration  | True    | public    | http://192.168.122.100:8004/v1/%(tenant_id)s   |
++----------------------------------+-----------+--------------+----------------+---------+-----------+------------------------------------------------+
+```
+以nova为例，调用方式：
+```python
+import os
+import time
+from novaclient import client
+ 
+nova = client.Client('2.1', 'admin','admin','test','http://192.168.122.100:5000/v3')
+print nova.servers.list()
+```
+其中的url就是授权url，对应上述表中的keystone地址。
+参考文档：
+[python-novaclient官方文档](https://github.com/openstack/python-novaclient/blob/master/novaclient/client.py)
+[The novaclient Python API](https://docs.openstack.org/python-novaclient/latest/reference/api/index.html)
+
+
+```python
+import keystoneclient.v2_0.client as ksclient
+# Replace the method arguments with the ones from your local config
+keystone = ksclient.Client(auth_url="http://192.168.122.100:5000/v3",
+                           username="admin",
+                           password="admin",
+                           tenant_name="admin")
+glance_service = keystone.services.create(name="glance",
+                            service_type="image",
+                            description="OpenStack Image Service")
+auth = loader.load_from_options(auth_url="http://192.168.122.100:5000/v3", username="admin", password="admin", project_id="admin")                           
+                            
+```
+
+查看日志地址为：
+/var/lib/docker/volumes/kolla_logs/_data/
+所有的kolla存储的日志都在这个路径下。
+[root@kolla keystone]# openstack project list
++----------------------------------+---------+
+| ID                               | Name    |
++----------------------------------+---------+
+| 635f31a861ab4732974d7ec99e158aa8 | service |
+| c04b9155ef0f4469ac55b9cd2acf2b95 | admin   |
++----------------------------------+---------+
+nova中一定要使用project_id来代替name，否则会出现keystone找不到project的问题
+然后添加：
+/etc/kolla/config/nova/nova-compute.conf
+[neutron]
+user_domain_name = default
+否则会出现：
+Expecting to find domain in user. The server could not comply with the request since it is either malformed or otherwise incorrect. The client is assumed to be in error.
+
+目前测试通过的代码：
+```python
+from openstack import connection
+auth_args = {
+    'auth_url': 'http://192.168.122.100:35357/v3',
+    'project_name': 'admin',
+    'user_domain_name': 'default',
+    'project_domain_name': 'default',
+    'username': 'admin',
+    'password': 'admin',
+}
+conn = connection.Connection(**auth_args)
+conn.authorize()
+```
+返回当前的授权码。
+
+find / -name nova
+找到nova的可执行路径为:
+/var/lib/docker/overlay/0708a9436e6893d5576a69408a06620f7ec8de30792f270b90080fa7627db1b8/root/usr/bin/nova
+然后执行：
+/var/lib/docker/overlay/0708a9436e6893d5576a69408a06620f7ec8de30792f270b90080fa7627db1b8/root/usr/bin/nova flavor-list
+获取模板结果为：
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| ID | Name      | Memory_MB | Disk | Ephemeral | Swap | VCPUs | RXTX_Factor | Is_Public |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+
+| 1  | m1.tiny   | 512       | 1    | 0         |      | 1     | 1.0         | True      |
+| 2  | m1.small  | 2048      | 20   | 0         |      | 1     | 1.0         | True      |
+| 3  | m1.medium | 4096      | 40   | 0         |      | 2     | 1.0         | True      |
+| 4  | m1.large  | 8192      | 80   | 0         |      | 4     | 1.0         | True      |
+| 5  | m1.xlarge | 16384     | 160  | 0         |      | 8     | 1.0         | True      |
++----+-----------+-----------+------+-----------+------+-------+-------------+-----------+

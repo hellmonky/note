@@ -5,6 +5,7 @@
     - [基本环境搭建：](#基本环境搭建)
         - [环境检查：](#环境检查)
             - [硬件环境检测：](#硬件环境检测)
+                - [阿里云ECS：](#阿里云ecs)
             - [打开BIOS中的虚拟化支持：](#打开bios中的虚拟化支持)
             - [软件环境检查：](#软件环境检查)
                 - [检查当前是否有kvm内核模块：](#检查当前是否有kvm内核模块)
@@ -21,6 +22,7 @@
             - [（4）从基础镜像做差分镜像，减少空间用量：](#4从基础镜像做差分镜像减少空间用量)
             - [（5）搭建差分镜像的集群：](#5搭建差分镜像的集群)
             - [（6）命令总结：](#6命令总结)
+        - [在服务器上使用kvm：](#在服务器上使用kvm)
     - [kvm中的网络设置：](#kvm中的网络设置)
         - [NAT方式：](#nat方式)
         - [Bridge方式：](#bridge方式)
@@ -93,6 +95,7 @@ cat /proc/cpuinfo | egrep '(vmx|svm)' | wc -l;
 egrep '(vmx|svm)' --color=always /proc/cpuinfo
 ```
 
+##### 阿里云ECS：
 如果使用了阿里云ECS节点，这个检查返回为0，因为阿里云中的ECS默认关闭kvm，不支持虚拟化功能。但是查看：
 ```shell
 lscpu
@@ -153,6 +156,14 @@ insmod kvm-intel.ko
 git clone git://git.kernel.org/pub/scm/virt/kvm/qemu-kvm.git
 
 #### ubuntu安装基本运行环境：
+使用如下命令搭建虚拟环境测试：
+sudo apt-get install qemu-kvm libvirt0 libvirt-bin virtinst bridge-utils cpu-checker virt-manager
+Register libvirt-bin to systemd：
+sudo systemctl enable libvirt-bin
+然后使用：
+kvm-ok
+检查当前系统的虚拟化是否正确。
+
 需要注意的是：安装qemu-kvm和libvirt-bin将自动创建用户组：
 https://linux.cn/article-7060-1.html
 然后就可以使用界面管理了，否则会出现没有权限访问的错误。
@@ -286,6 +297,14 @@ virt-install -n centostst2 --ram 2048 --disk /home/ubuntu/kvm_dev/centos_cluster
 
 首先启动说上述三个镜像，然后修改网络地址：
 需要注意的是，当前的kvm使用的网卡为virbr0。
+
+
+### 在服务器上使用kvm：
+因为在当前桌面环境使用kvm，会自动打开一个窗口进行交互，但是如果是在服务器上，这个默认打开的窗口是在当前的终端中无法看到的，就会导致开启一个虚拟机，但是无法操作的情况，这个使用就需要使用中转的方式将新创建的终端流和当前的终端进行对接。
+现在采用的方式是之前有人编写的python脚本，内容比较多，现在主要分析一下：
+```python
+
+```
 
 ## kvm中的网络设置：
 网络是非常重要的一个内容，需要认证仔细的进行组网才能保证整个集群运行稳定。这方面自己很欠缺，还是要多多学习。
