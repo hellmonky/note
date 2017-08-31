@@ -680,9 +680,6 @@ pip install python-openstackclient
 根据[OpenStackClient官方文档](https://docs.openstack.org/python-openstackclient/latest/index.html)，可以进行调用测试。
 并且对于计算资源，可以使用nova来进行管理和创建。
 
-
-
-
 ## OpenStack的编程开发：
 这儿使用OpenStack的python库来进行开发。
 ```shell
