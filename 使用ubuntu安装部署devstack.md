@@ -124,9 +124,36 @@ openstack token issue
 | user_id    | ff4ce8704b3a4b87ae97cf3f30d76f6c                                                                                                                                                        |
 +------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 ```
+查看当前的project列表：
+openstack project list
+```shell
++----------------------------------+--------------------+
+| ID                               | Name               |
++----------------------------------+--------------------+
+| 1211eea31a9d41b987b4d8fd7e8ad861 | alt_demo           |
+| 186da217621b48e9887ac83f8cb7eec9 | invisible_to_admin |
+| db33beebbc87439597dab503cbb025e5 | admin              |
+| e39c28ff59964871a102edad8d420dce | service            |
+| e6a7dc5d15e348fe88231de96872b4f1 | demo               |
++----------------------------------+--------------------+
+```
+
 
 参考文档：
 [创建 OpenStack 客户端环境脚本](https://docs.openstack.org/liberty/zh_CN/install-guide-rdo/keystone-openrc.html)
+
+
+## 使用RESTFul接口交互：
+
+curl -v -s -X POST http://192.168.122.175/identity/auth/tokens?nocatalog   -H "Content-Type: application/json"   -d '{ "auth": { "identity": { "methods": ["password"],"password": {"user": {"domain": {"name": "'admin'"},"name": "'admin'", "password": "'password'"} } }, "scope": { "project": { "domain": { "name": "'admin'" }, "name":  "'admin'" } } }}' \
+| python -m json.tool
+
+
+
+参考文档：
+[OpenStack API Documentation](https://developer.openstack.org/api-guide/quick-start/)
+[OpenStack API Documentation 中文](https://developer.openstack.org/zh_CN/api-guide/quick-start/api-quick-start.html)
+
 
 ## 使用openstack的python接口进行编程使用：
 根据[OpenStack SDK官方教程](https://developer.openstack.org/sdks/python/openstacksdk/users/index.html)进行测试代码的编写。
@@ -135,6 +162,15 @@ pip install openstacksdk
 然后导入环境变量：
 source admin-openrc
 编写代码测试。
+
+参考文档：
+[OpenStack Python SDK介绍](http://blog.csdn.net/xiewen99/article/details/52052727)
+[OpenStack Python SDK](https://github.com/openstack/python-openstacksdk)
+[Welcome to the OpenStack SDK!](https://developer.openstack.org/sdks/python/openstacksdk/)
+[Getting started with the OpenStack SDK](https://developer.openstack.org/sdks/python/openstacksdk/users/index.html)
+[OpenStack Pike Project User Guides](https://docs.openstack.org/pike/user/)
+
+### 授权和登入cloud：
 首先要保证当前的pytho代码可以通过认证登入openstack cloud：
 ```python
 from openstack import connection
@@ -146,10 +182,12 @@ auth_args = {
 }
 conn = connection.Connection(**auth_args)
 
+print "current access token:"
+print(conn.authorize())
+
 print "list servers:"
 for server in conn.compute.servers():
     print(server)
-
 
 print "list images:"
 for image in conn.compute.images():
@@ -163,8 +201,11 @@ print "list networks:"
 for network in conn.network.networks():
     print(network)
 ```
+通过上述测试，可以看到获取的内容好dashboard还有CLI中的数据一致，基本的运行环境已经可以了。
+
+### 创建虚拟机：
+使用python API创建一个VM：
 
 
-[OpenStack Pike Project User Guides](https://docs.openstack.org/pike/user/)
-[Getting started with the OpenStack SDK](https://developer.openstack.org/sdks/python/openstacksdk/users/index.html)
-[OpenStack Python SDK](http://blog.csdn.net/xiewen99/article/details/52052727)
+参考文档：
+[root/examples/compute/create.py](http://git.openstack.org/cgit/openstack/python-openstacksdk/tree/examples/compute/create.py)
