@@ -1147,7 +1147,30 @@ https://wiki.alpinelinux.org/wiki/Running_glibc_programs
 https://github.com/sgerrand/alpine-pkg-glibc
 https://github.com/frol/docker-alpine-oraclejdk8
 https://hub.docker.com/r/anapsix/alpine-java/
+或者其他的dist：
+https://superuser.com/questions/307087/linux-distro-with-just-busybox-and-bash
 
+
+最终通过搜索，确认core linux比较合适：
+https://hub.docker.com/r/tatsushid/tinycore/
+http://tinycorelinux.net/downloads.html
+http://tinycorelinux.net/8.x/x86_64/release/
+```shell
+FROM scratch
+ADD rootfs64.tar.gz /
+ADD squashfs-tools.tar.gz /
+
+RUN mkdir -p /tmp/tce/optional \
+    && chown -R root:staff /tmp/tce \
+    && chmod -R g+w /tmp/tce \
+    && $(cd etc/sysconfig; ln -s ../../tmp/tce tcedir) \
+    && echo -n tc > etc/sysconfig/tcuser \
+    && . /etc/init.d/tc-functions \
+    && setupHome
+
+USER tc
+CMD ["/bin/sh"]
+```
 
 
 
