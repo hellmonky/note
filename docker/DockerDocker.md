@@ -1113,15 +1113,14 @@ RUN apk update && apk add curl bash tree tzdata \
 
 # 设置jdk的环境变量
 ENV JAVA_HOME /usr/local/bin/jdk1.8.0_144 \
-    CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar \
-    JRE_HOME $JAVA_HOME/jre
+    CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
 
 # 设置tomcat的环境变量
 ENV CATALINA_HOME /usr/local/bin/apache-tomcat-7.0.81 \
     CATALINA_BASE /usr/local/bin/apache-tomcat-7.0.81
 
 # 设置系统环境变量
-ENV PATH $PATH:$JAVA_HOME/bin:$JRE_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
+ENV PATH $PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
 
 
 # 暴露tomcat接口，默认为8080
@@ -1137,7 +1136,19 @@ docker run -d -p 8090:8080 tomcat
 返现：
 eval: line 1: /usr/local/bin/jdk1.8.0_144/bin/java: not found
 还需要添加jre的bin？？？
-发现问题是在于alpine不支持当前的jdk
+
+发现问题是在于alpine不支持当前的jdk，因为apline是基于musl libc和busybox的。
+
+原因在于apline不支持glibc，而oracle jdk是需要glibc运行时库的。
+https://github.com/gliderlabs/docker-alpine/issues/11
+https://stackoverflow.com/questions/45147371/docker-alpine-oracle-java-cannot-find-java
+https://wiki.alpinelinux.org/wiki/Running_glibc_programs
+适配：
+https://github.com/sgerrand/alpine-pkg-glibc
+https://github.com/frol/docker-alpine-oraclejdk8
+https://hub.docker.com/r/anapsix/alpine-java/
+
+
 
 
 
