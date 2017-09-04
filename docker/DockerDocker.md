@@ -41,7 +41,14 @@
         - [共享kernel带来的风险：](#共享kernel带来的风险)
         - [Docker ulimit：](#docker-ulimit)
     - [Dockerfile语法：](#dockerfile语法)
-        - [使用基础镜像和Dockerfile构建tomcat运行环境：](#使用基础镜像和dockerfile构建tomcat运行环境)
+        - [使用alpine基础镜像和Dockerfile构建tomcat运行环境：](#使用alpine基础镜像和dockerfile构建tomcat运行环境)
+            - [制作alpine基础镜像:](#制作alpine基础镜像)
+            - [从官方网站下载oracle jdk和tomcat7:](#从官方网站下载oracle-jdk和tomcat7)
+            - [构建tomcat工程：](#构建tomcat工程)
+            - [最精简的运行环境：](#最精简的运行环境)
+            - [镜像分层：](#镜像分层)
+            - [其他文档：](#其他文档)
+        - [Dockerfile的语法细节：](#dockerfile的语法细节)
     - [Docker仓库管理：Docker registry](#docker仓库管理docker-registry)
     - [Docker实现的Linux基础：](#docker实现的linux基础)
         - [在A上的实现可能性：](#在a上的实现可能性)
@@ -1049,12 +1056,58 @@ WantedBy=multi-user.target
 通过Dockerfile可以对镜像编程，所以这是一个非常关键的镜像生成方式。
 根据官方文档：[Dockerfile reference](https://docs.docker.com/engine/reference/builder/) 来学习具体的语法规范。
 
-### 使用基础镜像和Dockerfile构建tomcat运行环境：
-准备文件：
-alpine基础镜像；
-oracle jdk；
-tomcat7。
+我们通过一个构建镜像的例子来熟悉一下具体的语法和构建流程，然后再深入学习。
 
+### 使用alpine基础镜像和Dockerfile构建tomcat运行环境：
+为了最小化部署包，我们使用alpine作为基础镜像，然后使用oracle JDK作为基础java运行环境，然后在tomcat7下进行测试。
+
+#### 制作alpine基础镜像:
+wget http://dl-cdn.alpinelinux.org/alpine/v3.6/releases/x86_64/alpine-minirootfs-3.6.2-x86_64.tar.gz
+Dockerfile内容为：
+```shell
+FROM scratch
+ADD alpine-minirootfs-3.6.2-x86_64.tar.gz /
+CMD ["/bin/sh"]
+```
+docker build -t alpine .
+就会生成名称为alpine的基础镜像了。
+
+需要注意的是，在alpine中需要设置时区，才能保证时钟的正常：
+alpine 下修改UTC时间为CST时间 (测试通过)
+```shell
+apk add tzdata 
+ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime 
+echo "Asia/Shanghai" > /etc/timezone
+```
+然后更换alpine的源为国内的：
+http://mirrors.ustc.edu.cn/alpine/v3.6/main
+http://mirrors.ustc.edu.cn/alpine/v3.6/community
+最后综合的结果为：
+```shell
+FROM scratch
+ADD alpine-minirootfs-3.6.2-x86_64.tar.gz /
+RUN rm -f /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/main" >> /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/community" >> /etc/apk/repositories
+RUN apk update --update && apk add tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone
+CMD ["/bin/sh"]
+```
+
+#### 从官方网站下载oracle jdk和tomcat7:
+首先现在tomcat7的当前最新版本：
+wget http://mirror.bit.edu.cn/apache/tomcat/tomcat-7/v7.0.81/bin/apache-tomcat-7.0.81.tar.gz
+
+然后下载当前oracle jdk的最新版本：
+export JAVA_VERSION_MAJOR=8 \
+    JAVA_VERSION_MINOR=144 \
+    JAVA_VERSION_BUILD=01 \
+    JAVA_PACKAGE=jdk
+wget --no-check-certificate -c --header "Cookie: oraclelicense=accept-securebackup-cookie" http://download.oracle.com/otn-pub/java/jdk/${JAVA_VERSION_MAJOR}u${JAVA_VERSION_MINOR}-b${JAVA_VERSION_BUILD}/${JAVA_PACKAGE}-${JAVA_VERSION_MAJOR}u${JAVA_VERSION_MINOR}-linux-x64.tar.gz -o /tmp/java.tar.gz
+
+#### 构建tomcat工程：
+通过设置JAVA_HOME和tomcat的基本运行环境搭建Dockerfile：
 ```shell
 FROM alpine
 
@@ -1132,14 +1185,161 @@ ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/lo
 来持续获取当前的tomcat输出。
 docker run -d -p 8090:8080 tomcat
 就可以了。
-但是检查/usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
-返现：
+但是执行后还是自动退出，使用sh启动当前的镜像：
+docker run -ti tomcat /bin/sh
+然后检查输出日志：/usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
+发现：
 eval: line 1: /usr/local/bin/jdk1.8.0_144/bin/java: not found
-还需要添加jre的bin？？？
+最终确认问题是在于alpine不支持当前的jdk，因为apline是基于musl libc和busybox的，而oracle jdk是需要glibc运行时库的。
 
-发现问题是在于alpine不支持当前的jdk，因为apline是基于musl libc和busybox的。
+关于Linux下的不同C运行时库的实现可以参考：
+http://www.etalabs.net/compare_libcs.html
 
-原因在于apline不支持glibc，而oracle jdk是需要glibc运行时库的。
+如果还是要用alpine作为基础镜像，就需要对当前的alpine linux添加glibc支持，然后安装JDK进行测试。
+需要从：
+https://github.com/sgerrand/alpine-pkg-glibc
+获取对应的三个apk文件，然后进行安装。
+最终的版本Dockerfile文件内容为：
+```shell
+FROM alpine
+
+# 添加基本文件
+ADD jdk-8u144-linux-x64.tar.gz /usr/local/bin/
+ADD apache-tomcat-7.0.81.tar.gz /usr/local/bin
+COPY *.apk /tmp/
+
+# 安装glibc支持
+RUN apk upgrade --update && \
+    apk add bash tree && \
+    apk add --allow-untrusted /tmp/*.apk && \
+    rm -v /tmp/*.apk && \
+    ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib
+
+# 设置jdk的环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_144 \
+    CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+
+# 设置tomcat的环境变量
+ENV CATALINA_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
+    CATALINA_BASE=/usr/local/bin/apache-tomcat-7.0.81
+
+# 设置系统环境变量
+ENV PATH=$PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
+
+# 暴露tomcat接口，默认为8080
+EXPOSE 8080
+
+# 入口 
+ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
+```
+启动容器：
+docker run -d -p 8090:8080 tomcat
+然后在host上访问：
+http://localhost:8090
+就可以看到tomcat正常的启动页面了。
+
+#### 最精简的运行环境：
+上述环境虽然可以运行，但是在JDK中包含了很多的不必要文件，可以通过删除这些文件，减少文件体积。
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+tomcat              latest              c1ec98774feb        41 minutes ago      432MB
+alpine              latest              558174b6522c        2 hours ago         6.38MB
+idea                latest              2ffe3048c6ad        3 days ago          1.4GB
+centos_dev          latest              8de4b2603d68        3 days ago          567MB
+ubuntu              latest              9a402b69afd5        3 days ago          120MB
+busybox             latest              79211bdafeec        3 days ago          4.39MB
+
+
+```shell
+FROM alpine
+
+# 添加基本文件
+ADD jdk-8u144-linux-x64.tar.gz /usr/local/bin/
+ADD apache-tomcat-7.0.81.tar.gz /usr/local/bin
+COPY *.apk /tmp/
+
+# 安装glibc支持
+RUN apk upgrade --update && \
+    apk add bash tree && \
+    apk add --allow-untrusted /tmp/*.apk && \
+    rm -v /tmp/*.apk && \
+    ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib && \
+    mv /usr/local/bin/jdk1.8.0_144/jre /jre && \
+    rm /jre/bin/jjs && \
+    rm /jre/bin/keytool && \
+    rm /jre/bin/orbd && \
+    rm /jre/bin/pack200 && \
+    rm /jre/bin/policytool && \
+    rm /jre/bin/rmid && \
+    rm /jre/bin/rmiregistry && \
+    rm /jre/bin/servertool && \
+    rm /jre/bin/tnameserv && \
+    rm /jre/bin/unpack200 && \
+    rm /jre/lib/ext/nashorn.jar && \
+    rm /jre/lib/jfr.jar && \
+    rm -rf /jre/lib/jfr && \
+    rm -rf /jre/lib/oblique-fonts && \
+    rm -rf /tmp/* /var/cache/apk/* && \
+    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf
+
+# 设置jdk的环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_144 \
+    CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+
+# 设置tomcat的环境变量
+ENV CATALINA_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
+    CATALINA_BASE=/usr/local/bin/apache-tomcat-7.0.81
+
+# 设置系统环境变量
+ENV PATH=$PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
+
+# 暴露tomcat接口，默认为8080
+EXPOSE 8080
+
+# 入口 
+ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
+```
+可以看到少了100M空间。
+
+
+参考文档：
+http://dev.dafan.info/detail/221368?p=32-4
+https://hub.docker.com/r/anapsix/alpine-java/~/dockerfile/
+
+#### 镜像分层：
+```java运行环境
+FROM alpine
+
+# Java Version and other ENV
+ENV JAVA_HOME=/usr/local/bin/jdk \
+    PATH=${PATH}:/usr/local/bin/jdk/bin \
+    LANG=C.UTF-8
+
+# 添加基本文件
+ADD jdk.tar.gz /usr/local/bin/
+COPY *.apk /tmp/
+
+# do all in one step
+RUN apk upgrade --update && \
+    apk add curl bash tree ca-certificates && \
+    apk add --allow-untrusted /tmp/*.apk && \
+    rm -v /tmp/*.apk && \
+    ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib && \
+    apk del curl glibc-i18n && \
+    ln -s /usr/local/bin/jdk1.8.0_144 /usr/local/bin/jdk
+```
+
+#### 其他文档：
+或者更换其他支持glibc的发行版，通过搜索，确认tiny core linux比较合适：
+https://hub.docker.com/r/tatsushid/tinycore/
+http://tinycorelinux.net/downloads.html
+http://tinycorelinux.net/8.x/x86_64/release/
+
 https://github.com/gliderlabs/docker-alpine/issues/11
 https://stackoverflow.com/questions/45147371/docker-alpine-oracle-java-cannot-find-java
 https://wiki.alpinelinux.org/wiki/Running_glibc_programs
@@ -1151,215 +1351,7 @@ https://hub.docker.com/r/anapsix/alpine-java/
 https://superuser.com/questions/307087/linux-distro-with-just-busybox-and-bash
 
 
-最终通过搜索，确认core linux比较合适：
-https://hub.docker.com/r/tatsushid/tinycore/
-http://tinycorelinux.net/downloads.html
-http://tinycorelinux.net/8.x/x86_64/release/
-```shell
-FROM scratch
-ADD rootfs64.tar.gz /
-ADD squashfs-tools.tar.gz /
-
-RUN mkdir -p /tmp/tce/optional \
-    && chown -R root:staff /tmp/tce \
-    && chmod -R g+w /tmp/tce \
-    && $(cd etc/sysconfig; ln -s ../../tmp/tce tcedir) \
-    && echo -n tc > etc/sysconfig/tcuser \
-    && . /etc/init.d/tc-functions \
-    && setupHome
-
-USER tc
-CMD ["/bin/sh"]
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-```shell
-FROM alpine
-
-# 释放基本文件：
-ADD jdk-8u144-linux-x64.tar.gz /usr/local/bin
-ADD apache-tomcat-7.0.81.tar.gz /usr/local/bin
-ADD startup.sh startup.sh
-
-# 更改系统的时区设置
-RUN apk update && apk add curl bash tree tzdata \
-    && cp -r -f /usr/share/zoneinfo/Hongkong /etc/localtime
-
-# 设置jdk的环境变量
-ENV JAVA_HOME /usr/local/bin/jdk1.8.0_144 \
-    CLASSPATH $JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
-
-# 设置tomcat的环境变量
-ENV TOMCAT_MAJOR=7 \
-    TOMCAT_VERSION=7.0.81 \
-    TOMCAT_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
-    CATALINA_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
-    CATALINA_OUT=/dev/null
-
-# 设置系统环境变量
-ENV PATH $PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
-
-
-# 暴露tomcat接口，默认为8080
-EXPOSE 8080
-```
-docker run -it --rm tomcat /usr/local/bin/apache-tomcat-7.0.81/bin/catalina.sh run
-
-
-
-
-
-
-
-
-
-
-./usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh
-
-docker run -it -d --name=tomcat -p 8081:8080 tomcat /bin/sh ./usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh 
-
-然后在当前的host上访问:
-http://localhost:5000
-就可以看到tomcat已经成功启动了。
-
-但是时机使用中
-
-
-
-```shell
-FROM openjdk:8-jre
-
-ENV CATALINA_HOME /usr/local/tomcat
-ENV PATH $CATALINA_HOME/bin:$PATH
-RUN mkdir -p "$CATALINA_HOME"
-WORKDIR $CATALINA_HOME
-
-# let "Tomcat Native" live somewhere isolated
-ENV TOMCAT_NATIVE_LIBDIR $CATALINA_HOME/native-jni-lib
-ENV LD_LIBRARY_PATH ${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$TOMCAT_NATIVE_LIBDIR
-
-# runtime dependencies for Tomcat Native Libraries
-# Tomcat Native 1.2+ requires a newer version of OpenSSL than debian:jessie has available
-# > checking OpenSSL library version >= 1.0.2...
-# > configure: error: Your version of OpenSSL is not compatible with this version of tcnative
-# see http://tomcat.10.x6.nabble.com/VOTE-Release-Apache-Tomcat-8-0-32-tp5046007p5046024.html (and following discussion)
-# and https://github.com/docker-library/tomcat/pull/31
-ENV OPENSSL_VERSION 1.1.0f-3
-RUN set -ex; \
-	if ! grep -q stretch /etc/apt/sources.list; then \
-# only add stretch if we're not already building from within stretch
-		{ \
-
-			echo 'deb http://deb.debian.org/debian stretch main'; \
-		} > /etc/apt/sources.list.d/stretch.list; \
-		{ \
-# add a negative "Pin-Priority" so that we never ever get packages from stretch unless we explicitly request them
-			echo 'Package: *'; \
-			echo 'Pin: release n=stretch'; \
-			echo 'Pin-Priority: -10'; \
-			echo; \
-# ... except OpenSSL, which is the reason we're here
-			echo 'Package: openssl libssl*'; \
-			echo "Pin: version $OPENSSL_VERSION"; \
-			echo 'Pin-Priority: 990'; \
-		} > /etc/apt/preferences.d/stretch-openssl; \
-	fi
-RUN apt-get update && apt-get install -y --no-install-recommends \
-		libapr1 \
-		openssl="$OPENSSL_VERSION" \
-	&& rm -rf /var/lib/apt/lists/*
-
-# see https://www.apache.org/dist/tomcat/tomcat-$TOMCAT_MAJOR/KEYS
-# see also "update.sh" (https://github.com/docker-library/tomcat/blob/master/update.sh)
-ENV GPG_KEYS 05AB33110949707C93A279E3D3EFE6B686867BA6 07E48665A34DCAFAE522E5E6266191C37C037D42 47309207D818FFD8DCD3F83F1931D684307A10A5 541FBE7D8F78B25E055DDEE13C370389288584E7 61B832AC2F1C5A90F0F9B00A1C506407564C17A3 713DA88BE50911535FE716F5208B0AB1D63011C7 79F7026C690BAA50B92CD8B66A3AD3F4F22C4FED 9BA44C2621385CB966EBA586F72C284D731FABEE A27677289986DB50844682F8ACB77FC2E86E29AC A9C5DF4D22E99998D9875A5110C01C5A2F6059E7 DCFD35E0BF8CA7344752DE8B6FB21E8933C60243 F3A04C595DB5B6A5F1ECA43E3B7BBB100D811BBE F7DA48BB64BCB84ECBA7EE6935CD23C10D498E23
-RUN set -ex; \
-	for key in $GPG_KEYS; do \
-		gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
-	done
-
-ENV TOMCAT_MAJOR 8
-ENV TOMCAT_VERSION 8.0.46
-
-# https://issues.apache.org/jira/browse/INFRA-8753?focusedCommentId=14735394#comment-14735394
-ENV TOMCAT_TGZ_URL https://www.apache.org/dyn/closer.cgi?action=download&filename=tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
-# not all the mirrors actually carry the .asc files :'(
-ENV TOMCAT_ASC_URL https://www.apache.org/dist/tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz.asc
-
-# if the version is outdated, we have to pull from the archive :/
-ENV TOMCAT_TGZ_FALLBACK_URL https://archive.apache.org/dist/tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
-ENV TOMCAT_ASC_FALLBACK_URL https://archive.apache.org/dist/tomcat/tomcat-$TOMCAT_MAJOR/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz.asc
-
-RUN set -x \
-	\
-	&& { \
-		wget -O tomcat.tar.gz "$TOMCAT_TGZ_URL" \
-		|| wget -O tomcat.tar.gz "$TOMCAT_TGZ_FALLBACK_URL" \
-	; } \
-	&& { \
-		wget -O tomcat.tar.gz.asc "$TOMCAT_ASC_URL" \
-		|| wget -O tomcat.tar.gz.asc "$TOMCAT_ASC_FALLBACK_URL" \
-	; } \
-	&& gpg --batch --verify tomcat.tar.gz.asc tomcat.tar.gz \
-	&& tar -xvf tomcat.tar.gz --strip-components=1 \
-	&& rm bin/*.bat \
-	&& rm tomcat.tar.gz* \
-	\
-	&& nativeBuildDir="$(mktemp -d)" \
-	&& tar -xvf bin/tomcat-native.tar.gz -C "$nativeBuildDir" --strip-components=1 \
-	&& nativeBuildDeps=" \
-		dpkg-dev \
-		gcc \
-		libapr1-dev \
-		libssl-dev \
-		make \
-		openjdk-${JAVA_VERSION%%[-~bu]*}-jdk=$JAVA_DEBIAN_VERSION \
-	" \
-	&& apt-get update && apt-get install -y --no-install-recommends $nativeBuildDeps && rm -rf /var/lib/apt/lists/* \
-	&& ( \
-		export CATALINA_HOME="$PWD" \
-		&& cd "$nativeBuildDir/native" \
-		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-		&& ./configure \
-			--build="$gnuArch" \
-			--libdir="$TOMCAT_NATIVE_LIBDIR" \
-			--prefix="$CATALINA_HOME" \
-			--with-apr="$(which apr-1-config)" \
-			--with-java-home="$(docker-java-home)" \
-			--with-ssl=yes \
-		&& make -j "$(nproc)" \
-		&& make install \
-	) \
-	&& apt-get purge -y --auto-remove $nativeBuildDeps \
-	&& rm -rf "$nativeBuildDir" \
-	&& rm bin/tomcat-native.tar.gz \
-# sh removes env vars it doesn't support (ones with periods)
-# https://github.com/docker-library/tomcat/issues/77
-	&& find ./bin/ -name '*.sh' -exec sed -ri 's|^#!/bin/sh$|#!/usr/bin/env bash|' '{}' +
-
-# verify Tomcat Native is working properly
-RUN set -e \
-	&& nativeLines="$(catalina.sh configtest 2>&1)" \
-	&& nativeLines="$(echo "$nativeLines" | grep 'Apache Tomcat Native')" \
-	&& nativeLines="$(echo "$nativeLines" | sort -u)" \
-	&& if ! echo "$nativeLines" | grep 'INFO: Loaded APR based Apache Tomcat Native library' >&2; then \
-		echo >&2 "$nativeLines"; \
-		exit 1; \
-	fi
-
-EXPOSE 8080
-CMD ["catalina.sh", "run"]
-```
+### Dockerfile的语法细节：
 
 
 ## Docker仓库管理：Docker registry
