@@ -47,8 +47,12 @@
             - [构建tomcat工程：](#构建tomcat工程)
             - [最精简的运行环境：](#最精简的运行环境)
             - [镜像分层：](#镜像分层)
+            - [部署测试：](#部署测试)
             - [其他文档：](#其他文档)
         - [Dockerfile的语法细节：](#dockerfile的语法细节)
+    - [使用Docker搭建本地的运行环境：](#使用docker搭建本地的运行环境)
+        - [基于alpine搭建IDEA的运行环境：](#基于alpine搭建idea的运行环境)
+        - [基于alpine搭建chrome浏览器：](#基于alpine搭建chrome浏览器)
     - [Docker仓库管理：Docker registry](#docker仓库管理docker-registry)
     - [Docker实现的Linux基础：](#docker实现的linux基础)
         - [在A上的实现可能性：](#在a上的实现可能性)
@@ -1304,35 +1308,161 @@ ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/lo
 ```
 可以看到少了100M空间。
 
+其实如果是为了运行时库，而不是开发，可以选用oracle的Server JRE：
+http://www.oracle.com/technetwork/java/javase/downloads/server-jre8-downloads-2133154.html
+其他都不用变化，只是将其中ADD的部分的包进行替换就好。
+可以看到体积变化：
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+toto                latest              b51ed8d5b2a0        32 seconds ago      207MB
+jenkins/alpine      latest              618b763bb1bb        13 hours ago        703MB
+tomcat              latest              c1ec98774feb        15 hours ago        432MB
+alpine              latest              558174b6522c        16 hours ago        6.38MB
+idea                latest              2ffe3048c6ad        3 days ago          1.4GB
+centos_dev          latest              8de4b2603d68        3 days ago          567MB
+ubuntu              latest              9a402b69afd5        3 days ago          120MB
+busybox             latest              79211bdafeec        3 days ago          4.39MB
+
+只有207M，而且是集成了tomcat的，已经非常小了。
 
 参考文档：
 http://dev.dafan.info/detail/221368?p=32-4
 https://hub.docker.com/r/anapsix/alpine-java/~/dockerfile/
 
 #### 镜像分层：
-```java运行环境
-FROM alpine
+回顾上述过程，我们可以将整个流程拆分，然后使用不同的Dockerfile来做层次分离，方便后续不同应用的集成。
+在docker build的时候，通过-f来添加文件支持：
+docker build -f /path/to/a/Dockerfile -t tagName .
 
-# Java Version and other ENV
-ENV JAVA_HOME=/usr/local/bin/jdk \
-    PATH=${PATH}:/usr/local/bin/jdk/bin \
-    LANG=C.UTF-8
+首先，看看我们最终得到的一个Dockerfile：
+```shell
+# alpine:3.6.2 glibc:2.25 oracle_jre:1.8.144
+FROM scratch
 
-# 添加基本文件
-ADD jdk.tar.gz /usr/local/bin/
+# 添加基本文件支持
+ADD alpine-minirootfs-3.6.2-x86_64.tar.gz /
+ADD server-jre-8u144-linux-x64.tar.gz /usr/local/bin
+ADD apache-tomcat-7.0.81.tar.gz /usr/local/bin
 COPY *.apk /tmp/
 
-# do all in one step
+# 安装系统基础包，并且设置
+RUN rm -f /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/main" >> /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/community" >> /etc/apk/repositories && \
+    apk update --update && apk add bash tree tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    apk add --allow-untrusted /tmp/*.apk && \
+    rm -v /tmp/*.apk && \
+    ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
+    echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
+    /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib
+
+# 设置环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_144 \
+    CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar \
+    CATALINA_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
+    CATALINA_BASE=/usr/local/bin/apache-tomcat-7.0.81 \
+    PATH=$PATH:$JAVA_HOME/bin:$CATALINA_HOME/lib:$CATALINA_HOME/bin
+
+# 暴露tomcat接口，默认为8080
+EXPOSE 8080
+
+# 入口 
+ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
+```
+docker run -d -p 8090:8080 tagName
+启动后台运行。
+
+确认了这些，就可以对上述过程进行拆分，然后通过不同的dockerfile进行组织：
+```基础alpine设置源和时区镜像
+FROM scratch
+ADD alpine-minirootfs-3.6.2-x86_64.tar.gz /
+RUN rm -f /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/main" >> /etc/apk/repositories && \
+    echo "http://mirrors.ustc.edu.cn/alpine/v3.6/community" >> /etc/apk/repositories
+RUN apk update --update && apk add bash tzdata && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo "Asia/Shanghai" > /etc/timezone && \
+    rm -rf /var/cache/apk/*
+CMD ["/bin/bash"]
+```
+
+```基础alpine包含glibc镜像
+FROM alpine.base
+
+# 添加glibc的安装包
+COPY *.apk /tmp/
+
+# 安装glibc等支持
 RUN apk upgrade --update && \
-    apk add curl bash tree ca-certificates && \
     apk add --allow-untrusted /tmp/*.apk && \
     rm -v /tmp/*.apk && \
     ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
     echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
     /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib && \
-    apk del curl glibc-i18n && \
-    ln -s /usr/local/bin/jdk1.8.0_144 /usr/local/bin/jdk
+    rm -rf /tmp/* /var/cache/apk/* && \
+    echo 'hosts: files mdns4_minimal [NOTFOUND=return] dns mdns4' >> /etc/nsswitch.conf && \
+    rm -rf /var/cache/apk/*
 ```
+
+```oracle java运行环境
+FROM alpine.glibc
+
+# 添加基本文件
+ADD server-jre-8u144-linux-x64.tar.gz /usr/local/bin/
+
+# 设置jdk的环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_144 \
+    CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+
+# 设置系统环境变量
+ENV PATH=$PATH:$JAVA_HOME/bin
+```
+
+```tomca支持
+FROM alpine.oracle_jre
+
+ADD apache-tomcat-7.0.81.tar.gz /usr/local/bin
+
+# 设置tomcat的环境变量
+ENV CATALINA_HOME=/usr/local/bin/apache-tomcat-7.0.81 \
+    CATALINA_BASE=/usr/local/bin/apache-tomcat-7.0.81
+
+# 设置系统环境变量
+ENV PATH=$PATH:$CATALINA_HOME/lib:$CATALINA_HOME/bin
+
+# 暴露tomcat接口，默认为8080
+EXPOSE 8080
+
+# 入口 
+ENTRYPOINT /usr/local/bin/apache-tomcat-7.0.81/bin/startup.sh && tail -F /usr/local/bin/apache-tomcat-7.0.81/logs/catalina.out
+```
+
+然后创建生成脚本:
+docker build -f base.dockerfile -t alpine.base .
+docker build -f glibc.dockerfile -t alpine.glibc .
+docker build -f oraclejre.dockerfile -t alpine.oracle_jre .
+docker build -f tomcat.dockerfile -t alpine.tomcat .
+创建删除脚本：
+docker rmi -f alpine.tomcat
+docker rmi -f alpine.oracle_jre
+docker rmi -f alpine.glibc
+docker rmi -f alpine.base
+最后，启动tomcat：
+docker run -d -p 8090:8080 alpine.tomcat
+
+#### 部署测试：
+完成了tomcat部署之后，测试war部署。
+首先拷贝war到当前的容器中：
+docker cp 本地文件路径 容器ID:容器路径
+对应的命令为：
+docker cp jenkins.war 5bbeb992d703:/usr/local/bin/apache-tomcat-7.0.81/webapps/
+然后修改tomcat的tomcat-user.xml，添加图形界面的管理员：
+```xml
+<role rolename="manager-gui"/>
+<user username="tomcat" password="s3cret" roles="manager-gui"/>
+```
+然后重启tomcat服务，就可以启动jenkins服务了。
 
 #### 其他文档：
 或者更换其他支持glibc的发行版，通过搜索，确认tiny core linux比较合适：
@@ -1352,6 +1482,53 @@ https://superuser.com/questions/307087/linux-distro-with-just-busybox-and-bash
 
 
 ### Dockerfile的语法细节：
+
+## 使用Docker搭建本地的运行环境：
+在熟悉了关于Docker的基本概念和Dockerfile的基本编写内容后，我们就可以做一些有趣的事情了。
+
+### 基于alpine搭建IDEA的运行环境：
+之前我们基于完整的ubuntu和oracle jdk搭建过，现在可以轻量级使用alpine来重新搭建，看看能节省多少空间？
+```shell
+FROM alpine.oracle_jre
+
+ADD ideaIC-2017.2.3-no-jdk.tar.gz /usr/local/bin/
+
+# install gui-basic-compent, git and sudo
+RUN apk update --update && \
+    apk add libxtst-dev libxrender-dev sudo && \
+    export uid=1000 gid=1000 && \
+    mkdir -p /home/developer && \
+    echo "developer:x:${uid}:${gid}:Developer,,,:/home/developer:/bin/bash" >> /etc/passwd && \
+    echo "developer:x:${uid}:" >> /etc/group && \
+    echo "developer ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/developer && \
+    chmod 0440 /etc/sudoers.d/developer && \
+    chown ${uid}:${gid} -R /home/developer && \
+    sudo rm -rf /var/cache/apk/*
+    
+
+# 设置环境变量，将IDEA的主目录设置为/home/developer
+USER developer
+ENV HOME /home/developer
+
+# 启动时执行的指令，需要在启动时export变量:
+CMD /usr/local/bin/idea-IC-172.3968.16/bin/idea.sh
+```
+docker build -t idea_alpine .
+然后启动：
+docker run -ti --rm \
+       -e DISPLAY=$DISPLAY \
+       -v /tmp/.X11-unix:/tmp/.X11-unix \
+       idea_alpine
+
+然后查看大小：
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+alpine.idea         latest              c9df0cfda12f        6 seconds ago       860MB
+idea                latest              2ffe3048c6ad        3 days ago          1.4GB
+比较基于ubuntu的还是小了不少。
+
+### 基于alpine搭建chrome浏览器：
+
+
 
 
 ## Docker仓库管理：Docker registry
