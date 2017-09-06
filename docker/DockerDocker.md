@@ -5,6 +5,7 @@
         - [基本环境搭建：](#基本环境搭建)
             - [脚本安装：](#脚本安装)
             - [手动离线包安装：](#手动离线包安装)
+            - [添加Docker服务开机自动启动：](#添加docker服务开机自动启动)
         - [hello-world：](#hello-world)
         - [基本的容器运行命令：](#基本的容器运行命令)
             - [创建并且运行一个后台容器：](#创建并且运行一个后台容器)
@@ -93,6 +94,12 @@ curl -sSL https://get.docker.com/ | sh
 #### 手动离线包安装：
 分析 https://get.docker.com/ 返回的脚本，找到下载安装的deb包的位置为：
 https://apt.dockerproject.org/repo/pool/main/d/docker-engine/
+
+#### 添加Docker服务开机自动启动：
+如果需要将Docker服务添加到开机自动启动，在systemd环境下可以执行：
+systemctl enable docker.service
+将会自动对当前的服务创建连接：
+Created symlink from /etc/systemd/system/multi-user.target.wants/docker.service to /usr/lib/systemd/system/docker.service.
 
 
 参考文档：
