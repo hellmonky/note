@@ -54,6 +54,7 @@
     - [使用Docker搭建本地的运行环境：](#使用docker搭建本地的运行环境)
         - [基于alpine搭建IDEA的运行环境：](#基于alpine搭建idea的运行环境)
         - [基于alpine搭建chrome浏览器：](#基于alpine搭建chrome浏览器)
+        - [基于ubuntu搭建openjdk8编译环境：](#基于ubuntu搭建openjdk8编译环境)
     - [Docker仓库管理：Docker registry](#docker仓库管理docker-registry)
     - [Docker实现的Linux基础：](#docker实现的linux基础)
         - [在A上的实现可能性：](#在a上的实现可能性)
@@ -1535,7 +1536,108 @@ idea                latest              2ffe3048c6ad        3 days ago          
 
 ### 基于alpine搭建chrome浏览器：
 
+### 基于ubuntu搭建openjdk8编译环境：
+有时候我们需要进行软件测试，而测试环境需要安装一堆的依赖包，不同的测试版本依赖不同。
+这个时候使用docker可以非常方便的解决这个问题。
+基于最新的ubuntu镜像，搭建编译环境：
+```shell
+FROM scratch
+#ADD ubuntu-xenial-core-cloudimg-amd64-root.tar.gz /
+ADD https://partner-images.canonical.com/core/xenial/current/ubuntu-xenial-core-cloudimg-amd64-root.tar.gz /
 
+# a few minor docker-specific tweaks
+# see https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap
+RUN set -xe \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L40-L48
+        && echo '#!/bin/sh' > /usr/sbin/policy-rc.d \
+        && echo 'exit 101' >> /usr/sbin/policy-rc.d \
+        && chmod +x /usr/sbin/policy-rc.d \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L54-L56
+        && dpkg-divert --local --rename --add /sbin/initctl \
+        && cp -a /usr/sbin/policy-rc.d /sbin/initctl \
+        && sed -i 's/^exit.*/exit 0/' /sbin/initctl \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L71-L78
+        && echo 'force-unsafe-io' > /etc/dpkg/dpkg.cfg.d/docker-apt-speedup \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L85-L105
+        && echo 'DPkg::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' > /etc/apt/apt.conf.d/docker-clean \
+        && echo 'APT::Update::Post-Invoke { "rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true"; };' >> /etc/apt/apt.conf.d/docker-clean \
+        && echo 'Dir::Cache::pkgcache ""; Dir::Cache::srcpkgcache "";' >> /etc/apt/apt.conf.d/docker-clean \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L109-L115
+        && echo 'Acquire::Languages "none";' > /etc/apt/apt.conf.d/docker-no-languages \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L118-L130
+        && echo 'Acquire::GzipIndexes "true"; Acquire::CompressionTypes::Order:: "gz";' > /etc/apt/apt.conf.d/docker-gzip-indexes \
+        \
+# https://github.com/docker/docker/blob/9a9fc01af8fb5d98b8eec0740716226fadb3735c/contrib/mkimage/debootstrap#L134-L151
+        && echo 'Apt::AutoRemove::SuggestsImportant "false";' > /etc/apt/apt.conf.d/docker-autoremove-suggests
+
+# delete all the apt list files since they're big and get stale quickly
+RUN rm -rf /var/lib/apt/lists/*
+# this forces "apt-get update" in dependent images, which is also good
+
+# enable the universe
+RUN sed -i 's/^#\s*\(deb.*universe\)$/\1/g' /etc/apt/sources.list
+
+# make systemd-detect-virt return "docker"
+# See: https://github.com/systemd/systemd/blob/aa0c34279ee40bce2f9681b496922dedbadfca19/src/basic/virt.c#L434
+RUN mkdir -p /run/systemd && echo 'docker' > /run/systemd/container
+
+# overwrite this with 'CMD []' in a dependent Dockerfile
+CMD ["/bin/bash"]
+```
+docker build -f base.dockerfile -t ubuntu .
+
+然后在这个基础镜像上完成编译环境的搭建：
+```shell
+FROM ubuntu
+
+# 安装必要的工具
+RUN apt-get update && \
+    apt-get install -y mercurial build-essential \
+    libx11-dev libxext-dev libxrender-dev libxtst-dev libxt-dev \
+    libcups2-dev libfreetype6-dev \
+    libasound2-dev ccache gawk m4 unzip zip libasound2-dev \
+    libxrender-dev xorg-dev xutils-dev binutils libmotif-dev ant
+
+# 安装openjdk7作为bootstrap编译器
+RUN apt-get install software-properties-common python-software-properties && \
+    add-apt-repository ppa:openjdk-r/ppa && \
+    apt-get update && \
+    apt-get install openjdk-7-jdk
+```
+可以看到安装了非常多的依赖包，这里也可以通过将安装的依赖包分离，从而得到不同层次的编译环境。
+docker buidl -f openjdk7.dockerfile -t openjdk7/ubuntu .
+
+然后就可以获取openjdk8的代码，然后执行编译。
+docker run -ti -v /home/workspcce/:/share_data/ openjdk7/ubuntu /bin/bash
+然后下载源代码到数据卷中：
+hg clone http://hg.openjdk.java.net/jdk8u jdk8u
+chmod 755 get_source.sh
+./get_source.sh
+./configure --prefix=/usr/local/bin/ >> configure.log
+make all ZIP_DEBUGINFO_FILES=0 DISABLE_HOTSPOT_OS_VERSION_CHECK=OK >> make.log
+完成后可以在build目录下找到当前编译环境相关的文件夹：
+/share_data/jdk8u/build/linux-x86_64-normal-server-release
+然后进入jdk/bin，就可以看到编译好的java可执行文件了：
+./java -version
+返回结果为：
+```shell
+openjdk version "1.8.0-internal"
+OpenJDK Runtime Environment (build 1.8.0-internal-_2017_09_13_06_20-b00)
+OpenJDK 64-Bit Server VM (build 25.71-b00, mixed mode)
+```
+然后执行安装：
+make install
+测试编译好的jdk，就可以在prefix中设置的路径下对java进行设置了。
+
+参考文档：
+[在docker上编译openjdk8](http://blog.csdn.net/boling_cavalry/article/details/70243954)
+[openjdk8最新源码编译及使用(ubuntu16.04)](http://blog.csdn.net/love254443233/article/details/76378002)
 
 
 ## Docker仓库管理：Docker registry
