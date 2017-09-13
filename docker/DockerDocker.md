@@ -7,15 +7,18 @@
             - [手动离线包安装：](#手动离线包安装)
             - [添加Docker服务开机自动启动：](#添加docker服务开机自动启动)
         - [hello-world：](#hello-world)
-        - [基本的容器运行命令：](#基本的容器运行命令)
+        - [基本的镜像命令使用：](#基本的镜像命令使用)
+            - [将当前的容器导出：](#将当前的容器导出)
+            - [从tgz恢复为镜像：](#从tgz恢复为镜像)
+            - [修改已有镜像的名称：](#修改已有镜像的名称)
+            - [通过Dockerfile生成基础镜像：](#通过dockerfile生成基础镜像)
+        - [基本的容器命令使用：](#基本的容器命令使用)
             - [创建并且运行一个后台容器：](#创建并且运行一个后台容器)
             - [进入正在运行的容器：](#进入正在运行的容器)
             - [退出容器而不关闭：](#退出容器而不关闭)
             - [创建而不运行容器：](#创建而不运行容器)
-        - [通过Dockerfile生成基础镜像：](#通过dockerfile生成基础镜像)
-        - [对运行中的docker镜像修改后保存：](#对运行中的docker镜像修改后保存)
-        - [将当前的容器导出：](#将当前的容器导出)
-        - [从tgz恢复为镜像：](#从tgz恢复为镜像)
+        - [基本的容器和镜像转换操作：](#基本的容器和镜像转换操作)
+            - [对运行中的docker镜像修改后保存：](#对运行中的docker镜像修改后保存)
         - [数据卷：](#数据卷)
         - [数据卷容器：](#数据卷容器)
             - [创建数据卷容器：](#创建数据卷容器)
@@ -51,7 +54,7 @@
             - [部署测试：](#部署测试)
             - [其他文档：](#其他文档)
         - [Dockerfile的语法细节：](#dockerfile的语法细节)
-    - [使用Docker搭建本地的运行环境：](#使用docker搭建本地的运行环境)
+    - [Docker实践：](#docker实践)
         - [基于alpine搭建IDEA的运行环境：](#基于alpine搭建idea的运行环境)
         - [基于alpine搭建chrome浏览器：](#基于alpine搭建chrome浏览器)
         - [基于ubuntu搭建openjdk8编译环境：](#基于ubuntu搭建openjdk8编译环境)
@@ -136,150 +139,9 @@ For more examples and ideas, visit:
 ```
 这样就表示当前的docker环境安装，并且可以正确执行了。
 
-### 基本的容器运行命令：
+### 基本的镜像命令使用：
 
-#### 创建并且运行一个后台容器：
-docker run -d -ti --name test busybox /bin/busybox sh
-这个命令将会从远程拉取busybox的基础镜像，然后运行基于这个镜像的容器。
-建议在运行docker中设置name，这样就不会自动生成name，方便后续的识别。
-
-**注意：这个后台运行的容器，使用exec进入后exit不会关闭这个容器**
-
-#### 进入正在运行的容器：
-首先通过：
-docker ps
-查看正在后台运行中的容器，然后使用attach来进入：
-docker attach NAMES
-
-#### 退出容器而不关闭：
-如果使用run来启动一个容器并且进入，需要退出容器但是不关闭运行，一定不要用ctrl+c，那样就是让docker容器停止了。
-要用如下快捷键：
-先按，ctrl+p
-再按，ctrl+q
-这个时候就会重新返回host的终端，使用docker ps还是可以看到在后台运行的容器的。
-
-#### 创建而不运行容器：
-docker run命令会创建并运行容器，如果仅想创建但不运行容器，可以使用docker create命令：
-sudo docker create ubuntu 
-返回当前创建容器的id：
-7d31bae2b5fa86675de61ad3473bf05c95ce28c26b915a434991efa966042b07
-
-后续创建数据卷容器的时候，会有特殊的参数-v来表示当前创建的容器是用于存储的数据卷容器，会将该容器中的数据存储在对应的layer中，保证持久化。
-
-
-docker run -e RequestedIP=192.168.5.230 --privileged=true -d reg.docker.alibaba-inc.com/alios-el6u2-base:1.0
-docker run -e --privileged=true -d busybox /bin/busybox sh
-
-
-### 通过Dockerfile生成基础镜像：
-总体的流程为：编写Dockerfile，然后准备文件，最后编译生成镜像。
-例如，从0开始搭建一个centos的基础镜像，首先准备centos的rootfs，然后使用当前host的kernel就可以了。
-编写Dockerfile内容为：
-```shell
-FROM scratch
-ADD centos-7-docker.tar.xz /
-
-LABEL name="CentOS Base Image" \
-    vendor="CentOS" \
-    license="GPLv2" \
-    build-date="20170801"
-
-CMD ["/bin/bash"]
-```
-然后准备centos7的rootfs，可以从官方下载：
-https://github.com/CentOS/sig-cloud-instance-images/tree/CentOS-7.3.1611/docker
-需要指定branch来获取对应的rootfs。
-
-使用docker对当前这个目录下的Dockerfile和文件进行编译，生成指定名称的镜像：
-```shell
-docker build -t centos7_base .
-```
-命令中第一个参数 -t testimage 指定创建的新镜像的名字，第二个参数是一个点 . 指定从当前目录查找 Dockerfile 文件。
-
-编译完毕后，就可以通过：
-```shell
-docker images
-```
-查看当前编译的镜像。
-最终，使用：
-```shell
-docker run -ti centos7_base /bin/bash
-```
-启动运行并且进入到docker容器中。
-
-关于centos的rootfs生成方法可以看到在[Build](https://github.com/CentOS/sig-cloud-instance-build/tree/master/docker)中的表述:
-```shell
-We use lorax's livemedia-creator to create the rootfs tarball, but you'll need a boot.iso start the process.
-```
-可以作为自己制作rootfs的一个参考。
-
-参考文档：
-[CentOS/sig-cloud-instance-build](https://github.com/CentOS/sig-cloud-instance-build)
-[每天5分钟玩转 Docker 容器技术](https://www.ibm.com/developerworks/community/blogs/132cfa78-44b0-4376-85d0-d3096cd30d3f?lang=en)
-[](https://wanglu.info/1159.html)
-
-ubuntu提供了官方的Docker镜像基础支持：
-可以从：
-https://partner-images.canonical.com/core/xenial/current/
-获取最新的tgz包，对应的Dockerfile工程位于：
-https://hub.docker.com/_/ubuntu/
-```shell
-FROM scratch
-ADD ubuntu-xenial-core-cloudimg-arm64-root.tar.gz /
-
-LABEL name="ubuntu 16.04.3 Base Image" \
-    vendor="Ubuntu" \
-    license="GPLv2" \
-    build-date="20170903"
-
-CMD ["/bin/bash"]
-```
-
-
-### 对运行中的docker镜像修改后保存：
-因为centos7的官方镜像中不包含网络工具，为了方便后续开发，进行安装：
-```shell
-yum install net-tools
-```
-如果这个时候exit退出，那么这个新添加的工具再下次启动后并不存在，为了将这个修正保存，我们需要在exit之前进行保存，新开一个终端，然后使用docker ps -l确认容器状态后，使用：
-```shell
-# -a:修改者信息 -m:注释、说明  紧跟着当前操作的容器id   最后是要生成的新的镜像名称
-sudo docker commit -a "wentao" -m "add net-tools" ae2a59b86dd9 net/centos7_base
-```
-这个时候可以看到会多出一个新的镜像。
-需要注意的是，上面命令中的ae2a59b86dd9，是通过：
-```shell
-docker ps -l
-```
-得到的运行中的容器的ID，而不是对应的镜像的ID。
-
-然后使用：
-docker history IMG_ID
-来查看当前保存的镜像的构建过程。
-
-如果只有一个终端，例如访问的是远程服务器，可以使用组合键（大写字母）：
-```shell
-Ctrl+P+Q
-```
-回车即可跳出docker容器且不关闭，然后执行对当前容器的固化，完成后使用：
-```shell
-docker exec -ti 1d2503e7ffdb /bin/bash
-```
-再次进入运行中的docker容器，其中1d2503e7ffdb就是当前运行中的容器ID。
-
-再次进入后，使用exit是无法关闭容器的，只能从当前的exec状态退出，如果要关闭容器，应该使用：
-```shell
-docker stop --time=20 container_id
-```
-通过输入当前运行的容器id来停止。
-
-参考文档：
-[保存对容器的修改](http://www.docker.org.cn/book/docker/docer-save-changes-10.html)
-[如何进入Docker容器](http://blog.csdn.net/u010397369/article/details/41045251)
-[优雅的终止docker容器](https://xiaozhou.net/stop-docker-container-gracefully-2016-09-08.html)
-
-
-### 将当前的容器导出：
+#### 将当前的容器导出：
 我们在一个容器上的很多snap会形成一个历史，如果需要将当前的完整历史信息保存，方便后续导入，我们可以通过：
 ```shell
 sudo docker save -o /home/fengzheng/dockerImages/mmm.tar ubuntu:12.04
@@ -289,7 +151,7 @@ sudo docker save -o /home/fengzheng/dockerImages/mmm.tar ubuntu:12.04
 如果需要将save的镜像恢复，只需要：
 docker load -i XXX.tar
 
-### 从tgz恢复为镜像：
+#### 从tgz恢复为镜像：
 可以将自己制作的rootfs导入到docker中作为镜像运行。
 以标准centos7的rootfs上安装了工具的系统制作备份：
 ```shell
@@ -477,8 +339,159 @@ docker inspect -f{{.ContainerConfig.Cmd}} centos7_base
 ```shell
 [/bin/sh -c #(nop)  CMD ["/bin/bash"]]
 ```
-
 并且和docker save出来的分层的压缩包不同，一般rootfs打包出来的空间占用会小一些。
+
+#### 修改已有镜像的名称：
+有时候在保存一个镜像的时候起的名称存在问题，可以对镜像的名称进行修改，命令为：
+docker tag 原镜像名 自定义名
+再使用docker images查看会多出来一行，该行的image id和刚刚的自定义名称是一样的。
+实际上是对现在的这个镜像新增了一个tag，并没有修改名称。
+
+#### 通过Dockerfile生成基础镜像：
+总体的流程为：编写Dockerfile，然后准备文件，最后编译生成镜像。
+例如，从0开始搭建一个centos的基础镜像，首先准备centos的rootfs，然后使用当前host的kernel就可以了。
+编写Dockerfile内容为：
+```shell
+FROM scratch
+ADD centos-7-docker.tar.xz /
+
+LABEL name="CentOS Base Image" \
+    vendor="CentOS" \
+    license="GPLv2" \
+    build-date="20170801"
+
+CMD ["/bin/bash"]
+```
+然后准备centos7的rootfs，可以从官方下载：
+https://github.com/CentOS/sig-cloud-instance-images/tree/CentOS-7.3.1611/docker
+需要指定branch来获取对应的rootfs。
+
+使用docker对当前这个目录下的Dockerfile和文件进行编译，生成指定名称的镜像：
+```shell
+docker build -t centos7_base .
+```
+命令中第一个参数 -t testimage 指定创建的新镜像的名字，第二个参数是一个点 . 指定从当前目录查找 Dockerfile 文件。
+
+编译完毕后，就可以通过：
+```shell
+docker images
+```
+查看当前编译的镜像。
+最终，使用：
+```shell
+docker run -ti centos7_base /bin/bash
+```
+启动运行并且进入到docker容器中。
+
+关于centos的rootfs生成方法可以看到在[Build](https://github.com/CentOS/sig-cloud-instance-build/tree/master/docker)中的表述:
+```shell
+We use lorax's livemedia-creator to create the rootfs tarball, but you'll need a boot.iso start the process.
+```
+可以作为自己制作rootfs的一个参考。
+
+参考文档：
+[CentOS/sig-cloud-instance-build](https://github.com/CentOS/sig-cloud-instance-build)
+[每天5分钟玩转 Docker 容器技术](https://www.ibm.com/developerworks/community/blogs/132cfa78-44b0-4376-85d0-d3096cd30d3f?lang=en)
+[](https://wanglu.info/1159.html)
+
+ubuntu提供了官方的Docker镜像基础支持：
+可以从：
+https://partner-images.canonical.com/core/xenial/current/
+获取最新的tgz包，对应的Dockerfile工程位于：
+https://hub.docker.com/_/ubuntu/
+```shell
+FROM scratch
+ADD ubuntu-xenial-core-cloudimg-arm64-root.tar.gz /
+
+LABEL name="ubuntu 16.04.3 Base Image" \
+    vendor="Ubuntu" \
+    license="GPLv2" \
+    build-date="20170903"
+
+CMD ["/bin/bash"]
+```
+
+### 基本的容器命令使用：
+
+#### 创建并且运行一个后台容器：
+docker run -d -ti --name test busybox /bin/busybox sh
+这个命令将会从远程拉取busybox的基础镜像，然后运行基于这个镜像的容器。
+建议在运行docker中设置name，这样就不会自动生成name，方便后续的识别。
+
+**注意：这个后台运行的容器，使用exec进入后exit不会关闭这个容器**
+
+#### 进入正在运行的容器：
+首先通过：
+docker ps
+查看正在后台运行中的容器，然后使用attach来进入：
+docker attach NAMES
+
+#### 退出容器而不关闭：
+如果使用run来启动一个容器并且进入，需要退出容器但是不关闭运行，一定不要用ctrl+c，那样就是让docker容器停止了。
+要用如下快捷键：
+先按，ctrl+p
+再按，ctrl+q
+这个时候就会重新返回host的终端，使用docker ps还是可以看到在后台运行的容器的。
+
+#### 创建而不运行容器：
+docker run命令会创建并运行容器，如果仅想创建但不运行容器，可以使用docker create命令：
+sudo docker create ubuntu 
+返回当前创建容器的id：
+7d31bae2b5fa86675de61ad3473bf05c95ce28c26b915a434991efa966042b07
+
+后续创建数据卷容器的时候，会有特殊的参数-v来表示当前创建的容器是用于存储的数据卷容器，会将该容器中的数据存储在对应的layer中，保证持久化。
+
+
+docker run -e RequestedIP=192.168.5.230 --privileged=true -d reg.docker.alibaba-inc.com/alios-el6u2-base:1.0
+docker run -e --privileged=true -d busybox /bin/busybox sh
+
+
+### 基本的容器和镜像转换操作：
+#### 对运行中的docker镜像修改后保存：
+因为centos7的官方镜像中不包含网络工具，为了方便后续开发，进行安装：
+```shell
+yum install net-tools
+```
+如果这个时候exit退出，那么这个新添加的工具再下次启动后并不存在，为了将这个修正保存，我们需要在exit之前进行保存，新开一个终端，然后使用docker ps -l确认容器状态后，使用：
+```shell
+# -a:修改者信息 -m:注释、说明  紧跟着当前操作的容器id   最后是要生成的新的镜像名称
+sudo docker commit -a "wentao" -m "add net-tools" ae2a59b86dd9 net/centos7_base
+```
+这个时候可以看到会多出一个新的镜像。
+需要注意的是，上面命令中的ae2a59b86dd9，是通过：
+```shell
+docker ps -l
+```
+得到的运行中的容器的ID，而不是对应的镜像的ID。
+
+然后使用：
+docker history IMG_ID
+来查看当前保存的镜像的构建过程。
+
+如果只有一个终端，例如访问的是远程服务器，可以使用组合键（大写字母）：
+```shell
+Ctrl+P+Q
+```
+回车即可跳出docker容器且不关闭，然后执行对当前容器的固化，完成后使用：
+```shell
+docker exec -ti 1d2503e7ffdb /bin/bash
+```
+再次进入运行中的docker容器，其中1d2503e7ffdb就是当前运行中的容器ID。
+
+再次进入后，使用exit是无法关闭容器的，只能从当前的exec状态退出，如果要关闭容器，应该使用：
+```shell
+docker stop --time=20 container_id
+```
+通过输入当前运行的容器id来停止。
+
+参考文档：
+[保存对容器的修改](http://www.docker.org.cn/book/docker/docer-save-changes-10.html)
+[如何进入Docker容器](http://blog.csdn.net/u010397369/article/details/41045251)
+[优雅的终止docker容器](https://xiaozhou.net/stop-docker-container-gracefully-2016-09-08.html)
+
+
+
+
 
 ### 数据卷：
 从上述的实践看到，除非是将正在运行的容器固化为镜像，否则一切修改并不会被保存。
@@ -1491,7 +1504,7 @@ https://superuser.com/questions/307087/linux-distro-with-just-busybox-and-bash
 
 ### Dockerfile的语法细节：
 
-## 使用Docker搭建本地的运行环境：
+## Docker实践：
 在熟悉了关于Docker的基本概念和Dockerfile的基本编写内容后，我们就可以做一些有趣的事情了。
 
 ### 基于alpine搭建IDEA的运行环境：
@@ -1537,10 +1550,10 @@ idea                latest              2ffe3048c6ad        3 days ago          
 ### 基于alpine搭建chrome浏览器：
 
 ### 基于ubuntu搭建openjdk8编译环境：
-有时候我们需要进行软件测试，而测试环境需要安装一堆的依赖包，不同的测试版本依赖不同。
-这个时候使用docker可以非常方便的解决这个问题。
-基于最新的ubuntu镜像，搭建编译环境：
-```shell
+有时候我们需要进行软件测试，而测试环境需要安装一堆的依赖包，不同的测试版本依赖不同。这个时候使用docker可以非常方便的解决这个问题。
+现在我们基于最新的ubuntu镜像，我们搭建openjdk8的编译环境。
+首先，搭建最基础的ubuntu的docker镜像，使用如下Dockerfile：
+```dockerfile
 FROM scratch
 #ADD ubuntu-xenial-core-cloudimg-amd64-root.tar.gz /
 ADD https://partner-images.canonical.com/core/xenial/current/ubuntu-xenial-core-cloudimg-amd64-root.tar.gz /
@@ -1593,7 +1606,7 @@ CMD ["/bin/bash"]
 docker build -f base.dockerfile -t ubuntu .
 
 然后在这个基础镜像上完成编译环境的搭建：
-```shell
+```dockerfile
 FROM ubuntu
 
 # 安装必要的工具
