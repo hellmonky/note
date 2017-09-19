@@ -17,6 +17,7 @@
             - [进入正在运行的容器：](#进入正在运行的容器)
             - [退出容器而不关闭：](#退出容器而不关闭)
             - [创建而不运行容器：](#创建而不运行容器)
+            - [容器与host进行文件传输交互：](#容器与host进行文件传输交互)
         - [基本的容器和镜像转换操作：](#基本的容器和镜像转换操作)
             - [对运行中的docker镜像修改后保存：](#对运行中的docker镜像修改后保存)
         - [数据卷：](#数据卷)
@@ -30,6 +31,7 @@
         - [image和container的关系：](#image和container的关系)
         - [application container 还是 machine container：](#application-container-还是-machine-container)
         - [systemd：](#systemd)
+        - [镜像的选择：](#镜像的选择)
         - [GUI应用：](#gui应用)
             - [Linux的图形子系统简介：](#linux的图形子系统简介)
             - [本地GUI：](#本地gui)
@@ -45,7 +47,7 @@
         - [共享kernel带来的风险：](#共享kernel带来的风险)
         - [Docker ulimit：](#docker-ulimit)
     - [Dockerfile语法：](#dockerfile语法)
-        - [使用alpine基础镜像和Dockerfile构建tomcat运行环境：](#使用alpine基础镜像和dockerfile构建tomcat运行环境)
+        - [使用Alpine基础镜像和Dockerfile构建tomcat运行环境：](#使用alpine基础镜像和dockerfile构建tomcat运行环境)
             - [制作alpine基础镜像:](#制作alpine基础镜像)
             - [从官方网站下载oracle jdk和tomcat7:](#从官方网站下载oracle-jdk和tomcat7)
             - [构建tomcat工程：](#构建tomcat工程)
@@ -54,11 +56,16 @@
             - [部署测试：](#部署测试)
             - [其他文档：](#其他文档)
         - [Dockerfile的语法细节：](#dockerfile的语法细节)
-    - [Docker实践：](#docker实践)
+    - [Docker应用实践：](#docker应用实践)
         - [基于alpine搭建IDEA的运行环境：](#基于alpine搭建idea的运行环境)
         - [基于alpine搭建chrome浏览器：](#基于alpine搭建chrome浏览器)
         - [基于ubuntu搭建openjdk8编译环境：](#基于ubuntu搭建openjdk8编译环境)
+        - [基于Alpine的最小化java8运行环境：](#基于alpine的最小化java8运行环境)
+            - [OpenJDK8](#openjdk8)
+            - [OracleJDK8](#oraclejdk8)
+            - [容量对比：](#容量对比)
     - [Docker仓库管理：Docker registry](#docker仓库管理docker-registry)
+        - [初识Docker Hub：](#初识docker-hub)
     - [Docker实现的Linux基础：](#docker实现的linux基础)
         - [在A上的实现可能性：](#在a上的实现可能性)
         - [实现的特性要求：](#实现的特性要求)
@@ -445,6 +452,16 @@ sudo docker create ubuntu
 docker run -e RequestedIP=192.168.5.230 --privileged=true -d reg.docker.alibaba-inc.com/alios-el6u2-base:1.0
 docker run -e --privileged=true -d busybox /bin/busybox sh
 
+#### 容器与host进行文件传输交互：
+docker cp的方法实现也是把文件推到容器里的aufs文件系统里，具体命令为：
+docker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH|-
+docker cp [OPTIONS] SRC_PATH|- CONTAINER:DEST_PATH
+
+具体的步骤为：
+（1）使用docker ps查看当前运行容器的ID；
+（2）使用命令传输host文件到docker容器的目的地址；
+（3）使用docker exec进入容器，进行操作。
+
 
 ### 基本的容器和镜像转换操作：
 #### 对运行中的docker镜像修改后保存：
@@ -592,8 +609,6 @@ tmpfs mounts:
 ### image和container的关系：
 container就是在image上面添加了一层可读写层的运行状态，运行中的container在commit之后就将这个可读写层固化到现在的image的分层文件结构上。
 
-
-
 ### application container 还是 machine container：
 在启动一个容器之后，我们以为通过kernel+rootfs，然后借由kernel提供的隔离机制就构成了一个完整的运行环境，但是实际上真的如此？
 例如，我们需要修改网络，然后重新服务：
@@ -654,6 +669,23 @@ Failed to get D-Bus connection: Operation not permitted
 原因很简单：
 你需要启动systemd进程
 你需要特权
+
+### 镜像的选择：
+一般而言，我们都会选择主流的Linux发布版本对应的Docker镜像作为自己的基础镜像来进行使用，却没有仔细考虑过除了rootfs之外还有Linux启动服务等其他的因素影响。
+但是在实际使用中，我们发现在Docker中运行的进程其实和在物理机或者虚拟机中的Linux发布版本非常不同，会遇到上述提到的各种问题。
+
+并且从最小化基础镜像的角度来进行取舍，还会采用Alpine Linux发行版的Docker镜像，并且Alpine提供了交互友好的包管理器，避免在安装包时候需要自己解决依赖关系，确实非常好用。
+但是更深层次的，由于Alpine Linux发行版使用了musl，和其他Linux发行版使用的glibc实现有所不同。这就是除了rootfs以外所带来的问题。
+这种基础运行时库的差异会带来运行时的问题。而且由于Docker的分层文件存储结构，基础镜像只需要保存一次就可以，那么体积带来的问题其实并不存在，从稳定业务的角度考虑，统一的环境更为重要。
+
+由此可见，对于基础镜像的选择也是非常关键的。
+关于最小化基础镜像的问题，在Hack news上有激烈的讨论：[Super small Docker image based on Alpine Linux (github.com)](https://news.ycombinator.com/item?id=10782897)
+
+并且推荐了一个基于ubuntu_16.04的修改版本镜像，来对因为docker化带来的问题做出来修正：
+http://phusion.github.io/baseimage-docker/
+个人看了也觉得很不错，推荐在稳定生产环境中使用：
+docker pull phusion/baseimage
+
 
 ### GUI应用：
 有时候我们需要部署带有GUI的应用在docker中，例如IDEA（好吧，这个的确是本地GUI），或者远程服务器上的gui应用。
@@ -1083,8 +1115,8 @@ WantedBy=multi-user.target
 
 我们通过一个构建镜像的例子来熟悉一下具体的语法和构建流程，然后再深入学习。
 
-### 使用alpine基础镜像和Dockerfile构建tomcat运行环境：
-为了最小化部署包，我们使用alpine作为基础镜像，然后使用oracle JDK作为基础java运行环境，然后在tomcat7下进行测试。
+### 使用Alpine基础镜像和Dockerfile构建tomcat运行环境：
+为了展示一个完成的流程，并且加快测试中等待的时间，我们使用Alpine作为基础镜像，然后使用oracle JDK作为基础java运行环境，然后在tomcat7下进行测试。
 
 #### 制作alpine基础镜像:
 wget http://dl-cdn.alpinelinux.org/alpine/v3.6/releases/x86_64/alpine-minirootfs-3.6.2-x86_64.tar.gz
@@ -1504,8 +1536,8 @@ https://superuser.com/questions/307087/linux-distro-with-just-busybox-and-bash
 
 ### Dockerfile的语法细节：
 
-## Docker实践：
-在熟悉了关于Docker的基本概念和Dockerfile的基本编写内容后，我们就可以做一些有趣的事情了。
+## Docker应用实践：
+在熟悉了关于Docker的基本概念和Dockerfile的基本编写内容后，我们就可以使用Docker来做一些有趣的事情了。
 
 ### 基于alpine搭建IDEA的运行环境：
 之前我们基于完整的ubuntu和oracle jdk搭建过，现在可以轻量级使用alpine来重新搭建，看看能节省多少空间？
@@ -1652,6 +1684,48 @@ make install
 [在docker上编译openjdk8](http://blog.csdn.net/boling_cavalry/article/details/70243954)
 [openjdk8最新源码编译及使用(ubuntu16.04)](http://blog.csdn.net/love254443233/article/details/76378002)
 
+### 基于Alpine的最小化java8运行环境：
+有时候我们只需要一个最小化的java运行环境来给自己的应用提供基础环境。
+既然是最小化环境，那么就是在保证可用的前提下越小越好。我们可以采用alpine来作为基础镜像来做到这一点：
+#### OpenJDK8
+我们在base的基础上直接安装jre：
+```dockerfile
+FROM alpine.base
+
+# 安装openjdk_8.131.11-r2
+RUN apk upgrade --update-cache && \
+    apk add openjdk8-jre && \
+    rm -rf /tmp/* /var/cache/apk/*
+```
+这样一个最小化的OpenJDK8-JRE环境就搭建好了。
+
+#### OracleJDK8
+OracleJDK是基于glibc运行时库的，所以使用base镜像是无法满足的，必须使用glibc镜像。
+并且选择使用Oracle的JRE发布版来减少容量。
+```dockerfile
+FROM alpine.glibc
+
+# 添加基本文件
+ADD server-jre-8u144-linux-x64.tar.gz /usr/local/bin/
+
+# 设置jdk的环境变量
+ENV JAVA_HOME=/usr/local/bin/jdk1.8.0_144 \
+    CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+
+# 设置系统环境变量
+ENV PATH=$PATH:$JAVA_HOME/bin
+```
+
+#### 容量对比：
+```shell
+alpine.openjdk8_jre   latest              08ea990eaa19        16 minutes ago      87.5MB
+alpine.openjdk8       latest              b7b620d5b9b4        19 hours ago        105MB
+alpine.oracle_jre     latest              a0bc990e287d        9 days ago          192MB
+```
+可以看出来使用openjdk8-jre能够做到最小的镜像。
+
+其他文档：
+[Smaller Java images with Alpine Linux](https://developer.atlassian.com/blog/2015/08/minimal-java-docker-containers/)
 
 ## Docker仓库管理：Docker registry
 到现在为止，我们建立并且运行了很多的docker容器，现在希望把所有的这些容器打包给别人使用，难道只能通过save等方式导出然后分享吗？
@@ -1660,6 +1734,15 @@ make install
 http://dockone.io/article/747
 v1已经被废弃，现在使用的都是v2，但是开发还在缓慢进行中：
 https://github.com/docker/distribution
+
+### 初识Docker Hub：
+[Docker Hub](https://hub.docker.com)是一个由Docker公司负责维护的公共注册中心，它包含了超过15,000个可用来下载和构建容器的镜像，并且还提供认证、工作组结构、工作流工具（比如webhooks）、构建触发器以及私有工具（比如私有仓库可用于存储你并不想公开分享的镜像）。
+使用Docker Hub主要的命令为四个：
+login
+pull
+push
+search
+
 
 
 
